@@ -1,0 +1,44 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Payment;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Validation\ValidationException;
+
+class PaymentGateway
+{
+    private function ready(): void
+    {
+        if (! config('platform.zibal.enabled') || ! config('platform.zibal.merchant')) {
+            throw ValidationException::withMessages(['payment' => 'درگاه پرداخت هنوز فعال نشده است.']);
+        }
+    }
+
+    public function start(Payment $payment): string
+    {
+        $this->ready();
+        $response = Http::timeout(15)->post('https://gateway.zibal.ir/v1/request', [
+            'merchant' => config('platform.zibal.merchant'), 'amount' => $payment->amount,
+            'callbackUrl' => route('payments.callback'), 'orderId' => (string) $payment->id, 'description' => 'ثبت‌نام کاردرست',
+        ]);
+        $track = $response->json('trackId');
+        if (! $response->successful() || $response->json('result') !== 100 || ! $track) {
+            throw ValidationException::withMessages(['payment' => 'اتصال به درگاه انجام نشد. دوباره تلاش کنید.']);
+        }
+        $payment->update(['track_id' => (string) $track]);
+
+        return 'https://gateway.zibal.ir/start/'.rawurlencode((string) $track);
+    }
+
+    public function verify(Payment $payment): ?string
+    {
+        $this->ready();
+        $response = Http::timeout(15)->post('https://gateway.zibal.ir/v1/verify', ['merchant' => config('platform.zibal.merchant'), 'trackId' => $payment->track_id]);
+        if (! $response->successful() || $response->json('result') !== 100 || ! in_array($response->json('status'), [1, 2], true) || (int) $response->json('amount') !== (int) $payment->amount || (string) $response->json('orderId') !== (string) $payment->id || ! $response->json('refNumber')) {
+            return null;
+        }
+
+        return (string) $response->json('refNumber');
+    }
+}

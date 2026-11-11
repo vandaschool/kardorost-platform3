@@ -1,0 +1,31 @@
+{
+  "phase": "foundation",
+  "completed": [
+    "phone-verification",
+    "password-login",
+    "password-reset",
+    "roles-and-scopes",
+    "panel-shells",
+    "course-and-cohort-create",
+    "seat-reservation",
+    "zibal-adapter",
+    "organization-membership",
+    "audit-events"
+  ],
+  "tests": {
+    "postgresql": {
+      "passed": 38,
+      "assertions": 191
+    },
+    "sqlite": {
+      "passed": 37,
+      "skipped": 1,
+      "assertions": 187
+    }
+  },
+  "browser_qa": false,
+  "deployed": false,
+  "live_sms_verified": false,
+  "live_gateway_verified": false,
+  "all_modules_complete": false
+}
