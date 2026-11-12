@@ -27,6 +27,7 @@ const menus = computed(() =>
               ["خانه مدیریت", "LayoutDashboard", "/admin"],
               ["دوره‌ها", "BookOpen", "/admin/courses"],
               ["مالی و رسیدها", "ReceiptText", "/admin/finance"],
+              ["مشاوره", "MessagesSquare", "/consultations?view=admin"],
               ["کاربران", "Users", "/admin/users"],
               ["سازمان‌ها", "Building2", "/admin/organizations"],
               ["سابقه فعالیت", "History", "/admin/activity"],
@@ -40,6 +41,7 @@ const menus = computed(() =>
           : props.role === "coach"
             ? [
                   ["خانه مربی", "LayoutDashboard", "/coach"],
+                  ["مشاوره", "MessagesSquare", "/consultations?view=coach"],
                   ["حساب من", "UserRound", "/account"],
                   ["پرداخت‌ها و اقساط", "ReceiptText", "/finance"],
               ]
@@ -48,7 +50,7 @@ const menus = computed(() =>
                   ["یادگیری من", "BookOpen", "/learning"],
                   ["دوره‌ها", "Compass", "/courses"],
                   ["خودشناسی", "Fingerprint", null],
-                  ["مشاوره", "MessagesSquare", null],
+                  ["مشاوره", "MessagesSquare", "/consultations"],
                   ["حساب من", "UserRound", "/account"],
                   ["پرداخت‌ها و اقساط", "ReceiptText", "/finance"],
               ],
@@ -69,7 +71,8 @@ const current = (href) => {
     const path = page.url.split("?")[0];
     return (
         href &&
-        (path === href ||
+        (page.url === href ||
+            path === href ||
             (href === "/learning" && path.startsWith("/learning/")) ||
             (href === "/admin/courses" && path.startsWith("/teaching/")) ||
             (href === "/coach" && path.startsWith("/teaching/")))

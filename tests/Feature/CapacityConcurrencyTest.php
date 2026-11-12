@@ -4,6 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Assignment;
 use App\Models\Cohort;
+use App\Models\Consultation;
+use App\Models\ConsultationRequest;
+use App\Models\ConsultationSlot;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Installment;
@@ -192,5 +195,62 @@ CODE;
         $this->assertSame(1, DB::table('notifications')->count());
         $this->assertSame(1, $receipt->fresh()->review_version);
         $this->assertSame($receipt->fresh()->status === 'approved' ? 1 : 0, PaymentAllocation::count());
+    }
+
+    public function test_two_students_cannot_book_the_same_consultation_slot(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Consultation concurrency requires PostgreSQL.');
+        }
+        $slot = ConsultationSlot::factory()->create();
+        $args = [];
+        foreach ([1, 2] as $n) {
+            $u = User::factory()->create();
+            $u->roles()->attach(Role::where('key', 'student')->value('id'));
+            $args[] = [$u->id, $slot->id];
+        }
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+try { app(\App\Services\ConsultationService::class)->book(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\ConsultationSlot::findOrFail((int)$argv[2]),'Concurrent booking');echo 'BOOKED'; }
+catch(\Illuminate\Validation\ValidationException) { echo 'UNAVAILABLE'; }
+CODE;
+        $this->assertSame(['BOOKED', 'UNAVAILABLE'], $this->parallelFinance($code, $args));
+        $this->assertSame(1, Consultation::where('status', 'confirmed')->count());
+        $this->assertTrue($slot->fresh()->booked);
+        $this->assertSame(2, DB::table('notifications')->count());
+    }
+
+    public function test_student_cannot_simultaneously_book_overlapping_consultation_slots(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Consultation concurrency requires PostgreSQL.');
+        }
+        $u = User::factory()->create();
+        $u->roles()->attach(Role::where('key', 'student')->value('id'));
+        $slots = ConsultationSlot::factory()->count(2)->create();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+try { app(\App\Services\ConsultationService::class)->book(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\ConsultationSlot::findOrFail((int)$argv[2]),'Concurrent overlapping booking');echo 'BOOKED'; }
+catch(\Illuminate\Validation\ValidationException) { echo 'UNAVAILABLE'; }
+CODE;
+        $this->assertSame(['BOOKED', 'UNAVAILABLE'], $this->parallelFinance($code, $slots->map(fn ($s) => [$u->id, $s->id])->all()));
+        $this->assertSame(1, Consultation::count());
+        $this->assertSame(1, ConsultationSlot::where('booked', true)->count());
+    }
+
+    public function test_two_simultaneous_human_requests_create_one_pending_request(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Consultation concurrency requires PostgreSQL.');
+        }
+        $u = User::factory()->create();
+        $u->roles()->attach(Role::where('key', 'student')->value('id'));
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+try { app(\App\Services\ConsultationService::class)->request(\App\Models\User::findOrFail((int)$argv[1]),'Concurrent request','Evenings');echo 'CREATED'; }
+catch(\Illuminate\Validation\ValidationException) { echo 'DUPLICATE'; }
+CODE;
+        $this->assertSame(['CREATED', 'DUPLICATE'], $this->parallelFinance($code, [[$u->id], [$u->id]]));
+        $this->assertSame(1, ConsultationRequest::where('status','pending')->count());
     }
 }

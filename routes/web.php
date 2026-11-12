@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BillingPlanController;
+use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\FinanceController;
@@ -45,6 +46,16 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::patch('/teaching/{course}/cohorts/{cohort}/assignments/{assignment}', [TeachingController::class, 'assignment']);
     Route::post('/teaching/{course}/sessions/{session}/attendance', [TeachingController::class, 'attendance']);
     Route::patch('/submissions/{submission}/review', [SubmissionController::class, 'review'])->middleware('throttle:30,1');
+    Route::get('/consultations', [ConsultationController::class, 'index'])->name('consultations');
+    Route::post('/consultations/slots', [ConsultationController::class, 'slot'])->middleware('throttle:30,1');
+    Route::patch('/consultations/slots/{slot}', [ConsultationController::class, 'publish']);
+    Route::patch('/consultations/slots/{slot}/meeting', [ConsultationController::class, 'meeting']);
+    Route::post('/consultations/slots/{slot}/book', [ConsultationController::class, 'book'])->middleware('throttle:10,1');
+    Route::post('/consultations/requests', [ConsultationController::class, 'request'])->middleware('throttle:10,1');
+    Route::post('/consultations/requests/{consultationRequest}/resolve', [ConsultationController::class, 'resolve']);
+    Route::post('/consultations/requests/{consultationRequest}/schedule', [ConsultationController::class, 'schedule'])->middleware('panel.role:admin');
+    Route::patch('/consultations/{consultation}', [ConsultationController::class, 'change']);
+    Route::get('/consultations/{consultation}/join', [ConsultationController::class, 'join']);
     Route::get('/finance', [FinanceController::class, 'index'])->name('finance');
     Route::post('/installments/{installment}/pay', [EnrollmentController::class, 'payInstallment'])->middleware('throttle:10,1');
     Route::post('/installments/{installment}/receipts', [ReceiptController::class, 'store'])->middleware('throttle:10,1');

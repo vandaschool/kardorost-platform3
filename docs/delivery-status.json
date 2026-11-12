@@ -1,5 +1,5 @@
 {
-  "phase": "installments-and-receipt-review",
+  "phase": "consultation-scheduling-and-coordination",
   "completed": [
     "phone-verification",
     "password-login",
@@ -28,24 +28,30 @@
     "admin-receipt-review",
     "payment-allocation-recovery",
     "active-enrollment-debt-report",
-    "jalali-finance-dates"
+    "jalali-finance-dates",
+    "free-consultation-slots",
+    "exclusive-direct-booking",
+    "human-coordination-requests",
+    "consultation-cancellation-history",
+    "shared-consultation-outcomes",
+    "consultation-join-window"
   ],
   "tests": {
     "postgresql": {
-      "passed": 105,
-      "assertions": 657
+      "passed": 125,
+      "assertions": 803
     },
     "sqlite": {
-      "passed": 100,
-      "skipped": 5,
-      "assertions": 631
+      "passed": 117,
+      "skipped": 8,
+      "assertions": 762
     },
     "javascript": {
       "passed": 6
     },
     "production_build": true
   },
-  "browser_qa": false,
+  "browser_qa": true,
   "deployed": false,
   "live_sms_verified": false,
   "live_gateway_verified": false,
@@ -53,5 +59,15 @@
   "live_arvan_verified": false,
   "live_class_provider_verified": false,
   "automatic_overdue_cutoff": false,
-  "live_bank_statement_verified": false
+  "live_bank_statement_verified": false,
+  "browser_qa_scope": [
+    "consultation-student-booking",
+    "consultation-student-request",
+    "coach-request-isolation",
+    "admin-coordination-queue",
+    "rtl-mobile-390",
+    "desktop-1440"
+  ],
+  "consultation_payments_complete": false,
+  "consultation_package_quotas_complete": false
 }
