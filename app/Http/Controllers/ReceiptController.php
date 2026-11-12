@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Installment;
 use App\Models\PaymentReceipt;
+use App\Services\OrganizationBilling;
 use App\Services\ReceiptService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,12 @@ class ReceiptController extends Controller
 
     public function review(Request $request, PaymentReceipt $receipt, ReceiptService $service): RedirectResponse
     {
+        if ($receipt->payment->organization_invoice_id) {
+            $data = $request->validate(['action' => 'required|in:approve,reject', 'expected_review_version' => 'required|integer|min:0', 'review_note' => 'required|string|min:3|max:5000', 'verified_amount' => 'nullable|integer|min:1|max:100000000000', 'statement_verified' => 'nullable']);
+            $ok = app(OrganizationBilling::class)->review($request->user(), $receipt, $data);
+
+            return back()->with('success', $ok ? 'صورتحساب سازمان تسویه شد.' : 'نتیجه رسید سازمان ثبت شد؛ وضعیت را بررسی کنید.');
+        }
         $rules = ['action' => 'required|in:approve,reject', 'expected_review_version' => 'required|integer|min:0', 'review_note' => 'nullable|required_if:action,reject|string|max:5000', 'verified_amount' => 'nullable|required_if:action,approve|integer|min:1|max:1000000000', 'statement_verified' => 'nullable'];
         if ($request->input('action') === 'approve') {
             $rules['statement_verified'] = 'required|accepted';
@@ -36,7 +43,12 @@ class ReceiptController extends Controller
 
     public function file(Request $request, PaymentReceipt $receipt): StreamedResponse
     {
-        abort_unless($request->user()->hasRole('admin') || $receipt->payment->user_id === $request->user()->id, 403);
+        if ($receipt->payment->organization_invoice_id && ! $request->user()->hasRole('admin')) {
+            $org = app(OrganizationController::class)->selected($request);
+            abort_unless($request->user()->hasRole('org_admin') && $org && $org->id === $receipt->payment->organizationInvoice->organization_id, 403);
+        } else {
+            abort_unless($request->user()->hasRole('admin') || $receipt->payment->user_id === $request->user()->id, 403);
+        }
         abort_unless(Storage::disk('receipts')->exists($receipt->file_path), 404);
 
         return Storage::disk('receipts')->download($receipt->file_path, $receipt->file_name, ['Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);

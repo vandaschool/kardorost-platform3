@@ -15,10 +15,13 @@ use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Installment;
 use App\Models\Organization;
+use App\Models\OrganizationInvoice;
 use App\Models\OrganizationLicense;
 use App\Models\OrganizationSeat;
 use App\Models\Payment;
 use App\Models\PaymentAllocation;
+use App\Models\PaymentReceipt;
+use App\Models\ReceiptClaim;
 use App\Models\Refund;
 use App\Models\RefundEvent;
 use App\Models\Role;
@@ -29,6 +32,7 @@ use App\Services\CohortCapacity;
 use App\Services\ConsultationBilling;
 use App\Services\ConsultationService;
 use App\Services\EnrollmentService;
+use App\Services\OrganizationBilling;
 use App\Services\OrganizationEnrollment;
 use App\Services\ReceiptService;
 use App\Services\RefundService;
@@ -276,6 +280,14 @@ CODE;
         if (Schema::hasTable('refunds')) {
             RefundEvent::query()->delete();
             Refund::query()->delete();
+        }
+        if (Schema::hasColumn('payments', 'organization_invoice_id')) {
+            $ids = Payment::whereNotNull('organization_invoice_id')->pluck('id');
+            $receipts = PaymentReceipt::whereIn('payment_id', $ids)->pluck('id');
+            ReceiptClaim::whereIn('payment_receipt_id', $receipts)->delete();
+            PaymentReceipt::whereIn('id', $receipts)->delete();
+            OrganizationInvoice::whereNotNull('settled_payment_id')->update(['settled_payment_id' => null]);
+            Payment::whereIn('id', $ids)->delete();
         }
         if (Schema::hasColumn('payments', 'consultation_id')) {
             Consultation::whereNotNull('settled_payment_id')->update(['settled_payment_id' => null]);
@@ -622,5 +634,98 @@ try {app(\App\Services\OrganizationEnrollment::class)->configure(\App\Models\Use
 CODE;
         $this->assertSame(['LICENSED', 'REJECTED'], $this->parallelFinance($code, $args));
         $this->assertSame(1, OrganizationLicense::count());
+    }
+
+    private function organizationInvoiceCharge(): Payment
+    {
+        config(['platform.finance.transfer_destination' => '6037991234567890', 'platform.finance.transfer_holder' => 'Test holder']);
+        $i = OrganizationInvoice::factory()->create();
+        $a = User::factory()->create();
+        $a->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $m = User::factory()->create();
+        $m->roles()->attach(Role::where('key', 'org_admin')->value('id'));
+        $i->organization->members()->attach($m->id, ['kind' => 'manager']);
+        app(OrganizationBilling::class)->issue($a, $i, 1);
+
+        return app(OrganizationBilling::class)->attempt($m, $i->fresh());
+    }
+
+    public function test_two_verified_organization_charges_settle_one_invoice_once(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Organization payment races require PostgreSQL.');
+        }
+        $p = $this->organizationInvoiceCharge();
+        $other = Payment::create([...$p->only('organization_invoice_id', 'user_id', 'amount', 'method'), 'status' => 'pending']);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo app(\App\Services\OrganizationBilling::class)->capture(\App\Models\Payment::findOrFail((int)$argv[1]),$argv[2])?'PAID':'REVIEW';
+CODE;
+        $this->assertSame(['PAID', 'REVIEW'], $this->parallelFinance($code, [[$p->id, 'ORG-FIRST'], [$other->id, 'ORG-SECOND']]));
+        $this->assertSame(1, Payment::where('status', 'paid')->count());
+        $this->assertSame(2000000, (int) Payment::whereNotNull('captured_at')->sum('amount'));
+        $this->assertSame('paid', $p->organizationInvoice->fresh()->status);
+        $this->assertSame(0, OrganizationLicense::count());
+    }
+
+    public function test_organization_receipt_cannot_be_approved_and_rejected_concurrently(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Organization payment races require PostgreSQL.');
+        }
+        $p = $this->organizationInvoiceCharge();
+        $p->update(['status' => 'expired', 'attempt_expires_at' => now()->subMinute()]);
+        Storage::fake('receipts');
+        $r = app(OrganizationBilling::class)->receipt($p->user, $p->organizationInvoice, UploadedFile::fake()->createWithContent('org.pdf', "%PDF-1.4\nOrg receipt race"), '12345678', now()->toDateString());
+        $args = [];
+        foreach (['approve', 'reject'] as $action) {
+            $a = User::factory()->create();
+            $a->roles()->attach(Role::where('key', 'admin')->value('id'));
+            $args[] = [$r->id, $a->id, $action];
+        }
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+try {app(\App\Services\OrganizationBilling::class)->review(\App\Models\User::findOrFail((int)$argv[2]),\App\Models\PaymentReceipt::findOrFail((int)$argv[1]),['action'=>$argv[3],'expected_review_version'=>0,'review_note'=>'Independent bank review','verified_amount'=>100000,'statement_verified'=>true]);echo 'DECIDED';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['DECIDED', 'STALE'], $this->parallelFinance($code, $args));
+        $this->assertSame(1, $r->fresh()->review_version);
+        $this->assertSame($r->fresh()->status === 'approved' ? 'paid' : 'issued', $p->organizationInvoice->fresh()->status);
+    }
+
+    public function test_organization_invoice_void_racing_payment_never_loses_captured_funds(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Organization payment races require PostgreSQL.');
+        }
+        $p = $this->organizationInvoiceCharge();
+        $p->update(['attempt_expires_at' => now()->subMinute()]);
+        $a = User::factory()->create();
+        $a->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$p=\App\Models\Payment::findOrFail((int)$argv[1]);
+if($argv[2]==='pay') {echo app(\App\Services\OrganizationBilling::class)->capture($p,'VOID-RACE')?'PAID':'REVIEW';}else{try{app(\App\Services\OrganizationBilling::class)->void(\App\Models\User::findOrFail((int)$argv[3]),$p->organizationInvoice,2,'Invoice entered incorrectly');echo 'VOID';}catch(\Illuminate\Validation\ValidationException){echo 'BLOCKED';}}
+CODE;
+        $r = $this->parallelFinance($code, [[$p->id, 'pay', $a->id], [$p->id, 'void', $a->id]]);
+        $this->assertContains($r, [['BLOCKED', 'PAID'], ['REVIEW', 'VOID']]);
+        $this->assertNotNull($p->fresh()->captured_at);
+        $this->assertSame($p->fresh()->status === 'paid' ? 'paid' : 'void', $p->organizationInvoice->fresh()->status);
+    }
+
+    public function test_organization_and_course_payments_share_one_unique_bank_reference(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Organization payment races require PostgreSQL.');
+        }
+        $org = $this->organizationInvoiceCharge();
+        $u = User::factory()->create();
+        $i = $this->financialInvoice($u);
+        $course = Payment::factory()->create(['user_id' => $u->id, 'enrollment_id' => $i->enrollment_id, 'installment_id' => $i->id, 'amount' => $i->amount]);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$p=\App\Models\Payment::findOrFail((int)$argv[1]);$s=$p->organization_invoice_id?\App\Services\OrganizationBilling::class:\App\Services\BillingService::class;
+echo app($s)->capture($p,'SHARED-ORG-COURSE')?'PAID':'REVIEW';
+CODE;
+        $this->assertSame(['PAID', 'REVIEW'], $this->parallelFinance($code, [[$org->id], [$course->id]]));
+        $this->assertSame(1, Payment::whereNotNull('captured_at')->count());
+        $this->assertSame(1,Payment::where('status','paid')->count());
     }
 }

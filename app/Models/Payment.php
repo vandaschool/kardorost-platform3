@@ -18,6 +18,11 @@ class Payment extends Model
         return ['amount' => 'integer', 'paid_at' => 'datetime', 'captured_at' => 'datetime', 'attempt_expires_at' => 'datetime'];
     }
 
+    public function organizationInvoice(): BelongsTo
+    {
+        return $this->belongsTo(OrganizationInvoice::class);
+    }
+
     public function installment(): BelongsTo
     {
         return $this->belongsTo(Installment::class);

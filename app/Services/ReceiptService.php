@@ -65,6 +65,8 @@ class ReceiptService
     {
         abort_unless($admin->is_active && $admin->hasRole('admin'), 403);
 
+        abort_if($receipt->payment->organization_invoice_id, 422);
+
         return DB::transaction(function () use ($admin, $receipt, $data) {
             $payment = $receipt->payment;
             [$cohort,$enrollment,$installment] = $this->billing->locked($payment->installment);
@@ -102,8 +104,8 @@ class ReceiptService
 
     public function normalizeReference(string $value): string
     {
-        $value = strtr($value, array_combine(preg_split('//u','۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩',-1,PREG_SPLIT_NO_EMPTY), str_split('01234567890123456789')));
+        $value = strtr($value, array_combine(preg_split('//u', '۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩', -1, PREG_SPLIT_NO_EMPTY), str_split('01234567890123456789')));
 
-        return strtoupper(preg_replace('/[\s-]+/u','',trim($value)));
+        return strtoupper(preg_replace('/[\s-]+/u', '', trim($value)));
     }
 }

@@ -33,12 +33,18 @@ const menus = computed(() =>
               ["کاربران", "Users", "/admin/users"],
               ["سازمان‌ها", "Building2", "/admin/organizations"],
               ["سهمیه سازمان‌ها", "Users", "/admin/organization-licenses"],
+              [
+                  "صورتحساب سازمان‌ها",
+                  "ReceiptText",
+                  "/admin/organization-invoices",
+              ],
               ["سابقه فعالیت", "History", "/admin/activity"],
           ]
         : props.role === "org_admin"
           ? [
                 ["سازمان من", "Building2", "/organization"],
                 ["ثبت‌نام گروهی", "Users", "/organization/licenses"],
+                ["صورتحساب سازمان", "ReceiptText", "/organization/invoices"],
                 ["حساب من", "UserRound", "/account"],
                 ["پرداخت‌ها و اقساط", "ReceiptText", "/finance"],
                 ["بازپرداخت‌ها", "ReceiptText", "/refunds"],
