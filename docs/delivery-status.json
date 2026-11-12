@@ -1,5 +1,5 @@
 {
-  "phase": "manual-refund-workflow",
+  "phase": "versioned-assessment-infrastructure",
   "completed": [
     "phone-verification",
     "password-login",
@@ -49,17 +49,25 @@
     "private-refund-proof",
     "manual-refund-completion-records",
     "refund-allocation-exclusion",
-    "terminal-refunded-payments"
+    "terminal-refunded-payments",
+    "assessment-draft-editor",
+    "immutable-assessment-publications",
+    "five-option-subscale-scoring",
+    "reverse-scored-items",
+    "resumable-assessment-answers",
+    "encrypted-assessment-responses-and-results",
+    "immutable-final-assessment-reports",
+    "scoped-organization-assessment-reports"
   ],
   "tests": {
     "postgresql": {
-      "passed": 172,
-      "assertions": 1104
+      "passed": 197,
+      "assertions": 1299
     },
     "sqlite": {
-      "passed": 158,
-      "skipped": 14,
-      "assertions": 1030
+      "passed": 180,
+      "skipped": 17,
+      "assertions": 1210
     },
     "javascript": {
       "passed": 6
@@ -89,7 +97,13 @@
     "admin-refund-review",
     "manual-refund-evidence",
     "owner-refund-history",
-    "refund-mobile-390"
+    "refund-mobile-390",
+    "admin-assessment-authoring",
+    "assessment-publication",
+    "student-partial-answers",
+    "assessment-resume",
+    "reverse-scored-final-report",
+    "assessment-report-mobile-390"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": false,
@@ -99,5 +113,10 @@
   "manual_refund_workflow_complete": true,
   "automatic_bank_refunds_complete": false,
   "partial_refunds_complete": false,
-  "active_course_cancellation_complete": false
+  "active_course_cancellation_complete": false,
+  "assessment_instruments_selected": false,
+  "assessment_content_seeded": false,
+  "assessment_paid_access_complete": false,
+  "assessment_engine": "likert_sum_v1",
+  "assessment_ai_interpretation_complete": false
 }

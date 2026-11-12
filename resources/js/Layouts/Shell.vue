@@ -25,6 +25,7 @@ const menus = computed(() =>
     props.role === "admin"
         ? [
               ["خانه مدیریت", "LayoutDashboard", "/admin"],
+              ["خودشناسی", "Fingerprint", "/admin/assessments"],
               ["دوره‌ها", "BookOpen", "/admin/courses"],
               ["مالی و رسیدها", "ReceiptText", "/admin/finance"],
               ["بازپرداخت‌ها", "ReceiptText", "/refunds?view=admin"],
@@ -52,7 +53,7 @@ const menus = computed(() =>
                   ["خانه", "House", "/student"],
                   ["یادگیری من", "BookOpen", "/learning"],
                   ["دوره‌ها", "Compass", "/courses"],
-                  ["خودشناسی", "Fingerprint", null],
+                  ["خودشناسی", "Fingerprint", "/assessments"],
                   ["مشاوره", "MessagesSquare", "/consultations"],
                   ["حساب من", "UserRound", "/account"],
                   ["پرداخت‌ها و اقساط", "ReceiptText", "/finance"],

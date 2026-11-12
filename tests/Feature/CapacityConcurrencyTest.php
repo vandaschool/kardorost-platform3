@@ -2,7 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\Assessment;
+use App\Models\AssessmentAttempt;
+use App\Models\AssessmentVersion;
 use App\Models\Assignment;
+use App\Models\AuditEvent;
 use App\Models\Cohort;
 use App\Models\Consultation;
 use App\Models\ConsultationRequest;
@@ -17,6 +21,7 @@ use App\Models\RefundEvent;
 use App\Models\Role;
 use App\Models\Submission;
 use App\Models\User;
+use App\Services\AssessmentService;
 use App\Services\ConsultationBilling;
 use App\Services\ConsultationService;
 use App\Services\EnrollmentService;
@@ -427,5 +432,75 @@ CODE;
         Storage::forgetDisk('refunds');
         $this->assertSame(1, count(Storage::disk('refunds')->allFiles()));
         Storage::disk('refunds')->deleteDirectory('proofs');
+    }
+
+    private function publishedAssessment(): Assessment
+    {
+        $a = Assessment::factory()->create();
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $service = app(AssessmentService::class);
+        $service->saveDraft($admin, $a, 0, AssessmentVersion::factory()->definition()['definition']);
+        $service->publish($admin, $a, 1);
+
+        return $a->fresh();
+    }
+
+    public function test_concurrent_assessment_starts_resume_one_versioned_attempt(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Assessment races require PostgreSQL.');
+        }
+        $a = $this->publishedAssessment();
+        $u = User::factory()->create();
+        $u->roles()->attach(Role::where('key', 'student')->value('id'));
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo app(\App\Services\AssessmentService::class)->start(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\Assessment::findOrFail((int)$argv[2]))->id;
+CODE;
+        $r = $this->parallelFinance($code, [[$u->id, $a->id], [$u->id, $a->id]]);
+        $this->assertSame($r[0], $r[1]);
+        $this->assertSame(1, AssessmentAttempt::count());
+    }
+
+    private function assessmentAttempt(): AssessmentAttempt
+    {
+        $a = $this->publishedAssessment();
+        $u = User::factory()->create();
+        $u->roles()->attach(Role::where('key', 'student')->value('id'));
+
+        return app(AssessmentService::class)->start($u, $a);
+    }
+
+    public function test_stale_browser_tab_cannot_overwrite_simultaneously_saved_answers(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Assessment races require PostgreSQL.');
+        }
+        $a = $this->assessmentAttempt();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$a=\App\Models\AssessmentAttempt::findOrFail((int)$argv[1]);
+try{app(\App\Services\AssessmentService::class)->save($a->user,$a,1,['q1'=>(int)$argv[2]]);echo 'SAVED';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['SAVED', 'STALE'], $this->parallelFinance($code, [[$a->id, 1], [$a->id, 5]]));
+        $this->assertSame(2, $a->fresh()->revision);
+        $this->assertContains($a->fresh()->answers['q1'], [1, 5]);
+    }
+
+    public function test_concurrent_finalization_creates_one_frozen_report_and_one_audit_event(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Assessment races require PostgreSQL.');
+        }
+        $a = $this->assessmentAttempt();
+        app(AssessmentService::class)->save($a->user, $a, 1, ['q1' => 5, 'q2' => 1]);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$a=\App\Models\AssessmentAttempt::findOrFail((int)$argv[1]);
+echo app(\App\Services\AssessmentService::class)->finish($a->user,$a,2)->status;
+CODE;
+        $this->assertSame(['completed', 'completed'], $this->parallelFinance($code, [[$a->id], [$a->id]]));
+        $this->assertSame(3, $a->fresh()->revision);
+        $this->assertSame(1, AuditEvent::where('action', 'assessment.completed')->count());
+        $this->assertSame(10, $a->fresh()->result['dimensions'][0]['sum']);
     }
 }

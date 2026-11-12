@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BillingPlanController;
 use App\Http\Controllers\ConsultationController;
@@ -65,6 +66,7 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::get('/refunds/{refund}/file', [RefundController::class, 'file'])->name('refunds.file');
     Route::post('/refunds/{refund}/review', [RefundController::class, 'review'])->middleware('panel.role:admin');
     Route::post('/refunds/{refund}/complete', [RefundController::class, 'complete'])->middleware(['panel.role:admin', 'throttle:10,1']);
+    Route::get('/assessment-attempts/{attempt}/report', [AssessmentController::class, 'report'])->name('assessments.report');
     Route::get('/finance', [FinanceController::class, 'index'])->name('finance');
     Route::post('/installments/{installment}/pay', [EnrollmentController::class, 'payInstallment'])->middleware('throttle:10,1');
     Route::post('/installments/{installment}/receipts', [ReceiptController::class, 'store'])->middleware('throttle:10,1');
@@ -73,6 +75,11 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::patch('/account', [PanelController::class, 'updateProfile']);
     Route::patch('/account/password', [PanelController::class, 'changePassword'])->middleware('throttle:5,1');
     Route::middleware('panel.role:student')->group(function () {
+        Route::get('/assessments', [AssessmentController::class, 'index'])->name('assessments');
+        Route::post('/assessments/{assessment}/start', [AssessmentController::class, 'start'])->middleware('throttle:20,1');
+        Route::get('/assessment-attempts/{attempt}', [AssessmentController::class, 'attempt'])->name('assessments.attempt');
+        Route::post('/assessment-attempts/{attempt}/answers', [AssessmentController::class, 'save'])->middleware('throttle:60,1');
+        Route::post('/assessment-attempts/{attempt}/finish', [AssessmentController::class, 'finish'])->middleware('throttle:20,1');
         Route::get('/student', fn (Request $r, PanelController $c) => $c->dashboard($r, 'student'))->name('panel.student');
         Route::get('/learning', [PanelController::class, 'learning'])->name('learning');
         Route::get('/learning/{enrollment}', [LearningController::class, 'show'])->name('learning.room');
@@ -98,6 +105,12 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::post('/admin/finance/receipts/{receipt}/review', [ReceiptController::class, 'review']);
         Route::post('/admin/finance/payments/{payment}/allocate', [FinanceController::class, 'allocate']);
         Route::patch('/admin/cohorts/{cohort}/billing', [BillingPlanController::class, 'update']);
+        Route::get('/admin/assessments', [AssessmentController::class, 'admin'])->name('admin.assessments');
+        Route::post('/admin/assessments', [AssessmentController::class, 'create']);
+        Route::get('/admin/assessments/{assessment}', [AssessmentController::class, 'edit'])->name('admin.assessments.edit');
+        Route::patch('/admin/assessments/{assessment}/draft', [AssessmentController::class, 'draft']);
+        Route::post('/admin/assessments/{assessment}/publish', [AssessmentController::class, 'publish']);
+        Route::patch('/admin/assessments/{assessment}/availability', [AssessmentController::class, 'availability']);
         Route::get('/admin/{section}', [PanelController::class, 'admin']);
         Route::patch('/admin/users/{user}', [AdminUserController::class, 'update']);
         Route::patch('/admin/courses/{course}/coach', [AdminUserController::class, 'assignCoach']);
