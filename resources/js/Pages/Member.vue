@@ -4,12 +4,13 @@ import Shell from "../Layouts/Shell.vue";
 import Empty from "../Components/Empty.vue";
 import Icon from "../Components/Icon.vue";
 import FeedbackHistory from "../Components/FeedbackHistory.vue";
-import { fa, submissionStatuses, attendanceStatuses } from "../dates";
+import { fa, dateTime, submissionStatuses, attendanceStatuses } from "../dates";
 defineProps({
     member: Object,
     organization: Object,
     enrollments: Array,
     learningReports: Object,
+    assessmentReports: Array,
 });
 </script>
 <template>
@@ -28,6 +29,25 @@ defineProps({
             <span class="small-chip"
                 ><Icon name="ShieldCheck" :size="16" />عضو مجموعه شما</span
             >
+        </section>
+        <section class="glass panel-card consultation-section">
+            <h2>گزارش‌های خودشناسی</h2>
+            <p v-if="!assessmentReports?.length" class="muted">
+                هنوز گزارش نهایی وجود ندارد.
+            </p>
+            <article
+                v-for="r in assessmentReports"
+                :key="r.id"
+                class="consultation-card"
+            >
+                <h3>{{ r.title }}</h3>
+                <p>نسخه {{ fa(r.number) }} · {{ dateTime(r.completed_at) }}</p>
+                <Link
+                    class="btn secondary"
+                    :href="`/assessment-attempts/${r.id}/report`"
+                    >مشاهده گزارش نهایی</Link
+                >
+            </article>
         </section>
         <section class="glass panel-card">
             <h2>ثبت‌نام‌های آموزشی</h2>
