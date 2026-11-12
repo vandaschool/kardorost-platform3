@@ -2451,3 +2451,325 @@ progress::-moz-progress-bar {
         font-size: 9px;
     }
 }
+
+/* Billing and receipt workflows */
+.learning-tabs > a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 8px 19px;
+    border-radius: 100px;
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+}
+.learning-tabs > a.active {
+    background: var(--teal-soft);
+    color: var(--teal-ink);
+}
+.billing-plan-editor {
+    flex-basis: 100%;
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 15px;
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: var(--surface);
+}
+.billing-plan-editor summary {
+    font-size: 11px;
+    cursor: pointer;
+    min-height: 32px;
+    display: list-item;
+    line-height: 2.8;
+}
+.billing-plan-editor summary .badge {
+    margin-inline-start: 9px;
+}
+.billing-plan-editor .form-stack {
+    margin-top: 18px;
+}
+.billing-plan-editor .access-options {
+    margin: 0;
+}
+.simple-row:has(.billing-plan-editor) {
+    flex-wrap: wrap;
+}
+.billing-part-row {
+    display: grid;
+    grid-template-columns: auto 1fr 1.5fr 32px;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+}
+.billing-part-row > strong {
+    font-size: 11px;
+}
+.jalali-date-input {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    width: 100%;
+    direction: rtl;
+}
+.jalali-date-input select {
+    min-width: 0;
+    padding: 10px 6px;
+    font-size: 11px;
+}
+.jalali-date-input select:first-child {
+    flex: 0.7;
+}
+.jalali-date-input select:nth-child(2) {
+    flex: 1.3;
+}
+.jalali-date-input select:nth-child(3) {
+    flex: 1;
+}
+.jalali-date-input > .text-link {
+    font-size: 9px;
+    flex-shrink: 0;
+}
+.bill-summary {
+    display: flex;
+    gap: 12px 25px;
+    flex-wrap: wrap;
+    padding: 15px 0 20px;
+    font-size: 11px;
+    color: var(--muted);
+}
+.bill-summary b {
+    font-weight: 600;
+    color: var(--ink);
+}
+.financial-enrollment {
+    scroll-margin-top: 20px;
+}
+.installment-card {
+    border-top: 1px solid var(--line);
+    padding: 22px 0;
+}
+.installment-card:last-child {
+    padding-bottom: 5px;
+}
+.installment-card h3 {
+    font-size: 14px;
+}
+.installment-card .section-heading {
+    margin-bottom: 10px;
+}
+.installment-card .learning-actions {
+    align-items: flex-start;
+}
+.receipt-upload {
+    min-width: 0;
+}
+.receipt-upload:has(.receipt-upload-form) {
+    width: 100%;
+}
+.receipt-upload-form {
+    max-width: 600px;
+    padding: 22px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--surface);
+    margin-top: 18px;
+}
+.receipt-upload-form > .btn {
+    align-self: flex-start;
+}
+.bank-details {
+    border: 1px solid var(--line);
+    background: var(--surface-raised);
+    border-radius: 13px;
+    padding: 18px;
+}
+.bank-details strong {
+    font-size: 14px;
+}
+.bank-details p {
+    font-size: 12px;
+    margin-top: 5px;
+    overflow-wrap: anywhere;
+}
+.bank-details p[dir="ltr"] {
+    text-align: center;
+    letter-spacing: 1px;
+    font-size: 16px;
+    font-weight: 650;
+    margin-top: 13px;
+}
+.payment-history-row {
+    border-bottom: 1px solid var(--line);
+    padding: 22px 0;
+}
+.payment-history-row:last-of-type {
+    border-bottom: 0;
+}
+.payment-history-row h3 {
+    font-size: 14px;
+}
+.payment-amount {
+    font-size: 14px;
+    font-weight: 650;
+}
+.receipt-review-card {
+    border: 1px solid var(--line);
+    border-radius: 17px;
+    padding: 24px;
+    margin: 20px 0;
+}
+.receipt-review-card h3 {
+    font-size: 15px;
+}
+.receipt-facts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 25px;
+    border-top: 1px solid var(--line);
+    padding-top: 18px;
+    margin-block: 0 17px;
+}
+.receipt-facts > div {
+    min-width: 0;
+}
+.receipt-facts dt {
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 5px;
+}
+.receipt-facts dd {
+    margin: 0;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+.receipt-review-card .check-label {
+    align-items: flex-start;
+    font-size: 12px;
+    line-height: 2.1;
+}
+.receipt-review-card .check-label input {
+    margin-top: 6px;
+    flex-shrink: 0;
+}
+.finance-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 23px;
+}
+.cohort-checkout {
+    border-top: 1px solid var(--line);
+    padding-top: 5px;
+    margin-top: 12px;
+}
+.cohort-checkout .cohort-option {
+    border-top: 0;
+    padding-block: 10px;
+}
+.cohort-checkout > label {
+    font-size: 10px;
+}
+.cohort-checkout > label > select {
+    font-size: 11px;
+    min-height: 40px;
+}
+.checkout-schedule {
+    margin-top: 12px;
+    font-size: 10px;
+    color: var(--muted);
+}
+.checkout-schedule > summary {
+    cursor: pointer;
+    min-height: 30px;
+}
+.checkout-schedule > p {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 0;
+    border-top: 1px solid var(--line);
+}
+.checkout-schedule strong {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--ink);
+}
+@media (max-width: 650px) {
+    .learning-tabs > a {
+        font-size: 10px;
+        padding: 8px 12px;
+    }
+    .billing-part-row {
+        grid-template-columns: 1fr 28px;
+        gap: 12px;
+    }
+    .billing-part-row > strong {
+        grid-column: 1;
+    }
+    .billing-part-row > label {
+        grid-column: 1;
+    }
+    .billing-part-row > .icon-btn {
+        grid-column: 2;
+        grid-row: 1;
+    }
+    .billing-plan-editor {
+        padding: 11px 13px;
+    }
+    .billing-plan-editor summary .badge {
+        font-size: 8px;
+    }
+    .bill-summary {
+        gap: 8px;
+        font-size: 10px;
+        flex-direction: column;
+        padding-top: 4px;
+    }
+    .installment-card {
+        padding: 19px 0;
+    }
+    .installment-card h3 {
+        font-size: 12px;
+    }
+    .installment-card .badge {
+        font-size: 9px;
+    }
+    .receipt-upload-form {
+        padding: 17px;
+    }
+    .receipt-facts {
+        grid-template-columns: 1fr;
+        gap: 13px;
+    }
+    .receipt-review-card {
+        padding: 18px;
+        margin: 16px 0;
+    }
+    .receipt-review-card h3 {
+        font-size: 14px;
+    }
+    .receipt-review-card .section-heading {
+        flex-wrap: wrap;
+    }
+    .bank-details p[dir="ltr"] {
+        font-size: 14px;
+        letter-spacing: 0;
+    }
+    .finance-pagination {
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .payment-history-row .section-heading {
+        flex-wrap: wrap;
+    }
+    .financial-enrollment .section-heading {
+        align-items: flex-start;
+    }
+    .financial-enrollment h2 {
+        font-size: 17px;
+    }
+}

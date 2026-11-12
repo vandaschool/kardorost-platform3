@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Payment extends Model
 {
@@ -14,7 +15,17 @@ class Payment extends Model
 
     protected function casts(): array
     {
-        return ['paid_at' => 'datetime'];
+        return ['amount' => 'integer', 'paid_at' => 'datetime', 'captured_at' => 'datetime', 'attempt_expires_at' => 'datetime'];
+    }
+
+    public function installment(): BelongsTo
+    {
+        return $this->belongsTo(Installment::class);
+    }
+
+    public function receipt(): HasOne
+    {
+        return $this->hasOne(PaymentReceipt::class);
     }
 
     public function enrollment(): BelongsTo

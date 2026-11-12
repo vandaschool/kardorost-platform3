@@ -17,7 +17,7 @@ class CourseController extends Controller
     public function index(Request $request): Response
     {
         $q = trim((string) $request->query('q', ''));
-        $courses = Course::where('is_published', true)->when($q, fn ($query) => $query->where('title', 'like', '%'.str_replace(['%', '_'], ['\\%', '\\_'], $q).'%'))->with(['cohorts' => fn ($q) => $q->where('registration_open', true)])->latest()->get();
+        $courses = Course::where('is_published', true)->when($q, fn ($query) => $query->where('title', 'like', '%'.str_replace(['%', '_'], ['\\%', '\\_'], $q).'%'))->with(['cohorts' => fn ($q) => $q->where('registration_open', true)->with('installmentPlan')])->latest()->get();
 
         return Inertia::render('Courses', ['courses' => $courses, 'query' => $q]);
     }

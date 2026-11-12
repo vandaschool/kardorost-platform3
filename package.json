@@ -4,11 +4,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "test:dates": "node --test tests/js/finance-dates.test.mjs"
   },
   "dependencies": {
     "@inertiajs/vue3": "^3.0.0",
     "hls.js": "^1.7.4",
+    "jalaali-js": "^1.2.8",
     "lucide-vue-next": "^0.468.0",
     "vue": "^3.5.0"
   },

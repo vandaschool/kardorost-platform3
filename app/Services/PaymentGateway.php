@@ -35,7 +35,10 @@ class PaymentGateway
     {
         $this->ready();
         $response = Http::timeout(15)->post('https://gateway.zibal.ir/v1/verify', ['merchant' => config('platform.zibal.merchant'), 'trackId' => $payment->track_id]);
-        if (! $response->successful() || $response->json('result') !== 100 || ! in_array($response->json('status'), [1, 2], true) || (int) $response->json('amount') !== (int) $payment->amount || (string) $response->json('orderId') !== (string) $payment->id || ! $response->json('refNumber')) {
+        if ($response->successful() && $response->json('result') === 201) {
+            $response = Http::timeout(15)->post('https://gateway.zibal.ir/v1/inquiry', ['merchant' => config('platform.zibal.merchant'), 'trackId' => $payment->track_id]);
+        }
+        if (! $response->successful() || $response->json('result') !== 100 || ! in_array($response->json('status'), [1, 2], true) || filter_var($response->json('amount'), FILTER_VALIDATE_INT) !== (int) $payment->amount || ! is_scalar($response->json('orderId')) || (string) $response->json('orderId') !== (string) $payment->id || ! is_scalar($response->json('refNumber')) || (string) $response->json('refNumber') === '' || strlen((string) $response->json('refNumber')) > 100) {
             return null;
         }
 

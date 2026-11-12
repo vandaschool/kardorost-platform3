@@ -97,27 +97,19 @@ const money = (n) => new Intl.NumberFormat("fa-IR").format(n / 10);
                     class="btn primary"
                     >ادامه یادگیری<Icon name="ArrowLeft" :size="17"
                 /></Link>
-                <button
-                    v-if="
-                        e.status === 'pending_payment' &&
-                        paymentEnabled &&
-                        new Date(e.expires_at) > new Date()
-                    "
-                    class="btn primary"
-                    :disabled="form.processing"
-                    @click="form.post('/enrollments/' + e.id + '/pay')"
-                >
-                    تکمیل پرداخت<Icon name="ArrowLeft" :size="17" /></button
-                ><span
-                    v-else-if="e.status === 'pending_payment'"
-                    class="caption muted"
+                <Link
+                    v-if="e.amount > 0"
+                    href="/finance"
+                    :class="[
+                        'btn',
+                        e.status === 'active' ? 'secondary' : 'primary',
+                    ]"
                     >{{
-                        new Date(e.expires_at) <= new Date()
-                            ? "مهلت رزرو تمام شده؛ دوباره از دوره‌ها ثبت‌نام کنید."
-                            : "درگاه هنوز فعال نشده است."
-                    }}</span
-                >
-            </article>
-        </section></Shell
-    >
+                        e.status === "active"
+                            ? "پرداخت‌ها و اقساط"
+                            : "صورتحساب و تکمیل پرداخت"
+                    }}<Icon name="ArrowLeft" :size="17"
+                /></Link>
+            </article></section
+    ></Shell>
 </template>

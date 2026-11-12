@@ -2,12 +2,15 @@
 
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BillingPlanController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\EnrollmentController;
+use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\LearningController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\PanelController;
+use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\SubmissionController;
 use App\Http\Controllers\TeachingController;
 use Illuminate\Http\Request;
@@ -42,6 +45,10 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::patch('/teaching/{course}/cohorts/{cohort}/assignments/{assignment}', [TeachingController::class, 'assignment']);
     Route::post('/teaching/{course}/sessions/{session}/attendance', [TeachingController::class, 'attendance']);
     Route::patch('/submissions/{submission}/review', [SubmissionController::class, 'review'])->middleware('throttle:30,1');
+    Route::get('/finance', [FinanceController::class, 'index'])->name('finance');
+    Route::post('/installments/{installment}/pay', [EnrollmentController::class, 'payInstallment'])->middleware('throttle:10,1');
+    Route::post('/installments/{installment}/receipts', [ReceiptController::class, 'store'])->middleware('throttle:10,1');
+    Route::get('/receipts/{receipt}/file', [ReceiptController::class, 'file'])->name('receipts.file');
     Route::get('/account', [PanelController::class, 'profile'])->name('account');
     Route::patch('/account', [PanelController::class, 'updateProfile']);
     Route::patch('/account/password', [PanelController::class, 'changePassword'])->middleware('throttle:5,1');
@@ -67,6 +74,10 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     });
     Route::middleware('panel.role:admin')->group(function () {
         Route::get('/admin', fn (Request $r, PanelController $c) => $c->dashboard($r, 'admin'))->name('panel.admin');
+        Route::get('/admin/finance', [FinanceController::class, 'admin'])->name('admin.finance');
+        Route::post('/admin/finance/receipts/{receipt}/review', [ReceiptController::class, 'review']);
+        Route::post('/admin/finance/payments/{payment}/allocate', [FinanceController::class, 'allocate']);
+        Route::patch('/admin/cohorts/{cohort}/billing', [BillingPlanController::class, 'update']);
         Route::get('/admin/{section}', [PanelController::class, 'admin']);
         Route::patch('/admin/users/{user}', [AdminUserController::class, 'update']);
         Route::patch('/admin/courses/{course}/coach', [AdminUserController::class, 'assignCoach']);

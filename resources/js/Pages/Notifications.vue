@@ -17,7 +17,7 @@ const form = useForm({});
                 <span class="eyebrow">خبرهای مسیر شما</span>
                 <h1>اعلان‌ها</h1>
                 <p class="muted">
-                    بازخورد تمرین‌ها و خبرهای مربوط به حساب شما.
+                    بازخورد تمرین‌ها، وضعیت رسیدها و خبرهای حساب شما.
                 </p>
             </div>
         </section>
@@ -26,7 +26,7 @@ const form = useForm({});
                 v-if="!notifications.data.length"
                 icon="Bell"
                 title="هنوز اعلانی ندارید"
-                text="وقتی مربی پاسخ شما را بررسی کند، همین‌جا مطلع می‌شوید."
+                text="رویدادهای آموزشی و مالی حساب شما در این بخش نمایش داده می‌شوند."
             />
             <article
                 v-for="n in notifications.data"
@@ -43,7 +43,7 @@ const form = useForm({});
                             v-if="n.data.url"
                             :href="n.data.url"
                             class="text-link"
-                            >مشاهده تمرین<Icon
+                            >مشاهده جزئیات<Icon
                                 name="ChevronLeft"
                                 :size="16" /></Link
                         ><button

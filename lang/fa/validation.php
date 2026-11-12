@@ -1,6 +1,11 @@
 <?php
 
 return [
+    'accepted' => 'تأیید :attribute ضروری است.',
+    'date_format' => ':attribute باید در قالب تاریخ معتبر باشد.',
+    'before_or_equal' => ':attribute نباید بعد از :date باشد.',
+    'regex' => 'قالب :attribute معتبر نیست.',
+    'present' => 'ارسال :attribute ضروری است.',
     'required_without' => 'متن پاسخ یا فایل پیوست را وارد کنید.',
     'required_if' => 'وارد کردن :attribute برای این وضعیت ضروری است.',
     'file' => ':attribute باید یک فایل معتبر باشد.',
@@ -22,5 +27,5 @@ return [
     'min' => ['string' => ':attribute باید حداقل :min نویسه باشد.', 'numeric' => ':attribute نباید کمتر از :min باشد.', 'array' => 'حداقل :min مورد انتخاب کنید.'],
     'max' => ['file' => 'حجم فایل نباید بیشتر از :max کیلوبایت باشد.', 'string' => ':attribute نباید بیشتر از :max نویسه باشد.', 'numeric' => ':attribute نباید بیشتر از :max باشد.', 'array' => 'بیش از :max مورد مجاز نیست.'],
     'between' => ['numeric' => ':attribute باید بین :min و :max باشد.'],
-    'attributes' => ['file' => 'فایل پیوست', 'body' => 'متن پاسخ', 'instructions' => 'راهنمای تمرین', 'score' => 'نمره', 'feedback' => 'بازخورد', 'max_score' => 'سقف نمره', 'available_at' => 'زمان دسترسی', 'due_at' => 'موعد تحویل', 'closes_at' => 'پایان ارسال', 'starts_at' => 'زمان شروع', 'ends_at' => 'زمان پایان', 'media_url' => 'لینک ویدیو', 'media_kind' => 'نوع ویدیو', 'duration_seconds' => 'مدت ویدیو', 'position' => 'ترتیب', 'provider' => 'بستر کلاس', 'meeting_url' => 'لینک کلاس', 'recording_url' => 'لینک ضبط', 'name' => 'نام و نام خانوادگی', 'phone' => 'شماره موبایل', 'password' => 'رمز عبور', 'password_confirmation' => 'تکرار رمز عبور', 'current_password' => 'رمز فعلی', 'code' => 'کد تأیید', 'title' => 'عنوان', 'description' => 'توضیح', 'price' => 'مبلغ', 'capacity' => 'ظرفیت', 'stage' => 'مرحله', 'format' => 'شیوه برگزاری', 'roles' => 'نقش‌ها', 'coach_id' => 'مربی', 'type' => 'نوع مجموعه'],
+    'attributes' => ['file' => 'فایل پیوست', 'parts' => 'برنامه اقساط', 'verified_amount' => 'مبلغ گردش بانکی', 'statement_verified' => 'تطبیق با گردش بانکی', 'transfer_reference' => 'شماره پیگیری', 'transfer_date' => 'تاریخ واریز', 'expected_review_version' => 'نسخه بررسی', 'manual_payment_enabled' => 'پرداخت کارت‌به‌کارت', 'body' => 'متن پاسخ', 'instructions' => 'راهنمای تمرین', 'score' => 'نمره', 'feedback' => 'بازخورد', 'max_score' => 'سقف نمره', 'available_at' => 'زمان دسترسی', 'due_at' => 'موعد تحویل', 'closes_at' => 'پایان ارسال', 'starts_at' => 'زمان شروع', 'ends_at' => 'زمان پایان', 'media_url' => 'لینک ویدیو', 'media_kind' => 'نوع ویدیو', 'duration_seconds' => 'مدت ویدیو', 'position' => 'ترتیب', 'provider' => 'بستر کلاس', 'meeting_url' => 'لینک کلاس', 'recording_url' => 'لینک ضبط', 'name' => 'نام و نام خانوادگی', 'phone' => 'شماره موبایل', 'password' => 'رمز عبور', 'password_confirmation' => 'تکرار رمز عبور', 'current_password' => 'رمز فعلی', 'code' => 'کد تأیید', 'title' => 'عنوان', 'description' => 'توضیح', 'price' => 'مبلغ', 'capacity' => 'ظرفیت', 'stage' => 'مرحله', 'format' => 'شیوه برگزاری', 'roles' => 'نقش‌ها', 'coach_id' => 'مربی', 'type' => 'نوع مجموعه'],
 ];

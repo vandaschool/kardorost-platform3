@@ -1,5 +1,5 @@
 {
-  "phase": "learning-and-feedback",
+  "phase": "installments-and-receipt-review",
   "completed": [
     "phone-verification",
     "password-login",
@@ -21,18 +21,29 @@
     "grading-and-revision-workflow",
     "feedback-history",
     "internal-notifications",
-    "organization-learning-reports"
+    "organization-learning-reports",
+    "versioned-installment-schedules",
+    "personal-invoices-and-balances",
+    "private-transfer-receipts",
+    "admin-receipt-review",
+    "payment-allocation-recovery",
+    "active-enrollment-debt-report",
+    "jalali-finance-dates"
   ],
   "tests": {
     "postgresql": {
-      "passed": 72,
-      "assertions": 447
+      "passed": 105,
+      "assertions": 657
     },
     "sqlite": {
-      "passed": 70,
-      "skipped": 2,
-      "assertions": 439
-    }
+      "passed": 100,
+      "skipped": 5,
+      "assertions": 631
+    },
+    "javascript": {
+      "passed": 6
+    },
+    "production_build": true
   },
   "browser_qa": false,
   "deployed": false,
@@ -40,5 +51,7 @@
   "live_gateway_verified": false,
   "all_modules_complete": false,
   "live_arvan_verified": false,
-  "live_class_provider_verified": false
+  "live_class_provider_verified": false,
+  "automatic_overdue_cutoff": false,
+  "live_bank_statement_verified": false
 }

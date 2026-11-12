@@ -1,12 +1,12 @@
 <script setup>
-import { Head, useForm, router } from "@inertiajs/vue3";
+import { Head, router } from "@inertiajs/vue3";
 import { ref } from "vue";
 import Shell from "../Layouts/Shell.vue";
 import Icon from "../Components/Icon.vue";
 import Empty from "../Components/Empty.vue";
+import CohortCheckout from "../Components/CohortCheckout.vue";
 const props = defineProps({ courses: Array, query: String });
 const q = ref(props.query);
-const form = useForm({});
 const stages = ["", "خودشناسی شغلی", "تصمیم‌گیری شغلی", "بازنگری شغلی"];
 const money = (n) =>
     n ? new Intl.NumberFormat("fa-IR").format(n / 10) + " تومان" : "رایگان";
@@ -70,26 +70,11 @@ function search() {
                 <div class="course-body">
                     <h2>{{ course.title }}</h2>
                     <p>{{ course.description }}</p>
-                    <div
-                        class="cohort-option"
+                    <CohortCheckout
                         v-for="cohort in course.cohorts"
                         :key="cohort.id"
-                    >
-                        <span
-                            ><Icon name="CalendarDays" :size="16" />{{
-                                cohort.title
-                            }}
-                            · {{ type[cohort.format] }}</span
-                        ><button
-                            class="btn secondary"
-                            @click="
-                                form.post('/cohorts/' + cohort.id + '/enroll')
-                            "
-                            :disabled="form.processing"
-                        >
-                            ثبت‌نام<Icon name="ArrowLeft" :size="16" />
-                        </button>
-                    </div>
+                        :cohort="cohort"
+                    />
                     <div class="course-price">{{ money(course.price) }}</div>
                     <span v-if="!course.cohorts.length" class="muted caption"
                         >ثبت‌نام این دوره فعلاً بسته است.</span

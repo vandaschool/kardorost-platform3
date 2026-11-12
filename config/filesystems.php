@@ -29,6 +29,7 @@ return [
     */
 
     'disks' => [
+        'receipts' => ['driver' => 'local', 'root' => storage_path('app/receipts-private'), 'visibility' => 'private', 'serve' => false, 'throw' => true],
         'learning' => ['driver' => 'local', 'root' => storage_path('app/learning-private'), 'visibility' => 'private', 'serve' => false, 'throw' => true],
 
         'local' => [

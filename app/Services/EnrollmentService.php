@@ -13,32 +13,45 @@ use Illuminate\Validation\ValidationException;
 
 class EnrollmentService
 {
-    public function reserve(User $user, Cohort $cohort): Enrollment
+    public function reserve(User $user, Cohort $cohort, string $plan = 'full'): Enrollment
     {
-        return DB::transaction(function () use ($user, $cohort) {
+        return DB::transaction(function () use ($user, $cohort, $plan) {
             $cohort = Cohort::whereKey($cohort->id)->lockForUpdate()->firstOrFail();
             $course = Course::whereKey($cohort->course_id)->firstOrFail();
             if (! $cohort->registration_open || ! $course->is_published) {
                 throw ValidationException::withMessages(['cohort' => 'ثبت‌نام این دوره باز نیست.']);
             }
-            $existing = Enrollment::where('user_id', $user->id)->where('cohort_id', $cohort->id)->first();
-            if ($existing && ($existing->status === 'active' || ($existing->status === 'pending_payment' && $existing->expires_at?->isFuture()))) {
+            if (! in_array($plan, ['full', 'installments'], true)) {
+                throw ValidationException::withMessages(['payment_plan' => 'روش پرداخت معتبر نیست.']);
+            }
+            $existing = Enrollment::where('user_id', $user->id)->where('cohort_id', $cohort->id)->lockForUpdate()->first();
+            if ($existing && $existing->status === 'active') {
                 return $existing;
             }
-            $occupied = Enrollment::where('cohort_id', $cohort->id)->where(function ($q) {
-                $q->where('status', 'active')->orWhere(fn ($q) => $q->where('status', 'pending_payment')->where('expires_at', '>', now()));
-            })->count();
+            if ($existing && $existing->status === 'pending_payment' && $existing->expires_at?->isFuture()) {
+                if ($existing->payment_plan !== $plan) {
+                    throw ValidationException::withMessages(['payment_plan' => 'روش پرداخت این رزرو ثبت شده است. پس از پایان رزرو می‌توانید روش تازه انتخاب کنید.']);
+                }
+
+return $existing;
+            }
+            if ($existing && Payment::where('enrollment_id', $existing->id)->where(fn ($q) => $q->whereNotNull('captured_at')->orWhere('status', 'pending_review'))->exists()) {
+                throw ValidationException::withMessages(['payment' => 'برای این ثبت‌نام پرداخت یا رسید در انتظار تعیین تکلیف وجود دارد. با مدیریت پیگیری کنید.']);
+            }
+            $occupied = Enrollment::where('cohort_id', $cohort->id)->where(fn ($q) => $q->where('status', 'active')->orWhere(fn ($q) => $q->where('status', 'pending_payment')->where('expires_at', '>', now())))->count();
             if ($occupied >= $cohort->capacity) {
                 throw ValidationException::withMessages(['cohort' => 'ظرفیت این نوبت تکمیل شده است.']);
             }
-            $attributes = ['amount' => $course->price, 'user_id' => $user->id, 'course_id' => $course->id, 'cohort_id' => $cohort->id, 'status' => $course->price === 0 ? 'active' : 'pending_payment', 'expires_at' => $course->price === 0 ? null : now()->addMinutes(15)];
+            $attributes = ['amount' => $course->price, 'user_id' => $user->id, 'course_id' => $course->id, 'cohort_id' => $cohort->id, 'payment_plan' => $course->price === 0 ? 'full' : $plan, 'billing_version' => $existing ? $existing->billing_version + 1 : 1, 'status' => $course->price === 0 ? 'active' : 'pending_payment', 'expires_at' => $course->price === 0 ? null : now()->addMinutes(15)];
             if ($existing) {
                 Payment::where('enrollment_id', $existing->id)->where('status', 'pending')->update(['status' => 'expired']);
+                $existing->installments()->whereNull('paid_at')->whereNull('voided_at')->update(['voided_at' => now()]);
                 $existing->update($attributes);
                 $enrollment = $existing;
             } else {
                 $enrollment = Enrollment::create($attributes);
             }
+            app(BillingService::class)->issue($enrollment, $course, $cohort, $attributes['payment_plan']);
             AuditEvent::create(['actor_id' => $user->id, 'action' => 'enrollment.created', 'subject_type' => 'enrollment', 'subject_id' => $enrollment->id]);
 
             return $enrollment;
@@ -47,27 +60,6 @@ class EnrollmentService
 
     public function settle(Payment $payment, string $reference): bool
     {
-        return DB::transaction(function () use ($payment, $reference) {
-            $enrollmentId = $payment->enrollment_id;
-            $enrollment = Enrollment::whereKey($enrollmentId)->firstOrFail();
-            $cohort = Cohort::whereKey($enrollment->cohort_id)->lockForUpdate()->firstOrFail();
-            $payment = Payment::whereKey($payment->id)->lockForUpdate()->firstOrFail();
-            $enrollment = Enrollment::whereKey($enrollmentId)->lockForUpdate()->firstOrFail();
-            if (in_array($payment->status, ['paid', 'review_required'], true)) {
-                return $payment->status === 'paid';
-            }
-            $alreadyPaid = Payment::where('enrollment_id', $enrollmentId)->where('status', 'paid')->exists();
-            $active = Enrollment::where('cohort_id', $cohort->id)->where('id', '!=', $enrollment->id)->where(function ($q) {
-                $q->where('status', 'active')->orWhere(fn ($q) => $q->where('status', 'pending_payment')->where('expires_at', '>', now()));
-            })->count();
-            $state = ($alreadyPaid || (int) $payment->amount !== (int) $enrollment->amount || ($enrollment->status !== 'active' && $active >= $cohort->capacity)) ? 'review_required' : 'paid';
-            $payment->update(['status' => $state, 'reference' => $reference, 'paid_at' => now()]);
-            if ($state === 'paid') {
-                $enrollment->update(['status' => 'active', 'expires_at' => null]);
-            }
-            AuditEvent::create(['actor_id' => $payment->user_id, 'action' => 'payment.'.$state, 'subject_type' => 'payment', 'subject_id' => $payment->id]);
-
-            return $state === 'paid';
-        });
+        return app(BillingService::class)->capture($payment,$reference);
     }
 }

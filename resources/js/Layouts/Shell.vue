@@ -26,6 +26,7 @@ const menus = computed(() =>
         ? [
               ["خانه مدیریت", "LayoutDashboard", "/admin"],
               ["دوره‌ها", "BookOpen", "/admin/courses"],
+              ["مالی و رسیدها", "ReceiptText", "/admin/finance"],
               ["کاربران", "Users", "/admin/users"],
               ["سازمان‌ها", "Building2", "/admin/organizations"],
               ["سابقه فعالیت", "History", "/admin/activity"],
@@ -34,11 +35,13 @@ const menus = computed(() =>
           ? [
                 ["سازمان من", "Building2", "/organization"],
                 ["حساب من", "UserRound", "/account"],
+                ["پرداخت‌ها و اقساط", "ReceiptText", "/finance"],
             ]
           : props.role === "coach"
             ? [
                   ["خانه مربی", "LayoutDashboard", "/coach"],
                   ["حساب من", "UserRound", "/account"],
+                  ["پرداخت‌ها و اقساط", "ReceiptText", "/finance"],
               ]
             : [
                   ["خانه", "House", "/student"],
@@ -47,6 +50,7 @@ const menus = computed(() =>
                   ["خودشناسی", "Fingerprint", null],
                   ["مشاوره", "MessagesSquare", null],
                   ["حساب من", "UserRound", "/account"],
+                  ["پرداخت‌ها و اقساط", "ReceiptText", "/finance"],
               ],
 );
 function switchRole(role) {

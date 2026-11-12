@@ -4,6 +4,7 @@ import { ref } from "vue";
 import Shell from "../Layouts/Shell.vue";
 import Icon from "../Components/Icon.vue";
 import Empty from "../Components/Empty.vue";
+import BillingPlanEditor from "../Components/BillingPlanEditor.vue";
 const props = defineProps({
     section: String,
     courses: Array,
@@ -230,8 +231,7 @@ const action = {
                     v-if="!courses.length"
                     icon="BookOpen"
                     title="هنوز دوره‌ای ساخته نشده"
-                    text="از دکمه دوره جدید، اولین دوره را تعریف کنید."
-                />
+                    text="از دکمه دوره جدید، اولین دوره را تعریف کنید." />
                 <div v-for="c in courses" :key="c.id" class="simple-row">
                     <span class="row-icon teal"><Icon name="BookOpen" /></span>
                     <div class="grow">
@@ -265,9 +265,13 @@ const action = {
                         class="badge"
                         :class="c.is_published ? 'teal' : 'gold'"
                         >{{ c.is_published ? "منتشرشده" : "پیش‌نویس" }}</span
-                    >
-                </div></template
-            >
+                    ><BillingPlanEditor
+                        v-for="cohort in c.cohorts"
+                        :key="cohort.id"
+                        :cohort="cohort"
+                        :course-price="c.price"
+                    /></div
+            ></template>
             <template v-else-if="section === 'users'"
                 ><form
                     v-if="editUser"
