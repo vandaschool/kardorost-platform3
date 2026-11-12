@@ -70,6 +70,9 @@ class RefundService
 
     public function eligible(Payment $p): bool
     {
+        if ($p->organization_invoice_id) {
+            return false;
+        }
         if (! $p->captured_at || ! $p->reference || $p->amount <= 0 || ! in_array($p->status, ['paid', 'review_required'], true)) {
             return false;
         }
@@ -95,6 +98,9 @@ class RefundService
     public function request(User $actor, Payment $payment, string $destination, string $reason, int $version): Refund
     {
         abort_unless($actor->is_active && $actor->id === $payment->user_id, 403);
+        if ($payment->organization_invoice_id) {
+            $this->fail('بازپرداخت قرارداد سازمانی از مسیر رسیدگی سازمان پیگیری می‌شود.');
+        }
         $destination = $this->iban($destination);
 
         return DB::transaction(function () use ($actor, $payment, $destination, $reason, $version) {

@@ -1,5 +1,5 @@
 {
-  "phase": "organization-quota-and-group-enrollment",
+  "phase": "organization-contract-invoices",
   "completed": [
     "phone-verification",
     "password-login",
@@ -65,17 +65,25 @@
     "nonduplicating-quota-consumption",
     "private-organization-enrollment-csv",
     "historical-organization-seat-ledger",
-    "public-available-seat-count"
+    "public-available-seat-count",
+    "organization-invoice-drafts",
+    "immutable-internal-invoice-issuance",
+    "organization-gateway-payments",
+    "private-organization-transfer-receipts",
+    "admin-organization-receipt-review",
+    "versioned-invoice-voiding",
+    "shared-corporate-and-personal-payment-ledger",
+    "corporate-payment-personal-finance-isolation"
   ],
   "tests": {
     "postgresql": {
-      "passed": 224,
-      "assertions": 1461
+      "passed": 252,
+      "assertions": 1653
     },
     "sqlite": {
-      "passed": 202,
-      "skipped": 22,
-      "assertions": 1347
+      "passed": 226,
+      "skipped": 26,
+      "assertions": 1517
     },
     "javascript": {
       "passed": 6
@@ -116,7 +124,12 @@
     "manager-group-enrollment",
     "scoped-organization-csv",
     "sponsored-student-learning",
-    "organization-mobile-390"
+    "organization-mobile-390",
+    "admin-organization-invoice-draft",
+    "immutable-invoice-issuance",
+    "organization-private-receipt",
+    "admin-organization-settlement",
+    "organization-invoice-mobile-390"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": false,
@@ -132,8 +145,12 @@
   "assessment_paid_access_complete": false,
   "assessment_engine": "likert_sum_v1",
   "assessment_ai_interpretation_complete": false,
-  "organization_contract_billing_complete": false,
+  "organization_contract_billing_complete": true,
   "organization_seat_recycling_complete": false,
   "organization_invitation_import_complete": false,
-  "organization_expiry_cuts_existing_learning": false
+  "organization_expiry_cuts_existing_learning": false,
+  "organization_partial_invoice_payments_complete": false,
+  "organization_refunds_complete": false,
+  "organization_formal_tax_invoicing_complete": false,
+  "organization_automatic_license_purchase_complete": false
 }

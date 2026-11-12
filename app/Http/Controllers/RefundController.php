@@ -21,7 +21,7 @@ class RefundController extends Controller
         if ($admin) {
             abort_unless($r->user()->hasRole('admin'), 403);
         }
-        $payments = Payment::with(['refund', 'enrollment.course', 'consultation.slot.coach', 'user:id,name'])->when(! $admin, fn ($q) => $q->where('user_id', $r->user()->id));
+        $payments = Payment::whereNull('organization_invoice_id')->with(['refund', 'enrollment.course', 'consultation.slot.coach', 'user:id,name'])->when(! $admin, fn ($q) => $q->where('user_id', $r->user()->id));
         $selected = isset($d['payment']) ? (clone $payments)->findOrFail($d['payment']) : null;
         $status = $d['status'] ?? ($admin ? 'requested' : 'all');
         $rows = Refund::with(['events', 'payment.user:id,name', 'payment.enrollment.course', 'payment.consultation.slot.coach'])->when(! $admin, fn ($q) => $q->whereHas('payment', fn ($p) => $p->where('user_id', $r->user()->id)))->when($status !== 'all', fn ($q) => $q->where('status', $status))->when($selected, fn ($q) => $q->where('payment_id', $selected->id))->latest()->paginate(12)->withQueryString()->through(fn ($f) => $this->data($f, $admin));

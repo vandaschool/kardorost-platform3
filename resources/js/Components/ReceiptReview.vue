@@ -37,8 +37,11 @@ function begin() {
             <div>
                 <h3>{{ receipt.student.name }}</h3>
                 <p class="caption muted">
-                    {{ receipt.payment.title }} · قسط
-                    {{ fa(receipt.payment.sequence) }} ·
+                    {{ receipt.payment.title
+                    }}<span v-if="receipt.payment.sequence">
+                        · قسط {{ fa(receipt.payment.sequence) }}</span
+                    >
+                    ·
                     {{ money(receipt.payment.amount) }}
                 </p>
             </div>
@@ -111,12 +114,19 @@ function begin() {
                     دادم.</label
                 ></template
             ><label
-                >یادداشت{{ form.action === "reject" ? " و دلیل رد، الزامی" : ""
+                >یادداشت{{
+                    form.action === "reject" ||
+                    receipt.payment.organization_invoice_id
+                        ? "، الزامی"
+                        : ""
                 }}<textarea
                     v-model="form.review_note"
                     maxlength="5000"
                     rows="3"
-                    :required="form.action === 'reject'"
+                    :required="
+                        form.action === 'reject' ||
+                        !!receipt.payment.organization_invoice_id
+                    "
                 ></textarea>
             </label>
             <p

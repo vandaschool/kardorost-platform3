@@ -12,6 +12,7 @@ use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\LearningController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrganizationController;
+use App\Http\Controllers\OrganizationInvoiceController;
 use App\Http\Controllers\OrganizationLicenseController;
 use App\Http\Controllers\PanelController;
 use App\Http\Controllers\ReceiptController;
@@ -33,6 +34,7 @@ Route::middleware('guest')->group(function () {
     Route::post('/auth/restart', [AuthController::class, 'restart']);
 });
 Route::get('/consultation-payments/callback', [ConsultationPaymentController::class, 'callback'])->middleware('throttle:60,1')->name('consultation-payments.callback');
+Route::get('/organization-payments/callback', [OrganizationInvoiceController::class, 'callback'])->middleware('throttle:60,1')->name('organization-payments.callback');
 Route::get('/payments/callback', [EnrollmentController::class, 'callback'])->middleware('throttle:60,1')->name('payments.callback');
 Route::middleware(['auth', 'account.active', 'auth.session'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -99,6 +101,10 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/organization/licenses/{license}', [OrganizationLicenseController::class, 'show']);
         Route::post('/organization/licenses/{license}/enroll', [OrganizationLicenseController::class, 'enroll'])->middleware('throttle:20,1');
         Route::get('/organization/licenses/{license}/export', [OrganizationLicenseController::class, 'export']);
+        Route::get('/organization/invoices', [OrganizationInvoiceController::class, 'index'])->name('organization.invoices');
+        Route::get('/organization/invoices/{invoice}', [OrganizationInvoiceController::class, 'show'])->name('organization.invoices.show');
+        Route::post('/organization/invoices/{invoice}/pay', [OrganizationInvoiceController::class, 'pay'])->middleware('throttle:10,1');
+        Route::post('/organization/invoices/{invoice}/receipts', [OrganizationInvoiceController::class, 'receipt'])->middleware('throttle:10,1');
         Route::get('/organization', [OrganizationController::class, 'index'])->name('panel.org_admin');
         Route::post('/organization/switch', [OrganizationController::class, 'switch']);
         Route::post('/organization/members', [OrganizationController::class, 'addMember']);
@@ -119,6 +125,12 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/admin/organization-licenses', [OrganizationLicenseController::class, 'admin'])->name('admin.organization-licenses');
         Route::post('/admin/organization-licenses', [OrganizationLicenseController::class, 'store']);
         Route::patch('/admin/organization-licenses/{license}', [OrganizationLicenseController::class, 'update']);
+        Route::get('/admin/organization-invoices', [OrganizationInvoiceController::class, 'admin'])->name('admin.organization-invoices');
+        Route::post('/admin/organization-invoices', [OrganizationInvoiceController::class, 'create']);
+        Route::get('/admin/organization-invoices/{invoice}', [OrganizationInvoiceController::class, 'adminShow'])->name('admin.organization-invoices.show');
+        Route::patch('/admin/organization-invoices/{invoice}', [OrganizationInvoiceController::class, 'update']);
+        Route::post('/admin/organization-invoices/{invoice}/issue', [OrganizationInvoiceController::class, 'issue']);
+        Route::post('/admin/organization-invoices/{invoice}/void', [OrganizationInvoiceController::class, 'void']);
         Route::get('/admin/{section}', [PanelController::class, 'admin']);
         Route::patch('/admin/users/{user}', [AdminUserController::class, 'update']);
         Route::patch('/admin/courses/{course}/coach', [AdminUserController::class, 'assignCoach']);
