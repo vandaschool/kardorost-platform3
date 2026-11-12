@@ -38,7 +38,10 @@ const fa = (n) => new Intl.NumberFormat("fa-IR").format(n);
             title="سازمان فعالی به شما متصل نیست"
             text="تعیین مدیر سازمان توسط مدیریت کاردرست انجام می‌شود." /><template
             v-else
-            ><section class="stats-grid">
+            ><Link href="/organization/licenses" class="btn primary"
+                >سهمیه‌ها و ثبت‌نام گروهی</Link
+            >
+            <section class="stats-grid">
                 <div class="stat-card glass">
                     <span class="stat-icon teal"><Icon name="Users" /></span>
                     <div>

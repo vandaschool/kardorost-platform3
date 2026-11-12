@@ -69,6 +69,8 @@ class OrganizationController extends Controller
             throw ValidationException::withMessages(['phone' => 'این عضو ابتدا باید در کاردرست ثبت‌نام کند.']);
         }
         DB::transaction(function () use ($org, $user, $request) {
+            $org = Organization::whereKey($org->id)->lockForUpdate()->firstOrFail();
+            abort_unless($org->status === 'active' && $org->members()->where('users.id', $request->user()->id)->wherePivot('kind', 'manager')->exists(), 403);
             $org->members()->syncWithoutDetaching([$user->id]);
             AuditEvent::create(['actor_id' => $request->user()->id, 'action' => 'organization.member_added', 'subject_type' => 'user', 'subject_id' => $user->id, 'metadata' => ['organization_id' => $org->id]]);
         });

@@ -38,9 +38,8 @@ class EnrollmentService
             if ($existing && Payment::where('enrollment_id', $existing->id)->where('status', '!=', 'refunded')->where(fn ($q) => $q->whereNotNull('captured_at')->orWhere('status', 'pending_review'))->exists()) {
                 throw ValidationException::withMessages(['payment' => 'برای این ثبت‌نام پرداخت یا رسید در انتظار تعیین تکلیف وجود دارد. با مدیریت پیگیری کنید.']);
             }
-            $occupied = Enrollment::where('cohort_id', $cohort->id)->where(fn ($q) => $q->where('status', 'active')->orWhere(fn ($q) => $q->where('status', 'pending_payment')->where('expires_at', '>', now())))->count();
-            if ($occupied >= $cohort->capacity) {
-                throw ValidationException::withMessages(['cohort' => 'ظرفیت این نوبت تکمیل شده است.']);
+            if (app(CohortCapacity::class)->available($cohort) < 1) {
+                throw ValidationException::withMessages(['cohort' => 'ظرفیت آزاد این نوبت تکمیل شده است.']);
             }
             $attributes = ['amount' => $course->price, 'user_id' => $user->id, 'course_id' => $course->id, 'cohort_id' => $cohort->id, 'payment_plan' => $course->price === 0 ? 'full' : $plan, 'billing_version' => $existing ? $existing->billing_version + 1 : 1, 'status' => $course->price === 0 ? 'active' : 'pending_payment', 'expires_at' => $course->price === 0 ? null : now()->addMinutes(15)];
             if ($existing) {

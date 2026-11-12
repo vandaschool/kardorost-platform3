@@ -12,6 +12,7 @@ use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\LearningController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrganizationController;
+use App\Http\Controllers\OrganizationLicenseController;
 use App\Http\Controllers\PanelController;
 use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\RefundController;
@@ -94,6 +95,10 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/coach', fn (Request $r, PanelController $c) => $c->dashboard($r, 'coach'))->name('panel.coach');
     });
     Route::middleware('panel.role:org_admin')->group(function () {
+        Route::get('/organization/licenses', [OrganizationLicenseController::class, 'index'])->name('organization.licenses');
+        Route::get('/organization/licenses/{license}', [OrganizationLicenseController::class, 'show']);
+        Route::post('/organization/licenses/{license}/enroll', [OrganizationLicenseController::class, 'enroll'])->middleware('throttle:20,1');
+        Route::get('/organization/licenses/{license}/export', [OrganizationLicenseController::class, 'export']);
         Route::get('/organization', [OrganizationController::class, 'index'])->name('panel.org_admin');
         Route::post('/organization/switch', [OrganizationController::class, 'switch']);
         Route::post('/organization/members', [OrganizationController::class, 'addMember']);
@@ -111,6 +116,9 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::patch('/admin/assessments/{assessment}/draft', [AssessmentController::class, 'draft']);
         Route::post('/admin/assessments/{assessment}/publish', [AssessmentController::class, 'publish']);
         Route::patch('/admin/assessments/{assessment}/availability', [AssessmentController::class, 'availability']);
+        Route::get('/admin/organization-licenses', [OrganizationLicenseController::class, 'admin'])->name('admin.organization-licenses');
+        Route::post('/admin/organization-licenses', [OrganizationLicenseController::class, 'store']);
+        Route::patch('/admin/organization-licenses/{license}', [OrganizationLicenseController::class, 'update']);
         Route::get('/admin/{section}', [PanelController::class, 'admin']);
         Route::patch('/admin/users/{user}', [AdminUserController::class, 'update']);
         Route::patch('/admin/courses/{course}/coach', [AdminUserController::class, 'assignCoach']);

@@ -2847,3 +2847,20 @@ progress::-moz-progress-bar {
     gap: 0.75rem;
     flex-wrap: wrap;
 }
+
+.organization-license-form label:has(> input[type="checkbox"]),
+.assessment-option {
+    flex-direction: row;
+    align-items: flex-start;
+}
+.organization-license-form input[type="checkbox"],
+.assessment-option input[type="checkbox"],
+.assessment-option input[type="radio"] {
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    min-height: 18px;
+    padding: 0;
+    margin: 4px 0;
+    accent-color: var(--teal);
+}

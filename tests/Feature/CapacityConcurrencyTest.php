@@ -14,6 +14,9 @@ use App\Models\ConsultationSlot;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Installment;
+use App\Models\Organization;
+use App\Models\OrganizationLicense;
+use App\Models\OrganizationSeat;
 use App\Models\Payment;
 use App\Models\PaymentAllocation;
 use App\Models\Refund;
@@ -22,9 +25,11 @@ use App\Models\Role;
 use App\Models\Submission;
 use App\Models\User;
 use App\Services\AssessmentService;
+use App\Services\CohortCapacity;
 use App\Services\ConsultationBilling;
 use App\Services\ConsultationService;
 use App\Services\EnrollmentService;
+use App\Services\OrganizationEnrollment;
 use App\Services\ReceiptService;
 use App\Services\RefundService;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
@@ -502,5 +507,120 @@ CODE;
         $this->assertSame(3, $a->fresh()->revision);
         $this->assertSame(1, AuditEvent::where('action', 'assessment.completed')->count());
         $this->assertSame(10, $a->fresh()->result['dimensions'][0]['sum']);
+    }
+
+    private function organizationQuota(int $capacity = 2, int $seats = 1): array
+    {
+        $org = Organization::factory()->create(['name' => 'Organization race', 'type' => 'company', 'status' => 'active']);
+        $c = Cohort::factory()->create(['capacity' => $capacity]);
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $manager = User::factory()->create();
+        $manager->roles()->attach(Role::where('key', 'org_admin')->value('id'));
+        $org->members()->attach($manager->id, ['kind' => 'manager']);
+        $members = [];
+        foreach ([1, 2] as $n) {
+            $u = User::factory()->create();
+            $u->roles()->attach(Role::where('key', 'student')->value('id'));
+            $org->members()->attach($u->id);
+            $members[] = $u;
+        }
+        $l = app(OrganizationEnrollment::class)->configure($admin, $org, $c, ['seat_limit' => $seats, 'expires_on' => now()->addMonth()->toDateString(), 'active' => true, 'contract_reference' => 'Race contract']);
+
+        return [$org, $c, $l, $manager, $members];
+    }
+
+    private function organizationEnrollmentCode(): string
+    {
+        return <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$l=\App\Models\OrganizationLicense::findOrFail((int)$argv[1]);
+try {$r=app(\App\Services\OrganizationEnrollment::class)->enroll(\App\Models\User::findOrFail((int)$argv[2]),$l->organization,$l,1,[(int)$argv[3]]);echo $r['enrolled']?'ENROLLED':'SKIPPED';}catch(\Illuminate\Validation\ValidationException){echo 'REJECTED';}
+CODE;
+    }
+
+    public function test_two_managers_cannot_consume_one_organization_seat_twice(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Organization capacity races require PostgreSQL.');
+        }
+        [$org,$c,$l,$manager,$members] = $this->organizationQuota(1);
+        $second = User::factory()->create();
+        $second->roles()->attach(Role::where('key', 'org_admin')->value('id'));
+        $org->members()->attach($second->id, ['kind' => 'manager']);
+        $this->assertSame(['ENROLLED', 'REJECTED'], $this->parallelFinance($this->organizationEnrollmentCode(), [[$l->id, $manager->id, $members[0]->id], [$l->id, $second->id, $members[1]->id]]));
+        $this->assertSame(1, OrganizationSeat::count());
+        $this->assertSame(1, Enrollment::where('status', 'active')->count());
+        $this->assertSame(0, app(CohortCapacity::class)->available($c));
+    }
+
+    public function test_duplicate_simultaneous_group_requests_consume_one_seat_and_notify_once(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Organization capacity races require PostgreSQL.');
+        }
+        [$org,$c,$l,$manager,$members] = $this->organizationQuota();
+        $args = [$l->id, $manager->id, $members[0]->id];
+        $this->assertSame(['ENROLLED', 'SKIPPED'], $this->parallelFinance($this->organizationEnrollmentCode(), [$args, $args]));
+        $this->assertSame(1, OrganizationSeat::count());
+        $this->assertSame(1, DB::table('notifications')->count());
+    }
+
+    public function test_organization_and_personal_registration_share_capacity_without_double_counting(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Organization capacity races require PostgreSQL.');
+        }
+        [$org,$c,$l,$manager,$members] = $this->organizationQuota(2);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$l=\App\Models\OrganizationLicense::findOrFail((int)$argv[1]);
+if($argv[2]==='group') {app(\App\Services\OrganizationEnrollment::class)->enroll(\App\Models\User::findOrFail((int)$argv[3]),$l->organization,$l,1,[(int)$argv[4]]);echo 'GROUP';}
+else {app(\App\Services\EnrollmentService::class)->reserve(\App\Models\User::findOrFail((int)$argv[4]),$l->cohort);echo 'PERSONAL';}
+CODE;
+        $this->assertSame(['GROUP', 'PERSONAL'], $this->parallelFinance($code, [[$l->id, 'group', $manager->id, $members[0]->id], [$l->id, 'personal', $manager->id, $members[1]->id]]));
+        $this->assertSame(2, Enrollment::where('status', 'active')->count());
+        $this->assertSame(1, OrganizationSeat::count());
+        $this->assertSame(0, app(CohortCapacity::class)->available($c));
+    }
+
+    public function test_quota_issuance_racing_last_personal_seat_has_one_capacity_owner(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Organization capacity races require PostgreSQL.');
+        }
+        $c = Cohort::factory()->create(['capacity' => 1]);
+        $org = Organization::factory()->create(['name' => 'Race org', 'type' => 'company', 'status' => 'active']);
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $u = User::factory()->create();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$c=\App\Models\Cohort::findOrFail((int)$argv[1]);
+try {if($argv[2]==='license') {app(\App\Services\OrganizationEnrollment::class)->configure(\App\Models\User::findOrFail((int)$argv[3]),\App\Models\Organization::findOrFail((int)$argv[4]),$c,['seat_limit'=>1,'expires_on'=>now()->addMonth()->toDateString(),'active'=>true,'contract_reference'=>'Race']);echo 'LICENSED';}else {app(\App\Services\EnrollmentService::class)->reserve(\App\Models\User::findOrFail((int)$argv[3]),$c);echo 'RESERVED';}}
+catch(\Illuminate\Validation\ValidationException) {echo $argv[2]==='license'?'NO_LICENSE':'NO_SEAT';}
+CODE;
+        $r = $this->parallelFinance($code, [[$c->id, 'license', $admin->id, $org->id], [$c->id, 'personal', $u->id, $org->id]]);
+        $this->assertContains($r, [['LICENSED', 'NO_SEAT'], ['NO_LICENSE', 'RESERVED']]);
+        $capacity = app(CohortCapacity::class);
+        $this->assertSame(1, $capacity->occupied($c) + $capacity->reserved($c));
+    }
+
+    public function test_two_organizations_cannot_reserve_the_same_last_course_capacity(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Organization capacity races require PostgreSQL.');
+        }
+        $c = Cohort::factory()->create(['capacity' => 1]);
+        $args = [];
+        foreach ([1, 2] as $n) {
+            $org = Organization::factory()->create(['name' => 'Race org '.$n, 'type' => 'company', 'status' => 'active']);
+            $a = User::factory()->create();
+            $a->roles()->attach(Role::where('key', 'admin')->value('id'));
+            $args[] = [$c->id, $a->id, $org->id];
+        }
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+try {app(\App\Services\OrganizationEnrollment::class)->configure(\App\Models\User::findOrFail((int)$argv[2]),\App\Models\Organization::findOrFail((int)$argv[3]),\App\Models\Cohort::findOrFail((int)$argv[1]),['seat_limit'=>1,'expires_on'=>now()->addMonth()->toDateString(),'active'=>true,'contract_reference'=>'Race']);echo 'LICENSED';}catch(\Illuminate\Validation\ValidationException){echo 'REJECTED';}
+CODE;
+        $this->assertSame(['LICENSED', 'REJECTED'], $this->parallelFinance($code, $args));
+        $this->assertSame(1, OrganizationLicense::count());
     }
 }
