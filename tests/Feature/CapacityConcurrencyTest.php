@@ -12,6 +12,8 @@ use App\Models\Enrollment;
 use App\Models\Installment;
 use App\Models\Payment;
 use App\Models\PaymentAllocation;
+use App\Models\Refund;
+use App\Models\RefundEvent;
 use App\Models\Role;
 use App\Models\Submission;
 use App\Models\User;
@@ -19,11 +21,13 @@ use App\Services\ConsultationBilling;
 use App\Services\ConsultationService;
 use App\Services\EnrollmentService;
 use App\Services\ReceiptService;
+use App\Services\RefundService;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
@@ -259,6 +263,10 @@ CODE;
 
     protected function tearDown(): void
     {
+        if (Schema::hasTable('refunds')) {
+            RefundEvent::query()->delete();
+            Refund::query()->delete();
+        }
         if (Schema::hasColumn('payments', 'consultation_id')) {
             Consultation::whereNotNull('settled_payment_id')->update(['settled_payment_id' => null]);
             Payment::whereNotNull('consultation_id')->delete();
@@ -328,5 +336,96 @@ CODE;
         $this->assertContains($result, [['CANCELLED', 'REVIEW'], ['PAID', 'STALE']]);
         $this->assertNotNull($p->fresh()->captured_at);
         $this->assertSame($p->fresh()->status === 'paid' ? 'confirmed' : 'cancelled', $p->consultation->fresh()->status);
+    }
+
+    private function refundableCoursePayment(): Payment
+    {
+        $u = User::factory()->create();
+        $i = $this->financialInvoice($u);
+
+        return Payment::factory()->create(['user_id' => $u->id, 'enrollment_id' => $i->enrollment_id, 'installment_id' => $i->id, 'amount' => $i->amount, 'status' => 'review_required', 'reference' => 'REFUND-'.$u->id, 'captured_at' => now()]);
+    }
+
+    public function test_refund_request_racing_allocation_has_exactly_one_outcome(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Refund races require PostgreSQL.');
+        }
+        $p = $this->refundableCoursePayment();
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$p=\App\Models\Payment::findOrFail((int)$argv[1]);
+try {if($argv[2]==='request') {app(\App\Services\RefundService::class)->request($p->user,$p,'IR820540102680020817909002','Refund race',0);echo 'REQUESTED';}else{app(\App\Services\BillingService::class)->resolve($p,\App\Models\User::findOrFail((int)$argv[3]));echo 'ALLOCATED';}}
+catch(\Illuminate\Validation\ValidationException){echo $argv[2]==='request'?'INELIGIBLE':'BLOCKED';}
+CODE;
+        $results = $this->parallelFinance($code, [[$p->id, 'request', $admin->id], [$p->id, 'allocate', $admin->id]]);
+        $this->assertContains($results, [['ALLOCATED', 'INELIGIBLE'], ['BLOCKED', 'REQUESTED']]);
+        $this->assertSame(1, PaymentAllocation::where('payment_id', $p->id)->count() + Refund::where('payment_id', $p->id)->count());
+    }
+
+    private function approvedRefund(): Refund
+    {
+        $p = $this->refundableCoursePayment();
+        $f = app(RefundService::class)->request($p->user, $p, 'IR820540102680020817909002', 'Refund race', 0);
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        app(RefundService::class)->review($admin, $f, 1, 'approve', 'Approved for refund');
+
+        return $f->fresh();
+    }
+
+    private function refundCompletionCode(): string
+    {
+        return <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();config(['filesystems.disks.refunds.root'=>$argv[3]]);
+try {app(\App\Services\RefundService::class)->complete(\App\Models\User::findOrFail((int)$argv[2]),\App\Models\Refund::findOrFail((int)$argv[1]),['version'=>2,'amount'=>100000,'destination'=>'IR820540102680020817909002','transfer_reference'=>'REFUND-SHARED','transfer_date'=>now()->toDateString(),'statement_verified'=>true,'beneficiary_verified'=>true],\Illuminate\Http\UploadedFile::fake()->createWithContent('proof.pdf',"%PDF-1.4\n".$argv[1].'-'.$argv[2]));echo 'COMPLETED';}
+catch(\Illuminate\Validation\ValidationException){echo 'REJECTED';}
+CODE;
+    }
+
+    public function test_two_admins_cannot_complete_one_refund_twice(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Refund races require PostgreSQL.');
+        }
+        $f = $this->approvedRefund();
+        $dir = sys_get_temp_dir().'/kardorost-refund-'.Str::uuid();
+        $args = [];
+        foreach ([1, 2] as $n) {
+            $a = User::factory()->create();
+            $a->roles()->attach(Role::where('key', 'admin')->value('id'));
+            $args[] = [$f->id, $a->id, $dir];
+        }
+        $this->assertSame(['COMPLETED', 'REJECTED'], $this->parallelFinance($this->refundCompletionCode(), $args));
+        $this->assertSame('refunded', $f->payment->fresh()->status);
+        $this->assertSame(3, $f->fresh()->version);
+        $this->assertSame(3, RefundEvent::where('refund_id', $f->id)->count());
+        config(['filesystems.disks.refunds.root' => $dir]);
+        Storage::forgetDisk('refunds');
+        $this->assertSame(1, count(Storage::disk('refunds')->allFiles()));
+        Storage::disk('refunds')->deleteDirectory('proofs');
+    }
+
+    public function test_two_refunds_cannot_claim_the_same_bank_transfer(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Refund races require PostgreSQL.');
+        }
+        $dir = sys_get_temp_dir().'/kardorost-refund-'.Str::uuid();
+        $args = [];
+        foreach ([1, 2] as $n) {
+            $f = $this->approvedRefund();
+            $a = User::factory()->create();
+            $a->roles()->attach(Role::where('key', 'admin')->value('id'));
+            $args[] = [$f->id, $a->id, $dir];
+        }
+        $this->assertSame(['COMPLETED', 'REJECTED'], $this->parallelFinance($this->refundCompletionCode(), $args));
+        $this->assertSame(1, Refund::where('status', 'completed')->count());
+        $this->assertSame(1, Refund::where('status', 'approved')->count());
+        config(['filesystems.disks.refunds.root' => $dir]);
+        Storage::forgetDisk('refunds');
+        $this->assertSame(1, count(Storage::disk('refunds')->allFiles()));
+        Storage::disk('refunds')->deleteDirectory('proofs');
     }
 }

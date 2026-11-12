@@ -87,7 +87,7 @@ class ConsultationBilling
                 $p = Payment::whereKey($payment->id)->lockForUpdate()->firstOrFail();
                 if ($p->status === 'paid') {
                     return true;
-                } if ($p->status === 'review_required') {
+                } if (in_array($p->status, ['review_required', 'refunded'], true)) {
                     return false;
                 }
                 if (Payment::where('reference', $reference)->whereKeyNot($p->id)->exists()) {

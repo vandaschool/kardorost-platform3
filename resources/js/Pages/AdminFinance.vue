@@ -25,6 +25,7 @@ const filterStates = () =>
         : [
               ["all", "همه"],
               ["paid", "تخصیص‌یافته"],
+              ["refunded", "بازپرداخت ثبت‌شده"],
               ["review_required", "نیازمند بررسی"],
               ["pending_review", "رسید در انتظار بررسی"],
               ["pending", "در انتظار درگاه"],
@@ -70,6 +71,9 @@ const filterStates = () =>
                 </div>
             </div>
         </section>
+        <Link href="/refunds?view=admin" class="btn secondary"
+            >کارتابل بازپرداخت‌ها</Link
+        >
         <nav class="learning-tabs" aria-label="بخش‌های مالی">
             <Link
                 v-for="[key, label] in [

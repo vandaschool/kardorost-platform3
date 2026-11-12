@@ -52,6 +52,9 @@ class ConsultationPaymentController extends Controller
         $track = $r->query('trackId');
         abort_unless(is_string($track) && strlen($track) <= 100, 400);
         $p = Payment::where('track_id', $track)->whereNotNull('consultation_id')->firstOrFail();
+        if ($p->status === 'refunded') {
+            return redirect()->route('refunds')->with('success', 'مدرک بازپرداخت این تراکنش قبلاً ثبت شده است.');
+        }
         if ($p->status === 'paid') {
             return redirect()->route('consultations')->with('success', 'پرداخت قبلاً تأیید شده است.');
         }
