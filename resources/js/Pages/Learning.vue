@@ -3,7 +3,7 @@ import { Head, Link, useForm } from "@inertiajs/vue3";
 import Shell from "../Layouts/Shell.vue";
 import Empty from "../Components/Empty.vue";
 import Icon from "../Components/Icon.vue";
-defineProps({ enrollments: Array, paymentEnabled: Boolean });
+defineProps({ enrollments: Array, paymentEnabled: Boolean, progress: Object });
 const form = useForm({});
 const status = {
     active: "ثبت‌نام فعال",
@@ -66,11 +66,37 @@ const money = (n) => new Intl.NumberFormat("fa-IR").format(n / 10);
                                 : "—"
                         }}
                     </p>
-                    <p v-else class="caption muted">
-                        ثبت‌نام شما تأیید شده است. محتوای آموزشی در مرحلهٔ بعد
-                        به این صفحه متصل می‌شود.
-                    </p>
+                    <div
+                        v-else-if="e.status === 'active'"
+                        class="enrollment-progress"
+                    >
+                        <p class="caption muted">
+                            {{
+                                new Intl.NumberFormat("fa-IR").format(
+                                    progress[e.id]?.completed || 0,
+                                )
+                            }}
+                            از
+                            {{
+                                new Intl.NumberFormat("fa-IR").format(
+                                    progress[e.id]?.total || 0,
+                                )
+                            }}
+                            درس تکمیل شده
+                        </p>
+                        <progress
+                            :value="progress[e.id]?.percent || 0"
+                            max="100"
+                            aria-label="پیشرفت دوره"
+                        ></progress>
+                    </div>
                 </div>
+                <Link
+                    v-if="e.status === 'active'"
+                    :href="'/learning/' + e.id"
+                    class="btn primary"
+                    >ادامه یادگیری<Icon name="ArrowLeft" :size="17"
+                /></Link>
                 <button
                     v-if="
                         e.status === 'pending_payment' &&

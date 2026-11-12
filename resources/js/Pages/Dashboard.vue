@@ -218,7 +218,7 @@ const steps = [
                     ><Link
                         v-for="e in active.slice(0, 3)"
                         :key="e.id"
-                        href="/learning"
+                        :href="'/learning/' + e.id"
                         class="simple-row"
                         ><span class="row-icon teal"
                             ><Icon name="BookOpen"
@@ -330,7 +330,12 @@ const steps = [
                 text="پس از تخصیص دوره توسط مدیریت، اطلاعات آن در این بخش نمایش داده می‌شود."
             />
             <div v-for="course in courses" :key="course.id" class="simple-row">
-                <Icon name="BookOpen" /><strong>{{ course.title }}</strong>
+                <Icon name="BookOpen" /><Link
+                    :href="'/teaching/' + course.id"
+                    class="text-link"
+                    ><strong>{{ course.title }}</strong
+                    ><Icon name="ChevronLeft" :size="16"
+                /></Link>
             </div>
         </section>
     </Shell>

@@ -1,6 +1,13 @@
 <?php
 
 return [
+    'required_without' => 'متن پاسخ یا فایل پیوست را وارد کنید.',
+    'required_if' => 'وارد کردن :attribute برای این وضعیت ضروری است.',
+    'file' => ':attribute باید یک فایل معتبر باشد.',
+    'mimes' => 'نوع فایل :attribute مجاز نیست.',
+    'date' => ':attribute باید تاریخ و ساعت معتبر باشد.',
+    'after' => ':attribute باید بعد از :date باشد.',
+    'after_or_equal' => ':attribute باید هم‌زمان یا بعد از :date باشد.',
     'required' => 'وارد کردن :attribute ضروری است.',
     'string' => ':attribute باید متن باشد.',
     'integer' => ':attribute باید عدد صحیح باشد.',
@@ -13,7 +20,7 @@ return [
     'current_password' => 'رمز عبور فعلی درست نیست.',
     'digits' => ':attribute باید :digits رقم باشد.',
     'min' => ['string' => ':attribute باید حداقل :min نویسه باشد.', 'numeric' => ':attribute نباید کمتر از :min باشد.', 'array' => 'حداقل :min مورد انتخاب کنید.'],
-    'max' => ['string' => ':attribute نباید بیشتر از :max نویسه باشد.', 'numeric' => ':attribute نباید بیشتر از :max باشد.', 'array' => 'بیش از :max مورد مجاز نیست.'],
+    'max' => ['file' => 'حجم فایل نباید بیشتر از :max کیلوبایت باشد.', 'string' => ':attribute نباید بیشتر از :max نویسه باشد.', 'numeric' => ':attribute نباید بیشتر از :max باشد.', 'array' => 'بیش از :max مورد مجاز نیست.'],
     'between' => ['numeric' => ':attribute باید بین :min و :max باشد.'],
-    'attributes' => ['name' => 'نام و نام خانوادگی', 'phone' => 'شماره موبایل', 'password' => 'رمز عبور', 'password_confirmation' => 'تکرار رمز عبور', 'current_password' => 'رمز فعلی', 'code' => 'کد تأیید', 'title' => 'عنوان', 'description' => 'توضیح', 'price' => 'مبلغ', 'capacity' => 'ظرفیت', 'stage' => 'مرحله', 'format' => 'شیوه برگزاری', 'roles' => 'نقش‌ها', 'coach_id' => 'مربی', 'type' => 'نوع مجموعه'],
+    'attributes' => ['file' => 'فایل پیوست', 'body' => 'متن پاسخ', 'instructions' => 'راهنمای تمرین', 'score' => 'نمره', 'feedback' => 'بازخورد', 'max_score' => 'سقف نمره', 'available_at' => 'زمان دسترسی', 'due_at' => 'موعد تحویل', 'closes_at' => 'پایان ارسال', 'starts_at' => 'زمان شروع', 'ends_at' => 'زمان پایان', 'media_url' => 'لینک ویدیو', 'media_kind' => 'نوع ویدیو', 'duration_seconds' => 'مدت ویدیو', 'position' => 'ترتیب', 'provider' => 'بستر کلاس', 'meeting_url' => 'لینک کلاس', 'recording_url' => 'لینک ضبط', 'name' => 'نام و نام خانوادگی', 'phone' => 'شماره موبایل', 'password' => 'رمز عبور', 'password_confirmation' => 'تکرار رمز عبور', 'current_password' => 'رمز فعلی', 'code' => 'کد تأیید', 'title' => 'عنوان', 'description' => 'توضیح', 'price' => 'مبلغ', 'capacity' => 'ظرفیت', 'stage' => 'مرحله', 'format' => 'شیوه برگزاری', 'roles' => 'نقش‌ها', 'coach_id' => 'مربی', 'type' => 'نوع مجموعه'],
 ];

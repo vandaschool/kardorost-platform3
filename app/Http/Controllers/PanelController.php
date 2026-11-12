@@ -7,6 +7,7 @@ use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Organization;
 use App\Models\User;
+use App\Services\LearningProgress;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -52,7 +53,7 @@ class PanelController extends Controller
 
     public function learning(Request $request): Response
     {
-        return Inertia::render('Learning', ['enrollments' => Enrollment::where('user_id', $request->user()->id)->with('course', 'cohort')->latest()->get(), 'paymentEnabled' => (bool) config('platform.zibal.enabled')]);
+        return Inertia::render('Learning', ['enrollments' => Enrollment::where('user_id', $request->user()->id)->with('course', 'cohort')->latest()->get(), 'progress' => $request->user() ? Enrollment::where('user_id', $request->user()->id)->where('status', 'active')->get()->mapWithKeys(fn ($e) => [$e->id => app(LearningProgress::class)->summary($e)]) : [], 'paymentEnabled' => (bool) config('platform.zibal.enabled')]);
     }
 
     public function profile(Request $request): Response

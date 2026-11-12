@@ -17,6 +17,11 @@ class Course extends Model
         return ['is_published' => 'boolean', 'price' => 'integer'];
     }
 
+    public function sections(): HasMany
+    {
+        return $this->hasMany(CourseSection::class)->orderBy('position')->orderBy('id');
+    }
+
     public function cohorts(): HasMany
     {
         return $this->hasMany(Cohort::class);

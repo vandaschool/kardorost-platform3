@@ -61,7 +61,16 @@ function toggleTheme() {
         localStorage.setItem("kd-theme", dark.value ? "dark" : "light");
     } catch (e) {}
 }
-const current = (href) => href && page.url.split("?")[0] === href;
+const current = (href) => {
+    const path = page.url.split("?")[0];
+    return (
+        href &&
+        (path === href ||
+            (href === "/learning" && path.startsWith("/learning/")) ||
+            (href === "/admin/courses" && path.startsWith("/teaching/")) ||
+            (href === "/coach" && path.startsWith("/teaching/")))
+    );
+};
 </script>
 <template>
     <div
@@ -160,6 +169,20 @@ const current = (href) => href && page.url.split("?")[0] === href;
                     >
                 </div>
                 <div class="topbar-actions">
+                    <Link
+                        href="/notifications"
+                        class="icon-btn notification-bell"
+                        aria-label="اعلان‌ها"
+                        ><Icon name="Bell" :size="19" /><span
+                            v-if="page.props.unreadNotifications"
+                            class="notification-count"
+                            >{{
+                                new Intl.NumberFormat("fa-IR").format(
+                                    page.props.unreadNotifications,
+                                )
+                            }}</span
+                        ></Link
+                    >
                     <span class="today">{{
                         new Intl.DateTimeFormat("fa-IR", {
                             day: "numeric",

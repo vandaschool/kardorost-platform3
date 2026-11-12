@@ -13,6 +13,6 @@ class HandleInertiaRequests extends Middleware
     {
         $user = $request->user();
 
-        return [...parent::share($request), 'activeRole' => $request->session()->get('panel_role', $user?->roleKeys()[0] ?? 'student'), 'auth' => ['user' => $user?->only('id', 'name', 'phone'), 'roles' => $user?->roleKeys() ?? []], 'flash' => ['success' => fn () => $request->session()->get('success'), 'error' => fn () => $request->session()->get('error')]];
+        return [...parent::share($request), 'unreadNotifications' => fn () => $user?->unreadNotifications()->count() ?? 0, 'activeRole' => $request->session()->get('panel_role', $user?->roleKeys()[0] ?? 'student'), 'auth' => ['user' => $user?->only('id', 'name', 'phone'), 'roles' => $user?->roleKeys() ?? []], 'flash' => ['success' => fn () => $request->session()->get('success'), 'error' => fn () => $request->session()->get('error')]];
     }
 }

@@ -1,5 +1,15 @@
 <script setup>
 import {
+    Bell,
+    Download,
+    ExternalLink,
+    FileText,
+    LockKeyhole,
+    MessageSquare,
+    Pencil,
+    Play,
+    Upload,
+    Video,
     Activity,
     ArrowLeft,
     ArrowRight,
@@ -46,6 +56,16 @@ import {
     X,
 } from "lucide-vue-next";
 const icons = {
+    Bell,
+    Download,
+    ExternalLink,
+    FileText,
+    LockKeyhole,
+    MessageSquare,
+    Pencil,
+    Play,
+    Upload,
+    Video,
     Activity,
     ArrowLeft,
     ArrowRight,

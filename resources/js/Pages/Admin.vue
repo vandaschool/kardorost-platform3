@@ -1,5 +1,5 @@
 <script setup>
-import { Head, useForm } from "@inertiajs/vue3";
+import { Head, Link, useForm } from "@inertiajs/vue3";
 import { ref } from "vue";
 import Shell from "../Layouts/Shell.vue";
 import Icon from "../Components/Icon.vue";
@@ -235,13 +235,19 @@ const action = {
                 <div v-for="c in courses" :key="c.id" class="simple-row">
                     <span class="row-icon teal"><Icon name="BookOpen" /></span>
                     <div class="grow">
-                        <strong>{{ c.title }}</strong
+                        <Link :href="'/teaching/' + c.id"
+                            ><strong>{{ c.title }}</strong></Link
+                        >
                         ><small
                             >{{ fa(c.price / 10) }} تومان ·
                             {{ fa(c.cohorts.length) }} نوبت</small
                         >
                     </div>
-                    <select
+                    <Link :href="'/teaching/' + c.id" class="text-link"
+                        >مدیریت آموزش<Icon
+                            name="ChevronLeft"
+                            :size="15" /></Link
+                    ><select
                         class="coach-select"
                         aria-label="مربی دوره"
                         :value="c.coach_id || ''"

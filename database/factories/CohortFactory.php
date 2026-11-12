@@ -2,23 +2,13 @@
 
 namespace Database\Factories;
 
-use App\Models\Cohort;
+use App\Models\Course;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
-/**
- * @extends Factory<Cohort>
- */
 class CohortFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
-        return [
-            //
-        ];
+        return ['course_id' => Course::factory(), 'title' => 'نوبت اول', 'format' => 'hybrid', 'capacity' => 20, 'registration_open' => true];
     }
 }

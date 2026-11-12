@@ -1,5 +1,5 @@
 {
-  "phase": "foundation",
+  "phase": "learning-and-feedback",
   "completed": [
     "phone-verification",
     "password-login",
@@ -10,22 +10,35 @@
     "seat-reservation",
     "zibal-adapter",
     "organization-membership",
-    "audit-events"
+    "audit-events",
+    "course-classroom",
+    "lesson-publication-and-release",
+    "video-link-player",
+    "lesson-resume-and-completion",
+    "live-session-links-and-recordings",
+    "manual-attendance",
+    "private-versioned-submissions",
+    "grading-and-revision-workflow",
+    "feedback-history",
+    "internal-notifications",
+    "organization-learning-reports"
   ],
   "tests": {
     "postgresql": {
-      "passed": 38,
-      "assertions": 191
+      "passed": 72,
+      "assertions": 447
     },
     "sqlite": {
-      "passed": 37,
-      "skipped": 1,
-      "assertions": 187
+      "passed": 70,
+      "skipped": 2,
+      "assertions": 439
     }
   },
   "browser_qa": false,
   "deployed": false,
   "live_sms_verified": false,
   "live_gateway_verified": false,
-  "all_modules_complete": false
+  "all_modules_complete": false,
+  "live_arvan_verified": false,
+  "live_class_provider_verified": false
 }

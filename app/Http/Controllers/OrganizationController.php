@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Attendance;
 use App\Models\AuditEvent;
 use App\Models\Enrollment;
 use App\Models\Organization;
 use App\Models\Role;
+use App\Models\Submission;
 use App\Models\User;
+use App\Services\LearningProgress;
 use App\Services\Phone;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -78,6 +81,6 @@ class OrganizationController extends Controller
         abort_unless($org && $org->members()->where('users.id', $member->id)->exists(), 403);
         AuditEvent::create(['actor_id' => $request->user()->id, 'action' => 'organization.report_viewed', 'subject_type' => 'user', 'subject_id' => $member->id, 'metadata' => ['organization_id' => $org->id]]);
 
-        return Inertia::render('Member', ['member' => $member->only('id', 'name', 'phone'), 'organization' => $org, 'enrollments' => Enrollment::where('user_id', $member->id)->with('course', 'cohort')->get()]);
+        return Inertia::render('Member', ['member' => $member->only('id', 'name', 'phone'), 'organization' => $org, 'enrollments' => Enrollment::where('user_id', $member->id)->with('course', 'cohort')->get(), 'learningReports' => Enrollment::where('user_id', $member->id)->get()->mapWithKeys(fn ($e) => [$e->id => ['progress' => app(LearningProgress::class)->summary($e), 'attendance' => Attendance::where('enrollment_id', $e->id)->get(['live_session_id', 'status']), 'submissions' => Submission::where('enrollment_id', $e->id)->with('assignment:id,title,max_score', 'reviews')->latest('version')->get()->values()->map(fn ($s) => ['id' => $s->id, 'title' => $s->assignment->title, 'max_score' => $s->assignment->max_score, 'status' => $s->status, 'score' => $s->score, 'feedback' => $s->feedback, 'version' => $s->version, 'body' => $s->body, 'file_name' => $s->file_name, 'download_url' => $s->file_path ? route('submissions.file', $s) : null, 'reviews' => $s->reviews->map(fn ($r) => $r->only('id', 'revision', 'status', 'score', 'feedback', 'created_at'))])]])]);
     }
 }
