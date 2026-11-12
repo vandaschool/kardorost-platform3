@@ -51,6 +51,10 @@ const money = (n) => new Intl.NumberFormat("fa-IR").format(n / 10);
                     >
                     <h2>{{ e.course.title }}</h2>
                     <p class="muted">{{ e.cohort.title }}</p>
+                    <p v-if="e.organization_license" class="caption muted">
+                        با پوشش {{ e.organization_license.organization.name }}؛
+                        بدون بدهی شخصی این ثبت‌نام
+                    </p>
                     <p
                         v-if="e.status === 'pending_payment'"
                         class="caption muted"

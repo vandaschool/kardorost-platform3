@@ -1,5 +1,5 @@
 {
-  "phase": "versioned-assessment-infrastructure",
+  "phase": "organization-quota-and-group-enrollment",
   "completed": [
     "phone-verification",
     "password-login",
@@ -57,17 +57,25 @@
     "resumable-assessment-answers",
     "encrypted-assessment-responses-and-results",
     "immutable-final-assessment-reports",
-    "scoped-organization-assessment-reports"
+    "scoped-organization-assessment-reports",
+    "cohort-scoped-organization-quotas",
+    "shared-capacity-for-personal-and-sponsored-seats",
+    "atomic-organization-group-enrollment",
+    "sponsored-enrollment-provenance",
+    "nonduplicating-quota-consumption",
+    "private-organization-enrollment-csv",
+    "historical-organization-seat-ledger",
+    "public-available-seat-count"
   ],
   "tests": {
     "postgresql": {
-      "passed": 197,
-      "assertions": 1299
+      "passed": 224,
+      "assertions": 1461
     },
     "sqlite": {
-      "passed": 180,
-      "skipped": 17,
-      "assertions": 1210
+      "passed": 202,
+      "skipped": 22,
+      "assertions": 1347
     },
     "javascript": {
       "passed": 6
@@ -103,7 +111,12 @@
     "student-partial-answers",
     "assessment-resume",
     "reverse-scored-final-report",
-    "assessment-report-mobile-390"
+    "assessment-report-mobile-390",
+    "admin-organization-quota",
+    "manager-group-enrollment",
+    "scoped-organization-csv",
+    "sponsored-student-learning",
+    "organization-mobile-390"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": false,
@@ -118,5 +131,9 @@
   "assessment_content_seeded": false,
   "assessment_paid_access_complete": false,
   "assessment_engine": "likert_sum_v1",
-  "assessment_ai_interpretation_complete": false
+  "assessment_ai_interpretation_complete": false,
+  "organization_contract_billing_complete": false,
+  "organization_seat_recycling_complete": false,
+  "organization_invitation_import_complete": false,
+  "organization_expiry_cuts_existing_learning": false
 }

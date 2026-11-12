@@ -194,8 +194,7 @@ class BillingService
             if ($invoice->sequence !== 1) {
                 return 'first_installment_unpaid';
             }
-            $occupied = Enrollment::where('cohort_id', $cohort->id)->where('id', '!=', $enrollment->id)->where(fn ($q) => $q->where('status', 'active')->orWhere(fn ($q) => $q->where('status', 'pending_payment')->where('expires_at', '>', now())))->count();
-            if ($occupied >= $cohort->capacity) {
+            if (app(CohortCapacity::class)->available($cohort, $enrollment->id) < 1) {
                 return 'capacity_unavailable';
             }
         }

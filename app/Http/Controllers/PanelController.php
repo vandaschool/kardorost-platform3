@@ -41,7 +41,7 @@ class PanelController extends Controller
 
     public function dashboard(Request $request, string $role): Response
     {
-        $enrollments = Enrollment::where('user_id', $request->user()->id)->with('course', 'cohort')->latest()->get();
+        $enrollments = Enrollment::where('user_id', $request->user()->id)->with('course', 'cohort', 'organizationLicense:id,organization_id', 'organizationLicense.organization:id,name')->latest()->get();
 
         return Inertia::render('Dashboard', ['role' => $role, 'enrollments' => $role === 'student' ? $enrollments : [],
             'stats' => match ($role) {
@@ -53,7 +53,7 @@ class PanelController extends Controller
 
     public function learning(Request $request): Response
     {
-        return Inertia::render('Learning', ['enrollments' => Enrollment::where('user_id', $request->user()->id)->with('course', 'cohort')->latest()->get(), 'progress' => $request->user() ? Enrollment::where('user_id', $request->user()->id)->where('status', 'active')->get()->mapWithKeys(fn ($e) => [$e->id => app(LearningProgress::class)->summary($e)]) : [], 'paymentEnabled' => (bool) config('platform.zibal.enabled')]);
+        return Inertia::render('Learning', ['enrollments' => Enrollment::where('user_id', $request->user()->id)->with('course', 'cohort', 'organizationLicense:id,organization_id', 'organizationLicense.organization:id,name')->latest()->get(), 'progress' => $request->user() ? Enrollment::where('user_id', $request->user()->id)->where('status', 'active')->get()->mapWithKeys(fn ($e) => [$e->id => app(LearningProgress::class)->summary($e)]) : [], 'paymentEnabled' => (bool) config('platform.zibal.enabled')]);
     }
 
     public function profile(Request $request): Response

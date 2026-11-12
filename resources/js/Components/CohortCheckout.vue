@@ -21,6 +21,9 @@ const formats = { live: "زنده", recorded: "ویدیویی", hybrid: "ترک�
                 ثبت‌نام<Icon name="ArrowLeft" :size="16" />
             </button>
         </div>
+        <p v-if="cohort.available_seats !== undefined" class="caption muted">
+            ظرفیت آزاد برای ثبت‌نام تازه: {{ fa(cohort.available_seats) }}
+        </p>
         <label v-if="cohort.installment_enabled"
             >روش پرداخت<select v-model="form.payment_plan">
                 <option value="full">یکجا</option>

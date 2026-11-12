@@ -32,11 +32,13 @@ const menus = computed(() =>
               ["مشاوره", "MessagesSquare", "/consultations?view=admin"],
               ["کاربران", "Users", "/admin/users"],
               ["سازمان‌ها", "Building2", "/admin/organizations"],
+              ["سهمیه سازمان‌ها", "Users", "/admin/organization-licenses"],
               ["سابقه فعالیت", "History", "/admin/activity"],
           ]
         : props.role === "org_admin"
           ? [
                 ["سازمان من", "Building2", "/organization"],
+                ["ثبت‌نام گروهی", "Users", "/organization/licenses"],
                 ["حساب من", "UserRound", "/account"],
                 ["پرداخت‌ها و اقساط", "ReceiptText", "/finance"],
                 ["بازپرداخت‌ها", "ReceiptText", "/refunds"],

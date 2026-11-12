@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditEvent;
 use App\Models\Cohort;
 use App\Models\Course;
+use App\Services\CohortCapacity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,8 @@ class CourseController extends Controller
     {
         $q = trim((string) $request->query('q', ''));
         $courses = Course::where('is_published', true)->when($q, fn ($query) => $query->where('title', 'like', '%'.str_replace(['%', '_'], ['\\%', '\\_'], $q).'%'))->with(['cohorts' => fn ($q) => $q->where('registration_open', true)->with('installmentPlan')])->latest()->get();
+
+        $courses->each(fn ($course) => $course->cohorts->each(fn ($cohort) => $cohort->setAttribute('available_seats', app(CohortCapacity::class)->available($cohort))));
 
         return Inertia::render('Courses', ['courses' => $courses, 'query' => $q]);
     }

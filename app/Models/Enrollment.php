@@ -18,6 +18,11 @@ class Enrollment extends Model
         return ['expires_at' => 'datetime', 'amount' => 'integer', 'billing_version' => 'integer'];
     }
 
+    public function organizationLicense(): BelongsTo
+    {
+        return $this->belongsTo(OrganizationLicense::class);
+    }
+
     public function installments(): HasMany
     {
         return $this->hasMany(Installment::class)->orderBy('sequence');
