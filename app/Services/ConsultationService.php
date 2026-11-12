@@ -6,6 +6,7 @@ use App\Models\AuditEvent;
 use App\Models\Consultation;
 use App\Models\ConsultationRequest;
 use App\Models\ConsultationSlot;
+use App\Models\Payment;
 use App\Models\User;
 use App\Notifications\ConsultationChanged;
 use Carbon\CarbonImmutable;
@@ -34,13 +35,15 @@ class ConsultationService
         abort_unless($actor->is_active && ($actor->hasRole('admin') || ($actor->hasRole('coach') && $slot->coach_id === $actor->id)), 403);
     }
 
-    public function createSlot(User $actor, User $coach, CarbonImmutable $start, int $minutes, string $provider, ?string $url): ConsultationSlot
+    public function createSlot(User $actor, User $coach, CarbonImmutable $start, int $minutes, string $provider, ?string $url, int $price = 0): ConsultationSlot
     {
         abort_unless($actor->hasRole('admin') || ($actor->hasRole('coach') && $actor->id === $coach->id), 403);
 
+        abort_if($price < 0 || $price > 1000000000, 422);
+        abort_unless($price === 0 || $actor->hasRole('admin'), 403);
         $start = $start->setTimezone(config('app.timezone'));
 
-        return DB::transaction(function () use ($actor, $coach, $start, $minutes, $provider, $url) {
+        return DB::transaction(function () use ($actor, $coach, $start, $minutes, $provider, $url, $price) {
             $this->people([$coach->id]);
             $coach->refresh();
             if (! $coach->is_active || ! $coach->hasRole('coach') || $start->lte(now()) || $start->gt(now()->addYear())) {
@@ -50,7 +53,7 @@ class ConsultationService
             if (ConsultationSlot::where('coach_id', $coach->id)->where('starts_at', '<', $end)->where('ends_at', '>', $start)->exists()) {
                 $this->fail('این بازه با زمان دیگری از مربی هم‌پوشانی دارد.');
             }
-            $slot = ConsultationSlot::create(['coach_id' => $coach->id, 'starts_at' => $start, 'ends_at' => $end, 'provider' => $provider, 'meeting_url' => $url]);
+            $slot = ConsultationSlot::create(['coach_id' => $coach->id, 'starts_at' => $start, 'ends_at' => $end, 'provider' => $provider, 'meeting_url' => $url, 'price' => $price]);
             $this->audit($actor, 'consultation.slot_created', 'consultation_slot', $slot->id);
 
             return $slot;
@@ -72,21 +75,28 @@ class ConsultationService
                 }
             }
             $slot = ConsultationSlot::whereKey($slot->id)->lockForUpdate()->firstOrFail();
+            app(ConsultationBilling::class)->expireLockedSlot($slot);
             $coach = $slot->coach;
             $student->refresh();
             if (! $student->is_active || ! $student->hasRole('student') || ! $coach->is_active || ! $coach->hasRole('coach') || $slot->coach_id === $student->id || ! $slot->published || $slot->booked || $slot->starts_at->lte(now())) {
                 $this->fail('این زمان قابل رزرو نیست.');
             }
-            if (Consultation::where('student_id', $student->id)->where('status', 'confirmed')->whereHas('slot', fn ($q) => $q->where('starts_at', '<', $slot->ends_at)->where('ends_at', '>', $slot->starts_at))->exists()) {
+            if ($slot->price > 0 && (! config('platform.zibal.enabled') || ! config('platform.zibal.merchant'))) {
+                $this->fail('درگاه پرداخت برای رزرو پولی فعال نیست.');
+            }
+            if (Payment::where('user_id', $student->id)->whereNotNull('consultation_id')->where('status', 'review_required')->exists()) {
+                $this->fail('ابتدا پرداخت نیازمند بررسی مشاوره را با مدیریت پیگیری کنید.');
+            }
+            if (Consultation::where('student_id', $student->id)->where(fn ($q) => $q->where('status', 'confirmed')->orWhere(fn ($q) => $q->where('status', 'pending_payment')->where('expires_at', '>', now())))->whereHas('slot', fn ($q) => $q->where('starts_at', '<', $slot->ends_at)->where('ends_at', '>', $slot->starts_at))->exists()) {
                 $this->fail('در این بازه مشاوره دیگری دارید.');
             }
-            $item = Consultation::create(['student_id' => $student->id, 'consultation_slot_id' => $slot->id, 'topic' => $topic]);
+            $item = Consultation::create(['student_id' => $student->id, 'consultation_slot_id' => $slot->id, 'topic' => $topic, 'amount' => $slot->price, 'status' => $slot->price > 0 ? 'pending_payment' : 'confirmed', 'expires_at' => $slot->price > 0 ? now()->addMinutes(15)->min($slot->starts_at) : null]);
             $slot->update(['booked' => true]);
             if ($request) {
                 $request->update(['status' => 'scheduled', 'consultation_id' => $item->id, 'version' => $request->version + 1, 'resolved_by' => $actor->id, 'resolved_at' => now()]);
             }
             $this->audit($actor, 'consultation.booked', 'consultation', $item->id);
-            $this->notify($item, 'جلسه مشاوره رزرو شد');
+            $this->notify($item, $item->status === 'confirmed' ? 'جلسه مشاوره رزرو شد' : 'زمان مشاوره موقتاً برای پرداخت نگه داشته شد');
 
             return $item;
         }, 3);
@@ -134,16 +144,22 @@ class ConsultationService
             $this->people([$item->student_id, $slot->coach_id]);
             $slot = ConsultationSlot::whereKey($slot->id)->lockForUpdate()->firstOrFail();
             $item = Consultation::whereKey($item->id)->lockForUpdate()->firstOrFail();
-            if ($item->status !== 'confirmed' || $item->version !== $version) {
+            if (! in_array($item->status, ['confirmed', 'pending_payment'], true) || $item->version !== $version) {
                 $this->fail('وضعیت جلسه تغییر کرده است؛ صفحه را تازه کنید.');
+            }
+            if ($item->status === 'pending_payment' && $item->expires_at->lte(now())) {
+                $this->fail('مهلت رزرو پایان یافته است.');
             }
             if ($action === 'cancel') {
                 if ($slot->starts_at->lte(now())) {
                     $this->fail('لغو فقط پیش از شروع جلسه ممکن است.');
                 }
-                $item->fill(['status' => 'cancelled', 'cancellation_reason' => $reason, 'cancelled_by' => $actor->id, 'cancelled_at' => now()]);
+                $item->fill(['status' => 'cancelled', 'cancellation_reason' => $reason, 'cancelled_by' => $actor->id, 'cancelled_at' => now(), 'refund_status' => $item->settled_payment_id ? 'pending' : null]);
                 $slot->update(['booked' => false]);
             } else {
+                if ($item->status !== 'confirmed') {
+                    $this->fail('جلسه هنوز پرداخت و قطعی نشده است.');
+                }
                 if ($slot->ends_at->gt(now())) {
                     $this->fail('نتیجه فقط پس از پایان بازه جلسه قابل ثبت است.');
                 }

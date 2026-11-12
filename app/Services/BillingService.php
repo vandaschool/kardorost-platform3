@@ -94,6 +94,7 @@ class BillingService
 
     public function capture(Payment $payment, string $reference): bool
     {
+        abort_if($payment->consultation_id, 422);
         try {
             return DB::transaction(function () use ($payment, $reference) {
                 $e = Enrollment::findOrFail($payment->enrollment_id);
@@ -147,6 +148,9 @@ class BillingService
     public function resolve(Payment $payment, User $admin): bool
     {
         abort_unless($admin->is_active && $admin->hasRole('admin'), 403);
+        if ($payment->consultation_id) {
+            throw ValidationException::withMessages(['payment' => 'پرداخت مشاوره باید با وضعیت جلسه و بازپرداخت آن بررسی شود؛ تخصیص به دوره مجاز نیست.']);
+        }
 
         return DB::transaction(function () use ($payment, $admin) {
             $e = Enrollment::findOrFail($payment->enrollment_id);
@@ -216,6 +220,9 @@ class BillingService
     public function reasonLabel(?string $reason): string
     {
         return match ($reason) {
+            'consultation_amount_mismatch' => 'مبلغ یا صاحب پرداخت با رزرو مشاوره تطبیق ندارد',
+            'consultation_duplicate' => 'پرداخت اضافه برای مشاوره؛ بررسی بازپرداخت لازم است',
+            'consultation_expired' => 'پرداخت پس از پایان یا لغو رزرو مشاوره؛ بررسی بازپرداخت لازم است',
             'reference_conflict' => 'شناسه تراکنش تکراری یا متناقض','obsolete_quote' => 'صورتحساب قدیمی یا باطل‌شده','duplicate_charge' => 'صورتحساب قبلاً تسویه شده','amount_mismatch' => 'مغایرت مبلغ','inactive_enrollment' => 'ثبت‌نام غیرفعال','first_installment_unpaid' => 'قسط اول پرداخت نشده','capacity_unavailable' => 'ظرفیت نوبت تکمیل شده',default => 'نیازمند بررسی'
         };
     }

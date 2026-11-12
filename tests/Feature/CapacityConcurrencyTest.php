@@ -15,11 +15,14 @@ use App\Models\PaymentAllocation;
 use App\Models\Role;
 use App\Models\Submission;
 use App\Models\User;
+use App\Services\ConsultationBilling;
+use App\Services\ConsultationService;
 use App\Services\EnrollmentService;
 use App\Services\ReceiptService;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
@@ -251,6 +254,79 @@ try { app(\App\Services\ConsultationService::class)->request(\App\Models\User::f
 catch(\Illuminate\Validation\ValidationException) { echo 'DUPLICATE'; }
 CODE;
         $this->assertSame(['CREATED', 'DUPLICATE'], $this->parallelFinance($code, [[$u->id], [$u->id]]));
-        $this->assertSame(1, ConsultationRequest::where('status','pending')->count());
+        $this->assertSame(1, ConsultationRequest::where('status', 'pending')->count());
+    }
+
+    protected function tearDown(): void
+    {
+        if (Schema::hasColumn('payments', 'consultation_id')) {
+            Consultation::whereNotNull('settled_payment_id')->update(['settled_payment_id' => null]);
+            Payment::whereNotNull('consultation_id')->delete();
+        }
+        parent::tearDown();
+    }
+
+    private function consultationCharge(): Payment
+    {
+        config(['platform.zibal.enabled' => true, 'platform.zibal.merchant' => 'test']);
+        $u = User::factory()->create();
+        $u->roles()->attach(Role::where('key', 'student')->value('id'));
+        $slot = ConsultationSlot::factory()->create(['price' => 1500000]);
+        $c = app(ConsultationService::class)->book($u, $slot, 'Concurrent consultation');
+
+        return app(ConsultationBilling::class)->attempt($u, $c);
+    }
+
+    public function test_two_real_consultation_charges_confirm_once_and_retain_extra_funds_for_review(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Payment races require PostgreSQL.');
+        }
+        $p = $this->consultationCharge();
+        $other = Payment::create([...$p->only('consultation_id', 'user_id', 'amount', 'method'), 'status' => 'pending']);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo app(\App\Services\ConsultationBilling::class)->capture(\App\Models\Payment::findOrFail((int)$argv[1]),$argv[2])?'PAID':'REVIEW';
+CODE;
+        $this->assertSame(['PAID', 'REVIEW'], $this->parallelFinance($code, [[$p->id, 'ONE'], [$other->id, 'TWO']]));
+        $this->assertSame(1, Payment::whereNotNull('consultation_id')->where('status', 'paid')->count());
+        $this->assertSame(3000000, (int) Payment::whereNotNull('consultation_id')->whereNotNull('captured_at')->sum('amount'));
+        $this->assertSame('confirmed', $p->consultation->fresh()->status);
+    }
+
+    public function test_shared_bank_reference_cannot_fund_course_and_consultation_concurrently(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Payment races require PostgreSQL.');
+        }
+        $consult = $this->consultationCharge();
+        $u = User::factory()->create();
+        $invoice = $this->financialInvoice($u);
+        $course = Payment::factory()->create(['user_id' => $u->id, 'enrollment_id' => $invoice->enrollment_id, 'installment_id' => $invoice->id, 'amount' => $invoice->amount]);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$p=\App\Models\Payment::findOrFail((int)$argv[1]);$s=$p->consultation_id?\App\Services\ConsultationBilling::class:\App\Services\BillingService::class;echo app($s)->capture($p,'BANK-SHARED')?'PAID':'REVIEW';
+CODE;
+        $this->assertSame(['PAID', 'REVIEW'], $this->parallelFinance($code, [[$consult->id], [$course->id]]));
+        $this->assertSame(1, Payment::whereNotNull('captured_at')->count());
+        $this->assertSame(1, Payment::where('status', 'paid')->count());
+    }
+
+    public function test_consultation_cancellation_racing_verified_charge_never_loses_received_money(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Payment races require PostgreSQL.');
+        }
+        $p = $this->consultationCharge();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$p=\App\Models\Payment::findOrFail((int)$argv[1]);
+if ($argv[2]==='pay') {echo app(\App\Services\ConsultationBilling::class)->capture($p,'CANCEL-RACE')?'PAID':'REVIEW';}
+else {try {app(\App\Services\ConsultationService::class)->change($p->consultation->student,$p->consultation,1,'cancel','Cancellation race',null);echo 'CANCELLED';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}}
+CODE;
+        $result = $this->parallelFinance($code, [[$p->id, 'pay'], [$p->id, 'cancel']]);
+        $this->assertContains($result, [['CANCELLED', 'REVIEW'], ['PAID', 'STALE']]);
+        $this->assertNotNull($p->fresh()->captured_at);
+        $this->assertSame($p->fresh()->status === 'paid' ? 'confirmed' : 'cancelled', $p->consultation->fresh()->status);
     }
 }

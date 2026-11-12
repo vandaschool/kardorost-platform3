@@ -1,7 +1,12 @@
 <script setup>
 import { useForm } from "@inertiajs/vue3";
+import { money } from "../finance";
 import { dateTime, providers } from "../dates";
-const props = defineProps({ slot: Object, role: String });
+const props = defineProps({
+    slot: Object,
+    role: String,
+    gatewayEnabled: Boolean,
+});
 const book = useForm({ topic: "" });
 const link = useForm({ meeting_url: props.slot.meeting_url || "" });
 const visibility = useForm({ published: !props.slot.published });
@@ -17,7 +22,19 @@ function toggle() {
         <h3>{{ slot.coach_name }}</h3>
         <p>{{ dateTime(slot.starts_at) }} تا {{ dateTime(slot.ends_at) }}</p>
         <p class="muted">
-            {{ providers[slot.provider] }} · رایگان · زمان شماره {{ slot.id }}
+            {{ providers[slot.provider] }} ·
+            {{ slot.price ? money(slot.price) : "رایگان" }} · زمان شماره
+            {{ slot.id }}
+        </p>
+        <p v-if="slot.price > 0" class="muted">
+            رزرو با پرداخت قطعی می‌شود. لغو پس از پرداخت برای بررسی بازپرداخت
+            ثبت می‌شود.
+        </p>
+        <p
+            v-if="role === 'student' && slot.price > 0 && !gatewayEnabled"
+            class="muted"
+        >
+            درگاه پرداخت فعلاً فعال نیست.
         </p>
         <form
             v-if="role === 'student'"
@@ -36,8 +53,13 @@ function toggle() {
                     minlength="3"
                     maxlength="3000"
                 ></textarea></label
-            ><button class="btn primary" :disabled="book.processing">
-                رزرو این زمان
+            ><button
+                class="btn primary"
+                :disabled="
+                    book.processing || (slot.price > 0 && !gatewayEnabled)
+                "
+            >
+                {{ slot.price > 0 ? "رزرو موقت و پرداخت" : "رزرو این زمان" }}
             </button>
         </form>
         <div v-else class="stack-form">

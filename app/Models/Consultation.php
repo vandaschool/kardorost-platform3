@@ -18,7 +18,7 @@ class Consultation extends Model
 
     protected function casts(): array
     {
-        return ['version' => 'integer', 'cancelled_at' => 'datetime'];
+        return ['amount' => 'integer', 'expires_at' => 'immutable_datetime', 'version' => 'integer', 'cancelled_at' => 'datetime'];
     }
 
     public function slot(): BelongsTo

@@ -23,6 +23,16 @@ class Payment extends Model
         return $this->belongsTo(Installment::class);
     }
 
+    public function consultation(): BelongsTo
+    {
+        return $this->belongsTo(Consultation::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
     public function receipt(): HasOne
     {
         return $this->hasOne(PaymentReceipt::class);

@@ -194,6 +194,89 @@ try {
             "base64",
         ),
     );
+    if (process.env.BROWSER_PAID_WORKFLOW === "1") {
+        await evaluate(`document.querySelector('details').open=true`);
+        await evaluate(
+            `(()=>{const el=document.querySelector('details select');el.value=el.querySelector('option:not([value=""])').value;el.dispatchEvent(new Event('change',{bubbles:true}));})()`,
+        );
+        const parts = Object.fromEntries(
+            new Intl.DateTimeFormat("en-US-u-ca-persian-nu-latn", {
+                year: "numeric",
+                month: "numeric",
+                day: "numeric",
+                timeZone: "Asia/Tehran",
+            })
+                .formatToParts(new Date(Date.now() + 3 * 86400000))
+                .map((p) => [p.type, p.value]),
+        );
+        for (const [label, key] of [
+            ["سال", "year"],
+            ["ماه", "month"],
+            ["روز", "day"],
+        ]) {
+            await fill(
+                `details select[aria-label^="${label}"]`,
+                String(Number(parts[key])),
+            );
+        }
+        await fill("details input[type=time]", "16:00");
+        await fill("details input[name=price]", "150000");
+        await evaluate(
+            `document.querySelector('details input[type=checkbox]').click()`,
+        );
+        await submit("details form");
+        await until(
+            `document.body.innerText.includes('۱۵۰٬۰۰۰') && document.querySelector('details input[type=time]').value===''`,
+        );
+        await login("student");
+        await goto("/consultations");
+        await fill(
+            ".consultation-grid .consultation-card textarea",
+            "Browser paid reservation",
+        );
+        await submit(".consultation-grid .consultation-card form");
+        await until(
+            `document.body.innerText.includes('Browser paid reservation') && document.body.innerText.includes('منتظر پرداخت')`,
+        );
+        assert.equal(
+            await evaluate(
+                `!!Array.from(document.querySelectorAll('button')).find(b=>b.innerText.includes('پرداخت و قطعی'))`,
+            ),
+            true,
+            "Paid reservation exposes payment action",
+        );
+        await send("Emulation.setDeviceMetricsOverride", {
+            width: 390,
+            height: 844,
+            deviceScaleFactor: 1,
+            mobile: true,
+        });
+        await until(
+            `document.querySelector('.sidebar').getBoundingClientRect().left >= window.innerWidth`,
+        );
+        assert.equal(
+            await evaluate(
+                "document.documentElement.scrollWidth <= window.innerWidth",
+            ),
+            true,
+        );
+        await writeFile(
+            "/tmp/kardorost-consultation-paid-mobile.png",
+            Buffer.from(
+                (
+                    await send("Page.captureScreenshot", {
+                        format: "png",
+                        captureBeyondViewport: true,
+                    })
+                ).data,
+                "base64",
+            ),
+        );
+        await evaluate(
+            `(()=>{const c=Array.from(document.querySelectorAll('.consultation-card')).find(e=>e.innerText.includes('Browser paid reservation'));const t=c.querySelector('textarea');t.value='Browser cancellation';t.dispatchEvent(new Event('input',{bubbles:true}));c.querySelector('form').requestSubmit();})()`,
+        );
+        await until(`document.body.innerText.includes('Browser cancellation')`);
+    }
     assert.deepEqual(exceptions, [], "No uncaught browser exceptions");
     console.log(
         "PASS: student reservation/request, coach isolation, admin queue, mobile RTL layout, browser exceptions",

@@ -230,6 +230,10 @@ const overdue = computed(() =>
                     >
                 </div>
                 <strong class="payment-amount">{{ money(p.amount) }}</strong>
+                <p v-if="p.refund_status === 'pending'" class="caption muted">
+                    جلسه لغو شده؛ بازپرداخت هنوز انجام نشده و نیازمند پیگیری
+                    مدیریت است.
+                </p>
                 <p v-if="p.review_label" class="caption muted">
                     دلیل بررسی: {{ p.review_label }}
                 </p>

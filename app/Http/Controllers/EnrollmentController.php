@@ -35,7 +35,7 @@ class EnrollmentController extends Controller
             throw ValidationException::withMessages(['payment' => 'صورتحساب پرداخت‌نشده‌ای وجود ندارد.']);
         }
 
-return $this->payInstallment($request, $invoice, $gateway, $billing);
+        return $this->payInstallment($request, $invoice, $gateway, $billing);
     }
 
     public function payInstallment(Request $request, Installment $installment, PaymentGateway $gateway, BillingService $billing): Response
@@ -55,7 +55,7 @@ return $this->payInstallment($request, $invoice, $gateway, $billing);
                         throw $e;
                     }
 
-return back()->with('error', 'اتصال به درگاه انجام نشد. دوباره تلاش کنید.');
+                    return back()->with('error', 'اتصال به درگاه انجام نشد. دوباره تلاش کنید.');
                 }
                 $payment->refresh();
                 $installment->refresh();
@@ -75,7 +75,7 @@ return back()->with('error', 'اتصال به درگاه انجام نشد. دو
     {
         $track = $request->query('trackId');
         abort_unless(is_string($track) && strlen($track) <= 100, 400);
-        $payment = Payment::where('track_id', $track)->firstOrFail();
+        $payment = Payment::where('track_id', $track)->whereNull('consultation_id')->firstOrFail();
         if ($payment->status === 'paid') {
             return redirect()->route('learning')->with('success', 'پرداخت قبلاً تأیید شده است.');
         }
@@ -92,6 +92,6 @@ return back()->with('error', 'اتصال به درگاه انجام نشد. دو
         }
         $settled = $service->settle($payment, $reference);
 
-        return redirect()->route('learning')->with($settled ? 'success' : 'error',$settled ? 'پرداخت تأیید و به صورتحساب تخصیص یافت.' : 'پرداخت دریافت شد؛ تخصیص مبلغ نیازمند بررسی مدیریت است.');
+        return redirect()->route('learning')->with($settled ? 'success' : 'error', $settled ? 'پرداخت تأیید و به صورتحساب تخصیص یافت.' : 'پرداخت دریافت شد؛ تخصیص مبلغ نیازمند بررسی مدیریت است.');
     }
 }
