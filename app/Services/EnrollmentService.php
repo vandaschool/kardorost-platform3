@@ -33,9 +33,9 @@ class EnrollmentService
                     throw ValidationException::withMessages(['payment_plan' => 'روش پرداخت این رزرو ثبت شده است. پس از پایان رزرو می‌توانید روش تازه انتخاب کنید.']);
                 }
 
-return $existing;
+                return $existing;
             }
-            if ($existing && Payment::where('enrollment_id', $existing->id)->where(fn ($q) => $q->whereNotNull('captured_at')->orWhere('status', 'pending_review'))->exists()) {
+            if ($existing && Payment::where('enrollment_id', $existing->id)->where('status', '!=', 'refunded')->where(fn ($q) => $q->whereNotNull('captured_at')->orWhere('status', 'pending_review'))->exists()) {
                 throw ValidationException::withMessages(['payment' => 'برای این ثبت‌نام پرداخت یا رسید در انتظار تعیین تکلیف وجود دارد. با مدیریت پیگیری کنید.']);
             }
             $occupied = Enrollment::where('cohort_id', $cohort->id)->where(fn ($q) => $q->where('status', 'active')->orWhere(fn ($q) => $q->where('status', 'pending_payment')->where('expires_at', '>', now())))->count();
@@ -60,6 +60,6 @@ return $existing;
 
     public function settle(Payment $payment, string $reference): bool
     {
-        return app(BillingService::class)->capture($payment,$reference);
+        return app(BillingService::class)->capture($payment, $reference);
     }
 }

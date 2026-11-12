@@ -33,6 +33,11 @@ class Payment extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function refund(): HasOne
+    {
+        return $this->hasOne(Refund::class);
+    }
+
     public function receipt(): HasOne
     {
         return $this->hasOne(PaymentReceipt::class);

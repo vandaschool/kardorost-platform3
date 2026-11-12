@@ -41,6 +41,9 @@ const overdue = computed(() =>
                 >یادگیری من<Icon name="ArrowLeft" :size="16"
             /></Link>
         </section>
+        <Link href="/refunds" class="btn secondary"
+            >درخواست و پیگیری بازپرداخت</Link
+        >
         <section class="stats-grid">
             <div class="stat-card glass">
                 <span class="stat-icon teal"><Icon name="BookOpen" /></span>
@@ -230,6 +233,12 @@ const overdue = computed(() =>
                     >
                 </div>
                 <strong class="payment-amount">{{ money(p.amount) }}</strong>
+                <Link
+                    v-if="p.can_request_refund || p.refund_id"
+                    :href="'/refunds?payment=' + p.id"
+                    class="btn secondary"
+                    >بازپرداخت این تراکنش</Link
+                >
                 <p v-if="p.refund_status === 'pending'" class="caption muted">
                     جلسه لغو شده؛ بازپرداخت هنوز انجام نشده و نیازمند پیگیری
                     مدیریت است.

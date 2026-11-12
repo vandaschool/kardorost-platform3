@@ -8,6 +8,7 @@ use App\Models\Payment;
 use App\Models\PaymentAllocation;
 use App\Models\PaymentReceipt;
 use App\Services\BillingService;
+use App\Services\RefundService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -36,21 +37,21 @@ class FinanceController extends Controller
 
                     return ['id' => $i->id, 'sequence' => $i->sequence, 'amount' => $i->amount, 'due_date' => $i->due_date->toDateString(), 'paid_at' => $i->paid_at, 'overdue' => $e->status === 'active' && $i->overdue(), 'can_pay' => $reason === null, 'blocked_message' => $reason, 'manual_enabled' => $e->cohort->manual_payment_enabled && (bool) config('platform.finance.transfer_destination'), 'pending_receipt' => $pending?->receipt ? $this->receiptData($pending->receipt) : null];
                 })]),
-            'payments' => Payment::where('user_id', $request->user()->id)->with('enrollment.course', 'consultation.slot.coach', 'installment', 'receipt')->latest()->paginate(20)->through(fn ($p) => $this->paymentData($p, $billing)),
+            'payments' => Payment::where('user_id', $request->user()->id)->with('enrollment.course', 'consultation.slot.coach', 'installment', 'receipt', 'refund')->latest()->paginate(20)->through(fn ($p) => $this->paymentData($p, $billing)),
             'gateway_enabled' => (bool) config('platform.zibal.enabled'), 'transfer' => ['destination' => config('platform.finance.transfer_destination'), 'holder' => config('platform.finance.transfer_holder')],
         ]);
     }
 
     public function admin(Request $request, BillingService $billing): Response
     {
-        $data = $request->validate(['tab' => 'nullable|in:receipts,payments,debts', 'status' => 'nullable|in:all,pending,approved,rejected,paid,pending_review,review_required,failed,expired']);
+        $data = $request->validate(['tab' => 'nullable|in:receipts,payments,debts', 'status' => 'nullable|in:all,pending,approved,rejected,paid,pending_review,review_required,failed,expired,refunded']);
         $tab = $data['tab'] ?? 'receipts';
         $status = $data['status'] ?? ($tab === 'receipts' ? 'pending' : 'all');
         $rows = null;
         if ($tab === 'receipts') {
             $rows = PaymentReceipt::with('payment.enrollment.course', 'payment.installment', 'payment.enrollment.user')->when($status !== 'all', fn ($q) => $q->where('status', $status))->latest()->paginate(20)->withQueryString()->through(fn ($r) => [...$this->receiptData($r), 'payment' => $this->paymentData($r->payment, $billing), 'student' => $r->payment->enrollment->user->only('id', 'name', 'phone')]);
         } elseif ($tab === 'payments') {
-            $rows = Payment::with('enrollment.course', 'enrollment.user', 'user', 'consultation.slot.coach', 'installment', 'receipt')->when($status !== 'all', fn ($q) => $q->where('status', $status))->latest()->paginate(20)->withQueryString()->through(fn ($p) => [...$this->paymentData($p, $billing), 'student' => $p->user->only('id', 'name', 'phone')]);
+            $rows = Payment::with('enrollment.course', 'enrollment.user', 'user', 'consultation.slot.coach', 'installment', 'receipt', 'refund')->when($status !== 'all', fn ($q) => $q->where('status', $status))->latest()->paginate(20)->withQueryString()->through(fn ($p) => [...$this->paymentData($p, $billing), 'student' => $p->user->only('id', 'name', 'phone')]);
         } else {
             $rows = Installment::whereNull('paid_at')->whereNull('voided_at')->where('due_date', '<', now()->toDateString())->whereHas('enrollment', fn ($q) => $q->where('status', 'active')->whereColumn('enrollments.billing_version', 'installments.billing_version'))->with('enrollment.course', 'enrollment.user')->orderBy('due_date')->paginate(20)->withQueryString()->through(fn ($i) => ['id' => $i->id, 'sequence' => $i->sequence, 'amount' => $i->amount, 'due_date' => $i->due_date->toDateString(), 'title' => $i->enrollment->course->title, 'student' => $i->enrollment->user->only('id', 'name', 'phone')]);
         }
@@ -72,6 +73,6 @@ class FinanceController extends Controller
 
     public function paymentData(Payment $payment, BillingService $billing): array
     {
-        return [...$payment->only('id', 'amount', 'status', 'method', 'reference', 'captured_at', 'paid_at', 'created_at'), 'title' => $payment->consultation_id ? 'مشاوره با '.$payment->consultation->slot->coach->name : $payment->enrollment->course->title, 'refund_status' => $payment->consultation?->refund_status, 'sequence' => $payment->installment?->sequence, 'review_label' => $payment->review_reason ? $billing->reasonLabel($payment->review_reason) : null, 'can_allocate' => ! $payment->consultation_id && $payment->status === 'review_required' && (bool) $payment->captured_at && (bool) $payment->reference, 'receipt' => $payment->receipt ? $this->receiptData($payment->receipt) : null];
+        return [...$payment->only('id', 'amount', 'status', 'method', 'reference', 'captured_at', 'paid_at', 'created_at'), 'title' => $payment->consultation_id ? 'مشاوره با '.$payment->consultation->slot->coach->name : $payment->enrollment->course->title, 'refund_status' => $payment->refund?->status ?? ($payment->consultation?->settled_payment_id === $payment->id ? $payment->consultation?->refund_status : null), 'can_request_refund' => app(RefundService::class)->eligible($payment) && (! $payment->refund || $payment->refund->status === 'rejected'), 'refund_id' => $payment->refund?->id, 'sequence' => $payment->installment?->sequence, 'review_label' => $payment->review_reason ? $billing->reasonLabel($payment->review_reason) : null, 'can_allocate' => (! $payment->refund || $payment->refund->status === 'rejected') && ! $payment->consultation_id && $payment->status === 'review_required' && (bool) $payment->captured_at && (bool) $payment->reference, 'receipt' => $payment->receipt ? $this->receiptData($payment->receipt) : null];
     }
 }

@@ -105,7 +105,7 @@ class BillingService
                 if ($payment->status === 'paid') {
                     return true;
                 }
-                if ($payment->status === 'review_required') {
+                if (in_array($payment->status, ['review_required', 'refunded'], true)) {
                     return false;
                 }
                 if ($payment->method === 'manual' && $payment->receipt?->status !== 'approved') {
@@ -138,10 +138,8 @@ class BillingService
             if (! Payment::where('reference', $reference)->where('id', '!=', $payment->id)->exists()) {
                 throw $exception;
             }
-            Payment::whereKey($payment->id)->update(['status' => 'review_required', 'review_reason' => 'reference_conflict']);
-            $this->audit($payment->fresh(), 'payment.reference_conflict');
 
-            return false;
+            return $this->capture($payment, $reference);
         }
     }
 
@@ -158,6 +156,9 @@ class BillingService
             $e = Enrollment::whereKey($e->id)->lockForUpdate()->firstOrFail();
             $invoice = $payment->installment_id ? Installment::whereKey($payment->installment_id)->lockForUpdate()->first() : null;
             $payment = Payment::whereKey($payment->id)->lockForUpdate()->firstOrFail();
+            if ($payment->refund()->where('status', '!=', 'rejected')->exists()) {
+                throw ValidationException::withMessages(['payment' => 'این پرداخت در فرایند بازپرداخت است و قابل تخصیص نیست.']);
+            }
             if ($payment->status === 'paid') {
                 return true;
             }

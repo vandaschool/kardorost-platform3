@@ -76,6 +76,9 @@ class EnrollmentController extends Controller
         $track = $request->query('trackId');
         abort_unless(is_string($track) && strlen($track) <= 100, 400);
         $payment = Payment::where('track_id', $track)->whereNull('consultation_id')->firstOrFail();
+        if ($payment->status === 'refunded') {
+            return redirect()->route('refunds')->with('success', 'مدرک بازپرداخت این تراکنش قبلاً ثبت شده است.');
+        }
         if ($payment->status === 'paid') {
             return redirect()->route('learning')->with('success', 'پرداخت قبلاً تأیید شده است.');
         }

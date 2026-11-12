@@ -27,6 +27,7 @@ const menus = computed(() =>
               ["خانه مدیریت", "LayoutDashboard", "/admin"],
               ["دوره‌ها", "BookOpen", "/admin/courses"],
               ["مالی و رسیدها", "ReceiptText", "/admin/finance"],
+              ["بازپرداخت‌ها", "ReceiptText", "/refunds?view=admin"],
               ["مشاوره", "MessagesSquare", "/consultations?view=admin"],
               ["کاربران", "Users", "/admin/users"],
               ["سازمان‌ها", "Building2", "/admin/organizations"],
@@ -37,6 +38,7 @@ const menus = computed(() =>
                 ["سازمان من", "Building2", "/organization"],
                 ["حساب من", "UserRound", "/account"],
                 ["پرداخت‌ها و اقساط", "ReceiptText", "/finance"],
+                ["بازپرداخت‌ها", "ReceiptText", "/refunds"],
             ]
           : props.role === "coach"
             ? [
@@ -44,6 +46,7 @@ const menus = computed(() =>
                   ["مشاوره", "MessagesSquare", "/consultations?view=coach"],
                   ["حساب من", "UserRound", "/account"],
                   ["پرداخت‌ها و اقساط", "ReceiptText", "/finance"],
+                  ["بازپرداخت‌ها", "ReceiptText", "/refunds"],
               ]
             : [
                   ["خانه", "House", "/student"],
@@ -53,6 +56,7 @@ const menus = computed(() =>
                   ["مشاوره", "MessagesSquare", "/consultations"],
                   ["حساب من", "UserRound", "/account"],
                   ["پرداخت‌ها و اقساط", "ReceiptText", "/finance"],
+                  ["بازپرداخت‌ها", "ReceiptText", "/refunds"],
               ],
 );
 function switchRole(role) {

@@ -1,5 +1,5 @@
 {
-  "phase": "paid-consultation-reservations",
+  "phase": "manual-refund-workflow",
   "completed": [
     "phone-verification",
     "password-login",
@@ -41,17 +41,25 @@
     "consultation-zibal-verification",
     "shared-payment-reference-uniqueness",
     "expired-hold-release-command",
-    "consultation-refund-liability-tracking"
+    "consultation-refund-liability-tracking",
+    "full-refund-requests",
+    "admin-refund-review",
+    "versioned-refund-history",
+    "encrypted-iban-destinations",
+    "private-refund-proof",
+    "manual-refund-completion-records",
+    "refund-allocation-exclusion",
+    "terminal-refunded-payments"
   ],
   "tests": {
     "postgresql": {
-      "passed": 150,
-      "assertions": 955
+      "passed": 172,
+      "assertions": 1104
     },
     "sqlite": {
-      "passed": 139,
-      "skipped": 11,
-      "assertions": 898
+      "passed": 158,
+      "skipped": 14,
+      "assertions": 1030
     },
     "javascript": {
       "passed": 6
@@ -76,11 +84,20 @@
     "desktop-1440",
     "admin-paid-tariff",
     "student-paid-hold",
-    "unpaid-consultation-cancellation"
+    "unpaid-consultation-cancellation",
+    "owner-refund-request",
+    "admin-refund-review",
+    "manual-refund-evidence",
+    "owner-refund-history",
+    "refund-mobile-390"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": false,
   "consultation_payment_operations_ready": false,
   "consultation_refund_execution_complete": false,
-  "validated_phases_merge_to": "main"
+  "validated_phases_merge_to": "main",
+  "manual_refund_workflow_complete": true,
+  "automatic_bank_refunds_complete": false,
+  "partial_refunds_complete": false,
+  "active_course_cancellation_complete": false
 }

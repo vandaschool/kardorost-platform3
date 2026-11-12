@@ -12,6 +12,7 @@ export const latinDigits = (value) =>
     );
 export const paymentStatuses = {
     paid: "تأیید و تخصیص‌یافته",
+    refunded: "مدرک برگشت وجه ثبت شده",
     pending: "در انتظار درگاه",
     pending_review: "رسید در انتظار بررسی",
     review_required: "نیازمند بررسی مدیریت",
