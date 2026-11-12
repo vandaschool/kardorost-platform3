@@ -6,6 +6,7 @@ import JalaliDateInput from "../Components/JalaliDateInput.vue";
 import ConsultationAction from "../Components/ConsultationAction.vue";
 import ConsultationRequestAction from "../Components/ConsultationRequestAction.vue";
 import ConsultationSlotCard from "../Components/ConsultationSlotCard.vue";
+import { money } from "../finance";
 import { dateTime } from "../dates";
 const props = defineProps({
     role: String,
@@ -13,6 +14,7 @@ const props = defineProps({
     bookings: Object,
     requests: Object,
     coaches: Array,
+    gateway_enabled: Boolean,
 });
 const page = usePage();
 const request = useForm({ topic: "", availability: "" });
@@ -24,9 +26,13 @@ const slot = useForm({
     provider: "meet",
     meeting_url: "",
     free_confirmation: false,
+    price: 0,
+    price_confirmation: false,
 });
 const labels = {
     confirmed: "رزروشده",
+    pending_payment: "منتظر پرداخت",
+    expired: "مهلت رزرو تمام شد",
     cancelled: "لغوشده",
     completed: "برگزارشده",
     no_show: "عدم حضور",
@@ -43,8 +49,8 @@ const labels = {
                 <span class="eyebrow">گفت‌وگو برای قدم بعد</span>
                 <h1>مشاوره</h1>
                 <p class="muted">
-                    زمان‌ها به وقت تهران هستند. زمان‌های قابل رزرو این مرحله
-                    رایگان‌اند.
+                    زمان‌ها به وقت تهران هستند. تعرفه هر جلسه پیش از رزرو نمایش
+                    داده می‌شود.
                 </p>
             </div>
         </section>
@@ -118,6 +124,7 @@ const labels = {
                     >مدت (دقیقه)<input
                         type="number"
                         v-model="slot.minutes"
+                        name="minutes"
                         min="15"
                         max="180"
                         required /></label
@@ -133,7 +140,21 @@ const labels = {
                         v-model="slot.meeting_url"
                         dir="ltr"
                         maxlength="2000" /></label
-                ><label class="checkbox-label"
+                ><label v-if="role === 'admin'"
+                    >تعرفه جلسه (تومان؛ صفر برای رایگان)<input
+                        v-model="slot.price"
+                        name="price"
+                        type="number"
+                        min="0"
+                        max="100000000"
+                        required /></label
+                ><label v-if="Number(slot.price) > 0" class="checkbox-label"
+                    ><input
+                        v-model="slot.price_confirmation"
+                        type="checkbox"
+                        required
+                    />تعرفه نمایش‌داده‌شده را تأیید می‌کنم.</label
+                ><label v-else class="checkbox-label"
                     ><input
                         type="checkbox"
                         v-model="slot.free_confirmation"
@@ -161,6 +182,7 @@ const labels = {
                     :key="s.id"
                     :slot="s"
                     :role="role"
+                    :gateway-enabled="gateway_enabled"
                 />
             </div>
             <Pagination :links="slots.links" />
@@ -184,6 +206,30 @@ const labels = {
                         {{ dateTime(b.starts_at) }} تا {{ dateTime(b.ends_at) }}
                     </p>
                     <p class="preserve-lines">{{ b.topic }}</p>
+                    <p>{{ b.amount ? money(b.amount) : "رایگان" }}</p>
+                    <p v-if="b.refund_status === 'pending'" class="muted">
+                        لغو ثبت شد؛ بازپرداخت نیازمند بررسی و اقدام مدیریت است.
+                        وجه خودکار برگردانده نشده است.
+                    </p>
+                    <div
+                        v-if="b.status === 'pending_payment'"
+                        class="stack-form"
+                    >
+                        <p>
+                            مهلت پرداخت: {{ dateTime(b.expires_at) }}. جلسه پس
+                            از تأیید پرداخت قطعی می‌شود.
+                        </p>
+                        <Link
+                            v-if="b.can_pay && gateway_enabled"
+                            :href="`/consultations/${b.id}/pay`"
+                            method="post"
+                            as="button"
+                            class="btn primary"
+                            >پرداخت و قطعی‌کردن جلسه</Link
+                        ><Link href="/finance" class="btn secondary"
+                            >پیگیری وضعیت پرداخت</Link
+                        >
+                    </div>
                     <p v-if="b.shared_summary" class="preserve-lines">
                         خلاصه جلسه: {{ b.shared_summary }}
                     </p>

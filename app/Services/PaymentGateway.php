@@ -20,10 +20,10 @@ class PaymentGateway
         $this->ready();
         $response = Http::timeout(15)->post('https://gateway.zibal.ir/v1/request', [
             'merchant' => config('platform.zibal.merchant'), 'amount' => $payment->amount,
-            'callbackUrl' => route('payments.callback'), 'orderId' => (string) $payment->id, 'description' => 'ثبت‌نام کاردرست',
+            'callbackUrl' => route($payment->consultation_id ? 'consultation-payments.callback' : 'payments.callback'), 'orderId' => (string) $payment->id, 'description' => $payment->consultation_id ? 'مشاوره کاردرست' : 'ثبت‌نام کاردرست',
         ]);
         $track = $response->json('trackId');
-        if (! $response->successful() || $response->json('result') !== 100 || ! $track) {
+        if (! $response->successful() || $response->json('result') !== 100 || ! (is_string($track) || is_int($track)) || (string) $track === '' || strlen((string) $track) > 100) {
             throw ValidationException::withMessages(['payment' => 'اتصال به درگاه انجام نشد. دوباره تلاش کنید.']);
         }
         $payment->update(['track_id' => (string) $track]);

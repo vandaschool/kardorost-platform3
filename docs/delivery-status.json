@@ -1,5 +1,5 @@
 {
-  "phase": "consultation-scheduling-and-coordination",
+  "phase": "paid-consultation-reservations",
   "completed": [
     "phone-verification",
     "password-login",
@@ -34,17 +34,24 @@
     "human-coordination-requests",
     "consultation-cancellation-history",
     "shared-consultation-outcomes",
-    "consultation-join-window"
+    "consultation-join-window",
+    "admin-consultation-tariffs",
+    "frozen-consultation-price",
+    "paid-consultation-holds",
+    "consultation-zibal-verification",
+    "shared-payment-reference-uniqueness",
+    "expired-hold-release-command",
+    "consultation-refund-liability-tracking"
   ],
   "tests": {
     "postgresql": {
-      "passed": 125,
-      "assertions": 803
+      "passed": 150,
+      "assertions": 955
     },
     "sqlite": {
-      "passed": 117,
-      "skipped": 8,
-      "assertions": 762
+      "passed": 139,
+      "skipped": 11,
+      "assertions": 898
     },
     "javascript": {
       "passed": 6
@@ -66,8 +73,14 @@
     "coach-request-isolation",
     "admin-coordination-queue",
     "rtl-mobile-390",
-    "desktop-1440"
+    "desktop-1440",
+    "admin-paid-tariff",
+    "student-paid-hold",
+    "unpaid-consultation-cancellation"
   ],
-  "consultation_payments_complete": false,
-  "consultation_package_quotas_complete": false
+  "consultation_payments_complete": true,
+  "consultation_package_quotas_complete": false,
+  "consultation_payment_operations_ready": false,
+  "consultation_refund_execution_complete": false,
+  "validated_phases_merge_to": "main"
 }

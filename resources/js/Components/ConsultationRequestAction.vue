@@ -1,4 +1,6 @@
 <script setup>
+import { money } from "../finance";
+import { dateTime } from "../dates";
 import { useForm } from "@inertiajs/vue3";
 const props = defineProps({ item: Object, admin: Boolean, slots: Array });
 const form = useForm({ version: props.item.version, reason: "", slot_id: "" });
@@ -32,7 +34,9 @@ function send(action) {
                         :key="slot.id"
                         :value="slot.id"
                     >
-                        #{{ slot.id }} · {{ slot.coach_name }}
+                        #{{ slot.id }} · {{ slot.coach_name }} ·
+                        {{ dateTime(slot.starts_at) }} ·
+                        {{ slot.price ? money(slot.price) : "رایگان" }}
                     </option>
                 </select></label
             >

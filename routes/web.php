@@ -4,6 +4,7 @@ use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BillingPlanController;
 use App\Http\Controllers\ConsultationController;
+use App\Http\Controllers\ConsultationPaymentController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\FinanceController;
@@ -28,6 +29,7 @@ Route::middleware('guest')->group(function () {
     Route::post('/auth/complete', [AuthController::class, 'complete'])->middleware('throttle:10,1');
     Route::post('/auth/restart', [AuthController::class, 'restart']);
 });
+Route::get('/consultation-payments/callback', [ConsultationPaymentController::class, 'callback'])->middleware('throttle:60,1')->name('consultation-payments.callback');
 Route::get('/payments/callback', [EnrollmentController::class, 'callback'])->middleware('throttle:60,1')->name('payments.callback');
 Route::middleware(['auth', 'account.active', 'auth.session'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -54,6 +56,7 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::post('/consultations/requests', [ConsultationController::class, 'request'])->middleware('throttle:10,1');
     Route::post('/consultations/requests/{consultationRequest}/resolve', [ConsultationController::class, 'resolve']);
     Route::post('/consultations/requests/{consultationRequest}/schedule', [ConsultationController::class, 'schedule'])->middleware('panel.role:admin');
+    Route::post('/consultations/{consultation}/pay', [ConsultationPaymentController::class, 'pay'])->middleware('throttle:10,1');
     Route::patch('/consultations/{consultation}', [ConsultationController::class, 'change']);
     Route::get('/consultations/{consultation}/join', [ConsultationController::class, 'join']);
     Route::get('/finance', [FinanceController::class, 'index'])->name('finance');

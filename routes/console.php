@@ -5,6 +5,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\Phone;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('platform:grant-role {phone} {role}', function () {
     $key = $this->argument('role');
@@ -26,3 +27,5 @@ Artisan::command('platform:grant-role {phone} {role}', function () {
 
     return 0;
 })->purpose('Grant an existing verified account a panel role from the server console');
+
+Schedule::command('platform:expire-consultations')->everyMinute()->withoutOverlapping();
