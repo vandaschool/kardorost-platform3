@@ -43,6 +43,7 @@ const menus = computed(() =>
         : props.role === "org_admin"
           ? [
                 ["سازمان من", "Building2", "/organization"],
+                ["دعوت اعضا", "UserPlus", "/organization/invitations"],
                 ["ثبت‌نام گروهی", "Users", "/organization/licenses"],
                 ["صورتحساب سازمان", "ReceiptText", "/organization/invoices"],
                 ["حساب من", "UserRound", "/account"],
@@ -59,6 +60,7 @@ const menus = computed(() =>
               ]
             : [
                   ["خانه", "House", "/student"],
+                  ["دعوت سازمان‌ها", "Building2", "/organization-invitations"],
                   ["یادگیری من", "BookOpen", "/learning"],
                   ["دوره‌ها", "Compass", "/courses"],
                   ["خودشناسی", "Fingerprint", "/assessments"],
@@ -133,7 +135,20 @@ const current = (href) => {
                         :class="['nav-item', { active: current(href) }]"
                         :aria-current="current(href) ? 'page' : undefined"
                         @click="mobile = false"
-                        ><Icon :name="icon" /><span>{{ label }}</span
+                        ><Icon :name="icon" /><span
+                            >{{ label
+                            }}<small
+                                v-if="
+                                    href === '/organization-invitations' &&
+                                    page.props.organizationInvitationCount
+                                "
+                            >
+                                ({{
+                                    new Intl.NumberFormat("fa-IR").format(
+                                        page.props.organizationInvitationCount,
+                                    )
+                                }})</small
+                            ></span
                         ><span
                             v-if="current(href)"
                             class="nav-active-dot"
@@ -143,7 +158,20 @@ const current = (href) => {
                         v-else
                         class="nav-item unavailable"
                         aria-disabled="true"
-                        ><Icon :name="icon" /><span>{{ label }}</span
+                        ><Icon :name="icon" /><span
+                            >{{ label
+                            }}<small
+                                v-if="
+                                    href === '/organization-invitations' &&
+                                    page.props.organizationInvitationCount
+                                "
+                            >
+                                ({{
+                                    new Intl.NumberFormat("fa-IR").format(
+                                        page.props.organizationInvitationCount,
+                                    )
+                                }})</small
+                            ></span
                         ><small>به‌زودی</small></span
                     >
                 </template>

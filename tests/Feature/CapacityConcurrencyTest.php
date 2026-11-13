@@ -15,6 +15,7 @@ use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Installment;
 use App\Models\Organization;
+use App\Models\OrganizationInvitation;
 use App\Models\OrganizationInvoice;
 use App\Models\OrganizationLicense;
 use App\Models\OrganizationSeat;
@@ -34,6 +35,7 @@ use App\Services\ConsultationService;
 use App\Services\EnrollmentService;
 use App\Services\OrganizationBilling;
 use App\Services\OrganizationEnrollment;
+use App\Services\OrganizationMembership;
 use App\Services\ReceiptService;
 use App\Services\RefundService;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
@@ -880,5 +882,94 @@ CODE;
         config(['filesystems.disks.refunds.root' => $directory]);
         Storage::forgetDisk('refunds');
         Storage::disk('refunds')->deleteDirectory('proofs');
+    }
+
+    private function invitationOrganization(): array
+    {
+        $organization = Organization::factory()->create(['name' => 'Organization invitations', 'type' => 'company', 'status' => 'active']);
+        $manager = User::factory()->create();
+        $manager->roles()->attach(Role::where('key', 'org_admin')->value('id'));
+        $organization->members()->attach($manager->id, ['kind' => 'manager']);
+        $student = User::factory()->create();
+        $student->roles()->attach(Role::where('key', 'student')->value('id'));
+
+        return [$organization, $manager, $student];
+    }
+
+    public function test_two_managers_cannot_duplicate_an_invitation_or_send_duplicate_notifications(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Invitation races require PostgreSQL.');
+        }
+        [$organization, $manager, $student] = $this->invitationOrganization();
+        $second = User::factory()->create();
+        $second->roles()->attach(Role::where('key', 'org_admin')->value('id'));
+        $organization->members()->attach($second->id, ['kind' => 'manager']);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo app(\App\Services\OrganizationMembership::class)->invite(\App\Models\User::findOrFail((int)$argv[2]),\App\Models\Organization::findOrFail((int)$argv[1]),$argv[3])?'CREATED':'EXISTING';
+CODE;
+        $this->assertSame(['CREATED', 'EXISTING'], $this->parallelFinance($code, [[$organization->id, $manager->id, $student->phone], [$organization->id, $second->id, $student->phone]]));
+        $this->assertSame(1, OrganizationInvitation::count());
+        $this->assertSame(1, $student->notifications()->count());
+        $this->assertSame(2, $organization->members()->count());
+    }
+
+    public function test_invitation_acceptance_racing_revocation_has_one_membership_outcome(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Invitation races require PostgreSQL.');
+        }
+        [$organization, $manager, $student] = $this->invitationOrganization();
+        app(OrganizationMembership::class)->invite($manager, $organization, $student->phone);
+        $invitation = OrganizationInvitation::sole();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$i=\App\Models\OrganizationInvitation::findOrFail((int)$argv[1]);$s=app(\App\Services\OrganizationMembership::class);
+try {if($argv[3]==='accept') {$s->respond(\App\Models\User::findOrFail((int)$argv[2]),$i,1,'accept');echo 'ACCEPTED';}else{$s->change(\App\Models\User::findOrFail((int)$argv[2]),$i,1,'revoke');echo 'REVOKED';}}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $result = $this->parallelFinance($code, [[$invitation->id, $student->id, 'accept'], [$invitation->id, $manager->id, 'revoke']]);
+        $this->assertContains($result, [['ACCEPTED', 'STALE'], ['REVOKED', 'STALE']]);
+        $this->assertSame($invitation->fresh()->status === 'accepted' ? 2 : 1, $organization->members()->count());
+        $this->assertSame(2, $invitation->fresh()->revision);
+        $this->assertSame(['student'], $student->roleKeys());
+    }
+
+    public function test_two_confirmations_of_one_csv_preview_commit_once(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Invitation races require PostgreSQL.');
+        }
+        [$organization, $manager, $student] = $this->invitationOrganization();
+        $preview = app(OrganizationMembership::class)->preview($manager, $organization, UploadedFile::fake()->createWithContent('members.csv', "phone\n{$student->phone}\n09121234567\n"));
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$r=app(\App\Services\OrganizationMembership::class)->commit(\App\Models\User::findOrFail((int)$argv[2]),\App\Models\OrganizationInvitationImport::findOrFail((int)$argv[1]));echo $r['created'];
+CODE;
+        $this->assertSame(['2', '2'], $this->parallelFinance($code, [[$preview->id, $manager->id], [$preview->id, $manager->id]]));
+        $this->assertSame(2, OrganizationInvitation::count());
+        $this->assertSame(1, AuditEvent::where('action', 'organization_import.committed')->count());
+        $this->assertSame(1, $student->notifications()->count());
+        $this->assertSame(1, $organization->members()->count());
+    }
+
+    public function test_overlapping_csv_imports_create_each_organization_invitation_once(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Invitation races require PostgreSQL.');
+        }
+        [$organization, $manager, $student] = $this->invitationOrganization();
+        $second = User::factory()->create();
+        $second->roles()->attach(Role::where('key', 'org_admin')->value('id'));
+        $organization->members()->attach($second->id, ['kind' => 'manager']);
+        $firstPreview = app(OrganizationMembership::class)->preview($manager, $organization, UploadedFile::fake()->createWithContent('members.csv', "phone\n{$student->phone}\n09121234567\n"));
+        $secondPreview = app(OrganizationMembership::class)->preview($second, $organization, UploadedFile::fake()->createWithContent('members.csv', "phone\n{$student->phone}\n09121234568\n"));
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$r=app(\App\Services\OrganizationMembership::class)->commit(\App\Models\User::findOrFail((int)$argv[2]),\App\Models\OrganizationInvitationImport::findOrFail((int)$argv[1]));echo $r['created'].'-'.$r['skipped'];
+CODE;
+        $this->assertSame(['1-1', '2-0'], $this->parallelFinance($code, [[$firstPreview->id, $manager->id], [$secondPreview->id, $second->id]]));
+        $this->assertSame(3, OrganizationInvitation::count());
+        $this->assertSame(1, $student->notifications()->count());
+        $this->assertSame(2, $organization->members()->count());
     }
 }
