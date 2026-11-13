@@ -221,6 +221,7 @@ class BillingService
     {
         return match ($reason) {
             'organization_invoice_mismatch' => 'مبلغ پرداخت با صورتحساب سازمان تطبیق ندارد',
+            'organization_invoice_excess' => 'وجه دریافت‌شده از مانده صورتحساب سازمان بیشتر است؛ بررسی مدیریت لازم است',
             'organization_invoice_duplicate' => 'دریافتی اضافه برای صورتحساب تسویه‌شده سازمان',
             'organization_invoice_void' => 'وجه صورتحساب ابطال‌شده؛ رسیدگی مدیریت لازم است',
             'consultation_amount_mismatch' => 'مبلغ یا صاحب پرداخت با رزرو مشاوره تطبیق ندارد',

@@ -23,6 +23,11 @@ class Payment extends Model
         return $this->belongsTo(OrganizationInvoice::class);
     }
 
+    public function organizationAllocation(): HasOne
+    {
+        return $this->hasOne(OrganizationPaymentAllocation::class);
+    }
+
     public function installment(): BelongsTo
     {
         return $this->belongsTo(Installment::class);

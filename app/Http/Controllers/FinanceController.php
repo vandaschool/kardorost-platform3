@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Enrollment;
 use App\Models\Installment;
+use App\Models\OrganizationPaymentAllocation;
 use App\Models\Payment;
 use App\Models\PaymentAllocation;
 use App\Models\PaymentReceipt;
@@ -56,7 +57,7 @@ class FinanceController extends Controller
             $rows = Installment::whereNull('paid_at')->whereNull('voided_at')->where('due_date', '<', now()->toDateString())->whereHas('enrollment', fn ($q) => $q->where('status', 'active')->whereColumn('enrollments.billing_version', 'installments.billing_version'))->with('enrollment.course', 'enrollment.user')->orderBy('due_date')->paginate(20)->withQueryString()->through(fn ($i) => ['id' => $i->id, 'sequence' => $i->sequence, 'amount' => $i->amount, 'due_date' => $i->due_date->toDateString(), 'title' => $i->enrollment->course->title, 'student' => $i->enrollment->user->only('id', 'name', 'phone')]);
         }
 
-        return Inertia::render('AdminFinance', ['tab' => $tab, 'status' => $status, 'rows' => $rows, 'stats' => ['allocated' => (int) Payment::whereNotNull('organization_invoice_id')->where('status', 'paid')->sum('amount') + (int) PaymentAllocation::sum('amount') + (int) Payment::whereNotNull('consultation_id')->where('status', 'paid')->sum('amount'), 'unallocated' => (int) Payment::where('status', 'review_required')->whereNotNull('captured_at')->sum('amount'), 'pending_receipts' => PaymentReceipt::where('status', 'pending')->count()]]);
+        return Inertia::render('AdminFinance', ['tab' => $tab, 'status' => $status, 'rows' => $rows, 'stats' => ['allocated' => (int) OrganizationPaymentAllocation::sum('amount') + (int) PaymentAllocation::sum('amount') + (int) Payment::whereNotNull('consultation_id')->where('status', 'paid')->sum('amount'), 'unallocated' => (int) Payment::where('status', 'review_required')->whereNotNull('captured_at')->sum('amount'), 'pending_receipts' => PaymentReceipt::where('status', 'pending')->count()]]);
     }
 
     public function allocate(Request $request, Payment $payment, BillingService $billing): RedirectResponse

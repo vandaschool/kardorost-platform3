@@ -15,6 +15,7 @@ const props = defineProps({
     can_pay: Boolean,
     blocked: Boolean,
     gateway_enabled: Boolean,
+    pending_payment_amount: Number,
     licenses: Array,
 });
 const draftDirty = ref(false);
@@ -76,6 +77,7 @@ function receipt(p) {
         <OrganizationInvoiceEditor
             v-if="admin && invoice.status === 'draft'"
             :invoice="invoice"
+            :pending-amount="pending_payment_amount"
             :licenses="licenses"
             @dirty="draftDirty = $event" />
         <p v-if="draftDirty" class="muted">
@@ -95,6 +97,18 @@ function receipt(p) {
                 </p>
             </article>
             <strong>جمع: {{ money(invoice.amount) }}</strong>
+            <p data-testid="invoice-paid">
+                پرداخت تأییدشده: {{ money(invoice.paid_amount) }}
+            </p>
+            <p data-testid="invoice-remaining">
+                <strong>مانده: {{ money(invoice.remaining_amount) }}</strong>
+            </p>
+            <progress
+                v-if="invoice.amount"
+                :value="invoice.paid_amount"
+                :max="invoice.amount"
+                aria-label="پیشرفت پرداخت صورتحساب"
+            ></progress>
             <p>
                 سررسید: {{ dateOnly(invoice.due_date) }}
                 <span v-if="invoice.overdue">· سررسید گذشته</span>
@@ -194,6 +208,10 @@ function receipt(p) {
                 <p v-if="p.reference">
                     شناسه تأییدشده: <bdi>{{ p.reference }}</bdi>
                 </p>
+                <p v-if="p.allocated_amount">
+                    کسرشده از بدهی: {{ money(p.allocated_amount) }}
+                </p>
+                <p v-if="p.review_label" class="muted">{{ p.review_label }}</p>
                 <ReceiptReview
                     v-if="admin && p.receipt"
                     :receipt="receipt(p)"

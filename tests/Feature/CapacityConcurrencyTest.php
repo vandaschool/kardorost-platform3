@@ -282,6 +282,9 @@ CODE;
             Refund::query()->delete();
         }
         if (Schema::hasColumn('payments', 'organization_invoice_id')) {
+            if (Schema::hasTable('organization_payment_allocations')) {
+                DB::table('organization_payment_allocations')->delete();
+            }
             $ids = Payment::whereNotNull('organization_invoice_id')->pluck('id');
             $receipts = PaymentReceipt::whereIn('payment_id', $ids)->pluck('id');
             ReceiptClaim::whereIn('payment_receipt_id', $receipts)->delete();
@@ -726,6 +729,65 @@ echo app($s)->capture($p,'SHARED-ORG-COURSE')?'PAID':'REVIEW';
 CODE;
         $this->assertSame(['PAID', 'REVIEW'], $this->parallelFinance($code, [[$org->id], [$course->id]]));
         $this->assertSame(1, Payment::whereNotNull('captured_at')->count());
-        $this->assertSame(1,Payment::where('status','paid')->count());
+        $this->assertSame(1, Payment::where('status', 'paid')->count());
+    }
+
+    public function test_two_partial_organization_captures_can_finish_same_invoice_concurrently(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Organization payment races require PostgreSQL.');
+        }
+        $first = $this->organizationInvoiceCharge();
+        $first->update(['amount' => 400000]);
+        $second = Payment::create([...$first->only('organization_invoice_id', 'user_id', 'method'), 'amount' => 600000, 'status' => 'pending']);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo app(\App\Services\OrganizationBilling::class)->capture(\App\Models\Payment::findOrFail((int)$argv[1]),'PARTIAL-'.$argv[1])?'PAID':'REVIEW';
+CODE;
+        $this->assertSame(['PAID', 'PAID'], $this->parallelFinance($code, [[$first->id], [$second->id]]));
+        $this->assertSame(1000000, (int) DB::table('organization_payment_allocations')->sum('amount'));
+        $this->assertSame(2, DB::table('organization_payment_allocations')->count());
+        $this->assertSame('paid', $first->organizationInvoice->fresh()->status);
+        $this->assertSame(0, $first->organizationInvoice->fresh()->remainingAmount());
+        $this->assertSame(4, $first->organizationInvoice->fresh()->revision);
+    }
+
+    public function test_overlapping_partial_charges_cannot_allocate_more_than_invoice_total(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Organization payment races require PostgreSQL.');
+        }
+        $first = $this->organizationInvoiceCharge();
+        $first->update(['amount' => 600000]);
+        $second = Payment::create([...$first->only('organization_invoice_id', 'user_id', 'amount', 'method'), 'status' => 'pending']);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo app(\App\Services\OrganizationBilling::class)->capture(\App\Models\Payment::findOrFail((int)$argv[1]),'OVERLAP-'.$argv[1])?'PAID':'REVIEW';
+CODE;
+        $this->assertSame(['PAID', 'REVIEW'], $this->parallelFinance($code, [[$first->id], [$second->id]]));
+        $this->assertSame(600000, (int) DB::table('organization_payment_allocations')->sum('amount'));
+        $this->assertSame(1, DB::table('organization_payment_allocations')->count());
+        $this->assertSame(1200000, (int) Payment::whereNotNull('captured_at')->sum('amount'));
+        $this->assertSame('organization_invoice_excess', Payment::where('status', 'review_required')->sole()->review_reason);
+        $this->assertSame(400000, $first->organizationInvoice->fresh()->remainingAmount());
+        $this->assertSame('issued', $first->organizationInvoice->fresh()->status);
+    }
+
+    public function test_replayed_partial_capture_records_one_allocation_under_concurrent_callbacks(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Organization payment races require PostgreSQL.');
+        }
+        $payment = $this->organizationInvoiceCharge();
+        $payment->update(['amount' => 400000]);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo app(\App\Services\OrganizationBilling::class)->capture(\App\Models\Payment::findOrFail((int)$argv[1]),'REPLAY-PARTIAL')?'PAID':'REVIEW';
+CODE;
+        $this->assertSame(['PAID', 'PAID'], $this->parallelFinance($code, [[$payment->id], [$payment->id]]));
+        $this->assertSame(1, DB::table('organization_payment_allocations')->count());
+        $this->assertSame(400000, (int) DB::table('organization_payment_allocations')->sum('amount'));
+        $this->assertSame(600000, $payment->organizationInvoice->fresh()->remainingAmount());
+        $this->assertSame(3, $payment->organizationInvoice->fresh()->revision);
     }
 }

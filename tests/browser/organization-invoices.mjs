@@ -148,72 +148,90 @@ try {
     await until(
         `!document.querySelector('[name=invoice_title]') && document.body.innerText.includes('صادرشده')`,
     );
-    await login("organization");
-    await goto("/organization/invoices/" + invoiceId);
-    await until(`!!document.querySelector('details form')`);
-    await evaluate(`document.querySelector('details').open=true`);
-    await fill("[name=transfer_reference]", "BROWSER987654");
-    const date = Object.fromEntries(
-        new Intl.DateTimeFormat("en-US-u-ca-persian-nu-latn", {
-            year: "numeric",
-            month: "numeric",
-            day: "numeric",
-            timeZone: "Asia/Tehran",
-        })
-            .formatToParts(new Date())
-            .map((p) => [p.type, p.value]),
-    );
-    for (const [label, key] of [
-        ["سال", "year"],
-        ["ماه", "month"],
-        ["روز", "day"],
-    ]) {
+    for (const [index, amount] of [40000, 60000].entries()) {
+        await login("organization");
+        await goto("/organization/invoices/" + invoiceId);
+        await until(`!!document.querySelector('details form')`);
+        await evaluate(`document.querySelector('details').open=true`);
+        await fill("[name=payment_amount]", String(amount));
+        await fill("[name=transfer_reference]", "BROWSER987654" + index);
+        const date = Object.fromEntries(
+            new Intl.DateTimeFormat("en-US-u-ca-persian-nu-latn", {
+                year: "numeric",
+                month: "numeric",
+                day: "numeric",
+                timeZone: "Asia/Tehran",
+            })
+                .formatToParts(new Date())
+                .map((p) => [p.type, p.value]),
+        );
+        for (const [label, key] of [
+            ["سال", "year"],
+            ["ماه", "month"],
+            ["روز", "day"],
+        ]) {
+            await fill(
+                `details select[aria-label^="${label}"]`,
+                String(Number(date[key])),
+            );
+        }
+        await writeFile(
+            "/tmp/kardorost-org-invoice-proof.pdf",
+            "%PDF-1.4\nBrowser fixture organization payment " + index,
+        );
+        const root = await send("DOM.getDocument");
+        const node = await send("DOM.querySelector", {
+            nodeId: root.root.nodeId,
+            selector: "details input[type=file]",
+        });
+        await send("DOM.setFileInputFiles", {
+            nodeId: node.nodeId,
+            files: ["/tmp/kardorost-org-invoice-proof.pdf"],
+        });
+        await submit("details form");
+        await until(`document.body.innerText.includes('رسید در انتظار بررسی')`);
+        assert.equal(
+            await evaluate(
+                `document.querySelector('.eyebrow').innerText.includes('صادرشده')`,
+            ),
+            true,
+            "Uploading a receipt is not settlement",
+        );
+        await login("admin");
+        await goto("/admin/organization-invoices/" + invoiceId);
+        await until(`!!document.querySelector('.receipt-review-card')`);
+        await evaluate(
+            `Array.from(document.querySelectorAll('button')).find(b=>b.innerText==='بررسی رسید').click()`,
+        );
+        await until(`!!document.querySelector('.receipt-review-card form')`);
         await fill(
-            `details select[aria-label^="${label}"]`,
-            String(Number(date[key])),
+            ".receipt-review-card input[inputmode=numeric]",
+            String(amount),
+        );
+        await fill(
+            ".receipt-review-card textarea",
+            "واریز آزمایشی با گردش حساب تطبیق داده شد",
+        );
+        await evaluate(
+            `document.querySelector('.receipt-review-card input[type=checkbox]').click()`,
+        );
+        await submit(".receipt-review-card form");
+        await until(
+            `document.querySelector('.eyebrow').innerText.includes('${index === 0 ? "صادرشده" : "تسویه‌شده"}') && !document.querySelector('.receipt-review-card form')`,
+        );
+        assert.equal(
+            await evaluate(
+                `document.querySelector('[data-testid="invoice-paid"]').innerText.includes('${new Intl.NumberFormat("fa-IR").format(index === 0 ? 40000 : 100000)}')`,
+            ),
+            true,
+        );
+        assert.equal(
+            await evaluate(
+                `document.querySelector('[data-testid="invoice-remaining"]').innerText.includes('${new Intl.NumberFormat("fa-IR").format(index === 0 ? 60000 : 0)}')`,
+            ),
+            true,
         );
     }
-    await writeFile(
-        "/tmp/kardorost-org-invoice-proof.pdf",
-        "%PDF-1.4\nBrowser fixture organization payment",
-    );
-    const root = await send("DOM.getDocument");
-    const node = await send("DOM.querySelector", {
-        nodeId: root.root.nodeId,
-        selector: "details input[type=file]",
-    });
-    await send("DOM.setFileInputFiles", {
-        nodeId: node.nodeId,
-        files: ["/tmp/kardorost-org-invoice-proof.pdf"],
-    });
-    await submit("details form");
-    await until(`document.body.innerText.includes('رسید در انتظار بررسی')`);
-    assert.equal(
-        await evaluate(
-            `document.querySelector('.eyebrow').innerText.includes('صادرشده')`,
-        ),
-        true,
-        "Uploading a receipt is not settlement",
-    );
-    await login("admin");
-    await goto("/admin/organization-invoices/" + invoiceId);
-    await until(`!!document.querySelector('.receipt-review-card')`);
-    await evaluate(
-        `Array.from(document.querySelectorAll('button')).find(b=>b.innerText==='بررسی رسید').click()`,
-    );
-    await until(`!!document.querySelector('.receipt-review-card form')`);
-    await fill(".receipt-review-card input[inputmode=numeric]", "100000");
-    await fill(
-        ".receipt-review-card textarea",
-        "واریز آزمایشی با گردش حساب تطبیق داده شد",
-    );
-    await evaluate(
-        `document.querySelector('.receipt-review-card input[type=checkbox]').click()`,
-    );
-    await submit(".receipt-review-card form");
-    await until(
-        `document.querySelector('.eyebrow').innerText.includes('تسویه‌شده')`,
-    );
     await login("organization");
     await goto("/organization/invoices/" + invoiceId);
     await until(
@@ -257,7 +275,7 @@ try {
     );
     assert.deepEqual(exceptions, []);
     console.log(
-        "PASS: admin draft/issue, manager private receipt, independent admin settlement, mobile history and personal finance isolation",
+        "PASS: admin draft/issue, manager private receipt, two independent partial deposits, cumulative settlement, mobile history and personal finance isolation",
     );
 } finally {
     socket.close();
