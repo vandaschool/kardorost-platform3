@@ -105,6 +105,7 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/organization/invoices/{invoice}', [OrganizationInvoiceController::class, 'show'])->name('organization.invoices.show');
         Route::post('/organization/invoices/{invoice}/pay', [OrganizationInvoiceController::class, 'pay'])->middleware('throttle:10,1');
         Route::post('/organization/invoices/{invoice}/receipts', [OrganizationInvoiceController::class, 'receipt'])->middleware('throttle:10,1');
+        Route::post('/organization/invoices/{invoice}/payments/{payment}/refund', [OrganizationInvoiceController::class, 'refund'])->middleware('throttle:10,1');
         Route::get('/organization', [OrganizationController::class, 'index'])->name('panel.org_admin');
         Route::post('/organization/switch', [OrganizationController::class, 'switch']);
         Route::post('/organization/members', [OrganizationController::class, 'addMember']);

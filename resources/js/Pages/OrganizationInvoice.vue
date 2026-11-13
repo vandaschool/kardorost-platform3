@@ -5,6 +5,8 @@ import Shell from "../Layouts/Shell.vue";
 import OrganizationInvoiceEditor from "../Components/OrganizationInvoiceEditor.vue";
 import OrganizationInvoicePayment from "../Components/OrganizationInvoicePayment.vue";
 import ReceiptReview from "../Components/ReceiptReview.vue";
+import RefundRequestForm from "../Components/RefundRequestForm.vue";
+import RefundHistory from "../Components/RefundHistory.vue";
 import Pagination from "../Components/Pagination.vue";
 import { money, dateOnly, paymentStatuses, receiptStatuses } from "../finance";
 import { dateTime, fa } from "../dates";
@@ -77,7 +79,6 @@ function receipt(p) {
         <OrganizationInvoiceEditor
             v-if="admin && invoice.status === 'draft'"
             :invoice="invoice"
-            :pending-amount="pending_payment_amount"
             :licenses="licenses"
             @dirty="draftDirty = $event" />
         <p v-if="draftDirty" class="muted">
@@ -182,6 +183,7 @@ function receipt(p) {
         <OrganizationInvoicePayment
             v-if="can_pay"
             :invoice="invoice"
+            :pending-amount="pending_payment_amount"
             :gateway-enabled="gateway_enabled" />
         <p v-if="blocked" class="flash" role="status">
             رسید یا پرداخت قبلی نیازمند بررسی است؛ دوباره پرداخت نکنید.
@@ -211,7 +213,34 @@ function receipt(p) {
                 <p v-if="p.allocated_amount">
                     کسرشده از بدهی: {{ money(p.allocated_amount) }}
                 </p>
-                <p v-if="p.review_label" class="muted">{{ p.review_label }}</p>
+                <p v-if="p.review_label" class="muted">
+                    <span v-if="p.status === 'refunded'"
+                        >دلیل بررسی پیش از بازپرداخت: </span
+                    >{{ p.review_label }}
+                </p>
+                <details
+                    v-if="p.can_request_refund"
+                    class="consultation-section organization-refund-request"
+                >
+                    <summary>درخواست برگشت کامل وجه تخصیص‌نیافته</summary>
+                    <RefundRequestForm
+                        corporate
+                        :payment="{
+                            id: p.id,
+                            title: invoice.title,
+                            amount: p.amount,
+                            eligible: true,
+                            version: p.refund_version,
+                        }"
+                        :post-url="`/organization/invoices/${invoice.id}/payments/${p.id}/refund`"
+                    />
+                </details>
+                <RefundHistory
+                    v-if="p.refund"
+                    :refund="p.refund"
+                    :admin="admin"
+                    compact
+                />
                 <ReceiptReview
                     v-if="admin && p.receipt"
                     :receipt="receipt(p)"

@@ -1,17 +1,23 @@
 <script setup>
 import { useForm } from "@inertiajs/vue3";
 import { money, latinDigits } from "../finance";
-const props = defineProps({ payment: Object });
+const props = defineProps({
+    payment: Object,
+    corporate: Boolean,
+    postUrl: String,
+});
 const form = useForm({
     version: props.payment.version,
     destination: "",
     reason: "",
     owner_confirmed: false,
+    organization_confirmed: false,
+    beneficiary_name: "",
 });
 function submit() {
     form.version = props.payment.version;
     form.destination = latinDigits(form.destination);
-    form.post(`/payments/${props.payment.id}/refund`, {
+    form.post(props.postUrl || `/payments/${props.payment.id}/refund`, {
         preserveScroll: true,
         onSuccess: () => form.reset(),
     });
@@ -26,13 +32,21 @@ function submit() {
         </p>
         <form v-else @submit.prevent="submit" class="stack-form">
             <label
-                >شماره شبای خودتان<input
+                >{{ corporate ? "شماره شبای حساب سازمان" : "شماره شبای خودتان"
+                }}<input
                     v-model="form.destination"
                     dir="ltr"
                     autocomplete="off"
                     maxlength="100"
                     placeholder="IR…"
                     required /></label
+            ><label v-if="corporate"
+                >نام صاحب حساب سازمان<input
+                    v-model="form.beneficiary_name"
+                    name="beneficiary_name"
+                    required
+                    minlength="3"
+                    maxlength="200" /></label
             ><label
                 >دلیل درخواست<textarea
                     v-model="form.reason"
@@ -40,7 +54,14 @@ function submit() {
                     minlength="3"
                     maxlength="2000"
                 ></textarea></label
-            ><label
+            ><label v-if="corporate"
+                ><input
+                    type="checkbox"
+                    v-model="form.organization_confirmed"
+                    required
+                />این شبا و نام صاحب حساب متعلق به حساب مجاز سازمان است و
+                درخواست را از طرف سازمان ثبت می‌کنم.</label
+            ><label v-else
                 ><input
                     type="checkbox"
                     v-model="form.owner_confirmed"
