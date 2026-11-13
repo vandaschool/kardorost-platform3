@@ -149,7 +149,7 @@ class OrganizationInvoiceTest extends TestCase
         $other = Organization::factory()->create(['name' => 'سازمان دیگر', 'type' => 'company', 'status' => 'active']);
         $other->members()->attach($u->id, ['kind' => 'manager']);
         $this->actingAs($u)->withSession(['organization_id' => $other->id])->get('/organization/invoices/'.$i->id)->assertForbidden();
-        $this->post('/organization/invoices/'.$i->id.'/pay')->assertForbidden();
+        $this->post('/organization/invoices/'.$i->id.'/pay', ['amount' => 100000])->assertForbidden();
         $this->withSession(['organization_id' => $i->organization_id])->get('/organization/invoices/'.$i->id)->assertOk();
         $i->organization->members()->detach($u->id);
         $this->get('/organization/invoices/'.$i->id)->assertForbidden();
@@ -218,8 +218,8 @@ class OrganizationInvoiceTest extends TestCase
         $r = $this->receipt($i);
         $other = $this->issued();
         $u = $this->manager($other->organization);
-        $this->actingAs($u)->withSession(['organization_id' => $other->organization_id])->post('/organization/invoices/'.$other->id.'/receipts', ['file' => $this->file(), 'transfer_reference' => '98765432', 'transfer_date' => now()->toDateString()])->assertSessionHasErrors('invoice');
-        $this->post('/organization/invoices/'.$other->id.'/receipts', ['file' => $this->file('other'), 'transfer_reference' => '۱۲۳۴۵۶۷۸', 'transfer_date' => now()->toDateString()])->assertSessionHasErrors('invoice');
+        $this->actingAs($u)->withSession(['organization_id' => $other->organization_id])->post('/organization/invoices/'.$other->id.'/receipts', ['amount' => 100000, 'file' => $this->file(), 'transfer_reference' => '98765432', 'transfer_date' => now()->toDateString()])->assertSessionHasErrors('invoice');
+        $this->post('/organization/invoices/'.$other->id.'/receipts', ['amount' => 100000, 'file' => $this->file('other'), 'transfer_reference' => '۱۲۳۴۵۶۷۸', 'transfer_date' => now()->toDateString()])->assertSessionHasErrors('invoice');
         $this->assertDatabaseCount('payment_receipts', 1);
         $this->assertSame(1, count(Storage::disk('receipts')->allFiles()));
     }
@@ -234,7 +234,7 @@ class OrganizationInvoiceTest extends TestCase
         app(ReceiptService::class)->submit($u, $invoice, $this->file(), '12345678', now()->toDateString());
         $i = $this->issued();
         $manager = $this->manager($i->organization);
-        $this->actingAs($manager)->post('/organization/invoices/'.$i->id.'/receipts', ['file' => $this->file('new'), 'transfer_reference' => '12345678', 'transfer_date' => now()->toDateString()])->assertSessionHasErrors('invoice');
+        $this->actingAs($manager)->post('/organization/invoices/'.$i->id.'/receipts', ['amount' => 100000, 'file' => $this->file('new'), 'transfer_reference' => '12345678', 'transfer_date' => now()->toDateString()])->assertSessionHasErrors('invoice');
         $this->assertDatabaseCount('payment_receipts', 1);
     }
 
@@ -243,8 +243,8 @@ class OrganizationInvoiceTest extends TestCase
         $i = $this->issued();
         $u = $this->manager($i->organization);
         Http::fake(['gateway.zibal.ir/v1/request' => Http::response(['result' => 100, 'trackId' => 'org-track'])]);
-        $this->actingAs($u)->post('/organization/invoices/'.$i->id.'/pay')->assertRedirect('https://gateway.zibal.ir/start/org-track');
-        $this->post('/organization/invoices/'.$i->id.'/pay')->assertRedirect('https://gateway.zibal.ir/start/org-track');
+        $this->actingAs($u)->post('/organization/invoices/'.$i->id.'/pay', ['amount' => 100000])->assertRedirect('https://gateway.zibal.ir/start/org-track');
+        $this->post('/organization/invoices/'.$i->id.'/pay', ['amount' => 100000])->assertRedirect('https://gateway.zibal.ir/start/org-track');
         $this->assertDatabaseCount('payments', 1);
         Http::assertSentCount(1);
         Http::assertSent(fn ($r) => $r['amount'] === 1000000 && str_ends_with($r['callbackUrl'], '/organization-payments/callback'));
@@ -354,11 +354,11 @@ class OrganizationInvoiceTest extends TestCase
     {
         $i = $this->issued();
         $p = $this->gatewayCharge($i);
-        $this->actingAs($p->user)->post('/organization/invoices/'.$i->id.'/receipts', ['file' => $this->file(), 'transfer_reference' => '12345678', 'transfer_date' => now()->toDateString()])->assertSessionHasErrors('invoice');
+        $this->actingAs($p->user)->post('/organization/invoices/'.$i->id.'/receipts', ['amount' => 100000, 'file' => $this->file(), 'transfer_reference' => '12345678', 'transfer_date' => now()->toDateString()])->assertSessionHasErrors('invoice');
         $this->assertSame([], Storage::disk('receipts')->allFiles());
         $this->travel(16)->minutes();
         $r = $this->receipt($i, $p->user);
-        $this->post('/organization/invoices/'.$i->id.'/pay')->assertSessionHasErrors('invoice');
+        $this->post('/organization/invoices/'.$i->id.'/pay', ['amount' => 100000])->assertSessionHasErrors('invoice');
         $this->assertSame('pending_review', $r->payment->status);
     }
 
@@ -386,8 +386,8 @@ class OrganizationInvoiceTest extends TestCase
     {
         $i = $this->issued();
         $u = $this->manager($i->organization);
-        $this->actingAs($u)->post('/organization/invoices/'.$i->id.'/receipts', ['file' => UploadedFile::fake()->create('proof.exe',1), 'transfer_reference' => '12345678', 'transfer_date' => now()->toDateString()])->assertSessionHasErrors('file');
-        $this->post('/organization/invoices/'.$i->id.'/receipts',['file' => $this->file(), 'transfer_reference' => '12345678', 'transfer_date' => now()->addDay()->toDateString()])->assertSessionHasErrors('transfer_date');
-        $this->assertDatabaseCount('payments',0);
+        $this->actingAs($u)->post('/organization/invoices/'.$i->id.'/receipts', ['amount' => 100000, 'file' => UploadedFile::fake()->create('proof.exe', 1), 'transfer_reference' => '12345678', 'transfer_date' => now()->toDateString()])->assertSessionHasErrors('file');
+        $this->post('/organization/invoices/'.$i->id.'/receipts', ['amount' => 100000, 'file' => $this->file(), 'transfer_reference' => '12345678', 'transfer_date' => now()->addDay()->toDateString()])->assertSessionHasErrors('transfer_date');
+        $this->assertDatabaseCount('payments', 0);
     }
 }

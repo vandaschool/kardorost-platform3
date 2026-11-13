@@ -6,6 +6,7 @@ use App\Models\AuditEvent;
 use App\Models\Organization;
 use App\Models\OrganizationInvoice;
 use App\Models\OrganizationLicense;
+use App\Models\OrganizationPaymentAllocation;
 use App\Models\Payment;
 use App\Models\PaymentReceipt;
 use App\Models\ReceiptClaim;
@@ -136,28 +137,43 @@ class OrganizationBilling
     private function payable(User $actor, OrganizationInvoice $invoice): void
     {
         $this->manager($actor, $invoice);
-        if ($invoice->status !== 'issued' || $invoice->settled_payment_id) {
+        if ($invoice->status !== 'issued' || $invoice->remainingAmount() === 0) {
             $this->fail('این صورتحساب برای پرداخت تازه معتبر نیست.');
         }if ($invoice->payments()->whereIn('status', ['pending_review', 'review_required'])->exists()) {
             $this->fail('رسید یا وجه قبلی نیازمند بررسی است؛ دوباره پرداخت نکنید.');
         }
     }
 
-    public function attempt(User $actor, OrganizationInvoice $invoice): Payment
+    private function paymentAmount(OrganizationInvoice $invoice, ?int $amountToman): int
     {
-        return DB::transaction(function () use ($actor, $invoice) {
+        $remaining = $invoice->remainingAmount();
+        if ($amountToman !== null && ($amountToman < 1 || $amountToman > intdiv($remaining, 10))) {
+            $this->fail('مبلغ پرداخت باید مثبت و حداکثر برابر مانده صورتحساب باشد.');
+        }
+
+        return $amountToman === null ? $remaining : $amountToman * 10;
+    }
+
+    public function attempt(User $actor, OrganizationInvoice $invoice, ?int $amountToman = null): Payment
+    {
+        return DB::transaction(function () use ($actor, $invoice, $amountToman) {
             $invoice = $this->locked($invoice);
             $this->payable($actor, $invoice);
+            $amount = $this->paymentAmount($invoice, $amountToman);
             $pending = $invoice->payments()->where('method', 'gateway')->where('status', 'pending')->where('attempt_expires_at', '>', now())->first();
             if ($pending) {
+                if ($pending->amount !== $amount) {
+                    $this->fail('درخواست درگاه با مبلغ دیگری در جریان است؛ تا تعیین تکلیف آن صبر کنید.');
+                }
+
                 return $pending;
             }$invoice->payments()->where('status', 'pending')->update(['status' => 'expired']);
 
-            return Payment::create(['organization_invoice_id' => $invoice->id, 'enrollment_id' => null, 'user_id' => $actor->id, 'payer_name_snapshot' => $actor->name, 'amount' => $invoice->amount, 'method' => 'gateway', 'status' => 'pending', 'attempt_expires_at' => now()->addMinutes(15)]);
+            return Payment::create(['organization_invoice_id' => $invoice->id, 'enrollment_id' => null, 'user_id' => $actor->id, 'payer_name_snapshot' => $actor->name, 'amount' => $amount, 'method' => 'gateway', 'status' => 'pending', 'attempt_expires_at' => now()->addMinutes(15)]);
         }, 3);
     }
 
-    public function receipt(User $actor, OrganizationInvoice $invoice, UploadedFile $file, string $reference, string $date): PaymentReceipt
+    public function receipt(User $actor, OrganizationInvoice $invoice, UploadedFile $file, string $reference, string $date, ?int $amountToman = null): PaymentReceipt
     {
         $reference = app(ReceiptService::class)->normalizeReference($reference);
         if (! preg_match('/^[A-Z0-9]{4,100}$/D', $reference)) {
@@ -166,9 +182,10 @@ class OrganizationBilling
         $filePath = $file->store('organization', 'receipts');
         $fileHash = hash_file('sha256', $file->getRealPath());
         try {
-            return DB::transaction(function () use ($actor, $invoice, $file, $reference, $date, $filePath, $fileHash) {
+            return DB::transaction(function () use ($actor, $invoice, $file, $reference, $date, $filePath, $fileHash, $amountToman) {
                 $invoice = $this->locked($invoice);
                 $this->payable($actor, $invoice);
+                $amount = $this->paymentAmount($invoice, $amountToman);
                 if ($invoice->payments()->where('status', 'pending')->where('attempt_expires_at', '>', now())->exists()) {
                     $this->fail('درخواست درگاه در جریان است؛ تا تعیین تکلیف دوباره رسید نفرستید.');
                 }
@@ -179,7 +196,7 @@ class OrganizationBilling
                 if (ReceiptClaim::where('file_hash', $fileHash)->orWhere('transfer_key', $claimKey)->exists()) {
                     $this->fail('این رسید یا شناسه واریز قبلاً در سامانه استفاده شده است.');
                 }
-                $payment = Payment::create(['organization_invoice_id' => $invoice->id, 'enrollment_id' => null, 'user_id' => $actor->id, 'payer_name_snapshot' => $actor->name, 'amount' => $invoice->amount, 'method' => 'manual', 'status' => 'pending_review']);
+                $payment = Payment::create(['organization_invoice_id' => $invoice->id, 'enrollment_id' => null, 'user_id' => $actor->id, 'payer_name_snapshot' => $actor->name, 'amount' => $amount, 'method' => 'manual', 'status' => 'pending_review']);
                 $fileName = mb_substr(preg_replace('/[\x00-\x1F\x7F]/u', '_', str_replace(['\\', '/'], '_', $file->getClientOriginalName())), 0, 200);
                 $receipt = PaymentReceipt::create(['payment_id' => $payment->id, 'file_path' => $filePath, 'file_name' => $fileName, 'file_hash' => $fileHash, 'destination' => $invoice->destination, 'transfer_reference' => $reference, 'transfer_date' => $date]);
                 ReceiptClaim::create(['payment_receipt_id' => $receipt->id, 'file_hash' => $fileHash, 'transfer_key' => $claimKey]);
@@ -251,13 +268,21 @@ class OrganizationBilling
 
                     return false;
                 }
-                $reason = $payment->amount !== $invoice->amount ? 'organization_invoice_mismatch' : ($invoice->settled_payment_id ? 'organization_invoice_duplicate' : ($invoice->status !== 'issued' ? 'organization_invoice_void' : null));
+                $remaining = $invoice->remainingAmount();
+                $reason = match (true) {
+                    $invoice->status === 'paid' => 'organization_invoice_duplicate',
+                    $invoice->status !== 'issued' => 'organization_invoice_void',
+                    $payment->amount < 1 || $payment->amount % 10 !== 0 => 'organization_invoice_mismatch',
+                    $payment->amount > $remaining => 'organization_invoice_excess',
+                    default => null,
+                };
                 $payment->update(['reference' => $reference, 'captured_at' => now(), 'paid_at' => now(), 'status' => $reason ? 'review_required' : 'paid', 'review_reason' => $reason]);
                 if (! $reason) {
-                    $invoice->update(['status' => 'paid', 'paid_at' => now(), 'settled_payment_id' => $payment->id, 'revision' => $invoice->revision + 1]);
+                    OrganizationPaymentAllocation::create(['organization_invoice_id' => $invoice->id, 'payment_id' => $payment->id, 'amount' => $payment->amount]);
+                    $invoice->update(['status' => $payment->amount === $remaining ? 'paid' : 'issued', 'paid_at' => $payment->amount === $remaining ? now() : null, 'settled_payment_id' => $payment->amount === $remaining ? $payment->id : null, 'revision' => $invoice->revision + 1]);
                 }
                 $this->audit(null, 'organization_invoice.payment_'.$payment->status, 'payment', $payment->id);
-                $this->notify($invoice, $reason ? 'پرداخت سازمان نیازمند بررسی است' : 'صورتحساب سازمان تسویه شد');
+                $this->notify($invoice, $reason ? 'پرداخت سازمان نیازمند بررسی است' : ($invoice->status === 'paid' ? 'صورتحساب سازمان تسویه شد' : 'پرداخت بخشی از صورتحساب سازمان تأیید شد'));
 
                 return ! $reason;
             }, 3);

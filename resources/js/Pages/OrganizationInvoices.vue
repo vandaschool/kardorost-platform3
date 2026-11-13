@@ -59,6 +59,10 @@ const labels = {
                     {{ i.number || "هنوز صادر نشده" }}
                 </p>
                 <strong>{{ money(i.amount) }}</strong>
+                <p v-if="i.status !== 'draft'">
+                    پرداخت تأییدشده: {{ money(i.paid_amount) }} · مانده:
+                    {{ money(i.remaining_amount) }}
+                </p>
                 <p>
                     سررسید: {{ dateOnly(i.due_date) }}
                     <span v-if="i.overdue">· سررسید گذشته</span>

@@ -1,5 +1,5 @@
 {
-  "phase": "organization-contract-invoices",
+  "phase": "organization-partial-invoice-payments",
   "completed": [
     "phone-verification",
     "password-login",
@@ -73,17 +73,23 @@
     "admin-organization-receipt-review",
     "versioned-invoice-voiding",
     "shared-corporate-and-personal-payment-ledger",
-    "corporate-payment-personal-finance-isolation"
+    "corporate-payment-personal-finance-isolation",
+    "organization-partial-gateway-payments",
+    "organization-partial-transfer-receipts",
+    "organization-cumulative-payment-allocations",
+    "organization-invoice-balance-tracking",
+    "organization-overpayment-review-preservation",
+    "organization-full-settlement-allocation-backfill"
   ],
   "tests": {
     "postgresql": {
-      "passed": 252,
-      "assertions": 1653
+      "passed": 269,
+      "assertions": 1843
     },
     "sqlite": {
-      "passed": 226,
-      "skipped": 26,
-      "assertions": 1517
+      "passed": 240,
+      "skipped": 29,
+      "assertions": 1683
     },
     "javascript": {
       "passed": 6
@@ -129,7 +135,10 @@
     "immutable-invoice-issuance",
     "organization-private-receipt",
     "admin-organization-settlement",
-    "organization-invoice-mobile-390"
+    "organization-invoice-mobile-390",
+    "organization-two-partial-deposits",
+    "organization-balance-after-partial-payment",
+    "organization-cumulative-final-settlement"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": false,
@@ -149,8 +158,10 @@
   "organization_seat_recycling_complete": false,
   "organization_invitation_import_complete": false,
   "organization_expiry_cuts_existing_learning": false,
-  "organization_partial_invoice_payments_complete": false,
+  "organization_partial_invoice_payments_complete": true,
   "organization_refunds_complete": false,
   "organization_formal_tax_invoicing_complete": false,
-  "organization_automatic_license_purchase_complete": false
+  "organization_automatic_license_purchase_complete": false,
+  "organization_excess_fund_resolution_complete": false,
+  "organization_dated_installment_schedules_complete": false
 }

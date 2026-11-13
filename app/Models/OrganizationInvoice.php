@@ -34,4 +34,21 @@ class OrganizationInvoice extends Model
     {
         return $this->hasMany(Payment::class);
     }
+
+    public function allocations(): HasMany
+    {
+        return $this->hasMany(OrganizationPaymentAllocation::class);
+    }
+
+    public function paidAmount(): int
+    {
+        return array_key_exists('allocations_sum_amount', $this->attributes)
+            ? (int) $this->allocations_sum_amount
+            : (int) $this->allocations()->sum('amount');
+    }
+
+    public function remainingAmount(): int
+    {
+        return max(0, $this->amount - $this->paidAmount());
+    }
 }
