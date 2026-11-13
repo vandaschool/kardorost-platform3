@@ -1,5 +1,5 @@
 {
-  "phase": "organization-partial-invoice-payments",
+  "phase": "organization-unallocated-fund-refunds",
   "completed": [
     "phone-verification",
     "password-login",
@@ -79,17 +79,25 @@
     "organization-cumulative-payment-allocations",
     "organization-invoice-balance-tracking",
     "organization-overpayment-review-preservation",
-    "organization-full-settlement-allocation-backfill"
+    "organization-full-settlement-allocation-backfill",
+    "organization-unallocated-full-refund-requests",
+    "encrypted-organization-refund-beneficiaries",
+    "organization-refund-admin-review",
+    "organization-private-refund-evidence",
+    "current-selected-manager-refund-access",
+    "corporate-refund-personal-history-isolation",
+    "organization-refund-invoice-balance-preservation",
+    "pending-organization-gateway-ui-resume"
   ],
   "tests": {
     "postgresql": {
-      "passed": 269,
-      "assertions": 1843
+      "passed": 286,
+      "assertions": 2047
     },
     "sqlite": {
-      "passed": 240,
-      "skipped": 29,
-      "assertions": 1683
+      "passed": 254,
+      "skipped": 32,
+      "assertions": 1866
     },
     "javascript": {
       "passed": 6
@@ -138,7 +146,13 @@
     "organization-invoice-mobile-390",
     "organization-two-partial-deposits",
     "organization-balance-after-partial-payment",
-    "organization-cumulative-final-settlement"
+    "organization-cumulative-final-settlement",
+    "organization-pending-gateway-resume-fields",
+    "organization-excess-refund-request",
+    "organization-refund-admin-review",
+    "organization-manual-refund-evidence",
+    "organization-refund-private-proof",
+    "organization-refund-mobile-390"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": false,
@@ -162,6 +176,11 @@
   "organization_refunds_complete": false,
   "organization_formal_tax_invoicing_complete": false,
   "organization_automatic_license_purchase_complete": false,
-  "organization_excess_fund_resolution_complete": false,
-  "organization_dated_installment_schedules_complete": false
+  "organization_excess_fund_resolution_complete": true,
+  "organization_dated_installment_schedules_complete": false,
+  "organization_excess_fund_resolution_scope": "full_manual_refund_of_captured_unallocated_funds",
+  "organization_unallocated_refunds_complete": true,
+  "organization_allocated_fund_refunds_complete": false,
+  "organization_cross_invoice_credit_transfer_complete": false,
+  "organization_uncaptured_reference_conflict_resolution_complete": false
 }

@@ -8,10 +8,14 @@ use App\Models\Consultation;
 use App\Models\ConsultationSlot;
 use App\Models\Enrollment;
 use App\Models\Installment;
+use App\Models\Organization;
+use App\Models\OrganizationInvoice;
+use App\Models\OrganizationPaymentAllocation;
 use App\Models\Payment;
 use App\Models\PaymentAllocation;
 use App\Models\Refund;
 use App\Models\User;
+use App\Notifications\OrganizationInvoiceChanged;
 use App\Notifications\RefundChanged;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
@@ -51,7 +55,11 @@ class RefundService
     /** Uses the same parent-to-payment lock order as allocation and consultation settlement. */
     private function locked(Payment $payment): Payment
     {
-        if ($payment->consultation_id) {
+        if ($payment->organization_invoice_id) {
+            $invoice = OrganizationInvoice::findOrFail($payment->organization_invoice_id);
+            Organization::whereKey($invoice->organization_id)->lockForUpdate()->firstOrFail();
+            OrganizationInvoice::whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+        } elseif ($payment->consultation_id) {
             $item = Consultation::findOrFail($payment->consultation_id);
             User::whereIn('id', [$item->student_id, $item->slot->coach_id])->orderBy('id')->lockForUpdate()->get();
             ConsultationSlot::whereKey($item->consultation_slot_id)->lockForUpdate()->firstOrFail();
@@ -92,7 +100,26 @@ class RefundService
     {
         $refund->events()->create(['actor_id' => $actor->id, 'status' => $refund->status, 'version' => $refund->version, 'note' => $note]);
         AuditEvent::create(['actor_id' => $actor->id, 'action' => 'refund.'.$refund->status, 'subject_type' => 'refund', 'subject_id' => $refund->id]);
-        $refund->payment->user->notify(new RefundChanged($refund->status));
+        if ($refund->payment->organization_invoice_id) {
+            $invoice = $refund->payment->organizationInvoice;
+            foreach ($invoice->organization->members()->wherePivot('kind', 'manager')->where('is_active', true)->whereHas('roles', fn ($query) => $query->where('key', 'org_admin'))->get() as $manager) {
+                $manager->notify(new OrganizationInvoiceChanged($invoice->id, 'وضعیت بازپرداخت سازمان به‌روز شد'));
+            }
+        } else {
+            $refund->payment->user->notify(new RefundChanged($refund->status));
+        }
+    }
+
+    public function eligibleOrganization(Payment $payment): bool
+    {
+        return (bool) $payment->organization_invoice_id && ! $payment->enrollment_id && ! $payment->consultation_id && ! $payment->installment_id
+            && $payment->status === 'review_required' && (bool) $payment->captured_at && (bool) $payment->reference && $payment->amount > 0
+            && ! OrganizationPaymentAllocation::where('payment_id', $payment->id)->exists();
+    }
+
+    private function refundable(Payment $payment): bool
+    {
+        return $payment->organization_invoice_id ? $this->eligibleOrganization($payment) : $this->eligible($payment);
     }
 
     public function request(User $actor, Payment $payment, string $destination, string $reason, int $version): Refund
@@ -101,23 +128,44 @@ class RefundService
         if ($payment->organization_invoice_id) {
             $this->fail('بازپرداخت قرارداد سازمانی از مسیر رسیدگی سازمان پیگیری می‌شود.');
         }
+
+        return $this->storeRequest($actor, $payment, $destination, $reason, $version);
+    }
+
+    public function requestOrganization(User $actor, Payment $payment, string $destination, string $beneficiaryName, string $reason, int $version): Refund
+    {
+        abort_unless($payment->organization_invoice_id, 422);
+        app(OrganizationBilling::class)->manager($actor, $payment->organizationInvoice);
+        $beneficiaryName = trim($beneficiaryName);
+        if (mb_strlen($beneficiaryName) < 3 || mb_strlen($beneficiaryName) > 200) {
+            $this->fail('نام صاحب حساب سازمان را دقیق وارد کنید.');
+        }
+
+        return $this->storeRequest($actor, $payment, $destination, $reason, $version, $beneficiaryName);
+    }
+
+    private function storeRequest(User $actor, Payment $payment, string $destination, string $reason, int $version, ?string $beneficiaryName = null): Refund
+    {
         $destination = $this->iban($destination);
 
-        return DB::transaction(function () use ($actor, $payment, $destination, $reason, $version) {
+        return DB::transaction(function () use ($actor, $payment, $destination, $reason, $version, $beneficiaryName) {
             $p = $this->locked($payment);
+            if ($p->organization_invoice_id) {
+                app(OrganizationBilling::class)->manager($actor, $p->organizationInvoice);
+            }
             $refund = Refund::where('payment_id', $p->id)->lockForUpdate()->first();
-            if (! $this->eligible($p)) {
+            if (! $this->refundable($p)) {
                 $this->fail('این پرداخت در وضعیت فعلی مشمول مسیر بازپرداخت نیست.');
             }
             if ($refund) {
                 if ($refund->status !== 'rejected' || $refund->version !== $version) {
                     $this->fail('درخواست بازپرداخت تغییر کرده یا قبلاً ثبت شده است.');
-                }$refund->fill(['status' => 'requested', 'destination' => $destination, 'reason' => $reason, 'review_note' => null, 'reviewed_at' => null, 'reviewed_by' => null, 'version' => $refund->version + 1]);
+                }$refund->fill(['status' => 'requested', 'destination' => $destination, 'beneficiary_name' => $beneficiaryName, 'reason' => $reason, 'review_note' => null, 'reviewed_at' => null, 'reviewed_by' => null, 'version' => $refund->version + 1]);
                 $refund->save();
             } else {
                 if ($version !== 0) {
                     $this->fail('نسخه درخواست معتبر نیست.');
-                }$refund = Refund::create(['payment_id' => $p->id, 'amount' => $p->amount, 'destination' => $destination, 'reason' => $reason]);
+                }$refund = Refund::create(['payment_id' => $p->id, 'amount' => $p->amount, 'destination' => $destination, 'beneficiary_name' => $beneficiaryName, 'reason' => $reason]);
             }
             $this->event($refund, $actor, $reason);
 
@@ -134,7 +182,7 @@ class RefundService
             if ($refund->status !== 'requested' || $refund->version !== $version) {
                 $this->fail('درخواست تغییر کرده است؛ صفحه را تازه کنید.');
             }
-            if (! $this->eligible($p) || $refund->amount !== $p->amount) {
+            if (! $this->refundable($p) || $refund->amount !== $p->amount) {
                 $this->fail('وضعیت پرداخت دیگر با بازپرداخت تطبیق ندارد.');
             }
             if (! in_array($action, ['approve', 'reject'], true)) {
@@ -165,7 +213,7 @@ class RefundService
                 if ($refund->status !== 'approved' || $refund->version !== (int) $data['version']) {
                     $this->fail('درخواست برای ثبت واریز معتبر نیست یا قبلاً تکمیل شده است.');
                 }
-                if (! $this->eligible($p) || (int) $data['amount'] * 10 !== $refund->amount || $refund->amount !== $p->amount) {
+                if (! $this->refundable($p) || (int) $data['amount'] * 10 !== $refund->amount || $refund->amount !== $p->amount) {
                     $this->fail('مبلغ برگشت باید دقیقاً با کل مبلغ تأییدشده برابر باشد.');
                 }
                 if ($this->iban($data['destination']) !== $refund->destination) {

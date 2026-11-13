@@ -3,9 +3,7 @@ import { Head, Link, router, usePage } from "@inertiajs/vue3";
 import Shell from "../Layouts/Shell.vue";
 import Pagination from "../Components/Pagination.vue";
 import RefundRequestForm from "../Components/RefundRequestForm.vue";
-import RefundReview from "../Components/RefundReview.vue";
-import { money, dateOnly } from "../finance";
-import { dateTime } from "../dates";
+import RefundHistory from "../Components/RefundHistory.vue";
 const props = defineProps({
     admin: Boolean,
     status: String,
@@ -48,8 +46,9 @@ function filter(status) {
         </section>
         <p class="muted">
             بازپرداخت این مرحله کامل و دستی است. ثبت درخواست یا تأیید ادمین به
-            معنی برگشت وجه نیست. شبا و مدارک فقط برای صاحب پرداخت و ادمین قابل
-            دسترسی‌اند.
+            معنی برگشت وجه نیست. شبا و مدارک شخصی فقط برای صاحب پرداخت و ادمین
+            قابل دسترسی‌اند. بازپرداخت سازمان از صفحه صورتحساب همان سازمان
+            پیگیری می‌شود.
         </p>
         <section v-if="candidates" class="consultation-section">
             <h2>درخواست جدید یا اصلاح درخواست ردشده</h2>
@@ -89,43 +88,12 @@ function filter(status) {
                 درخواستی مطابق این وضعیت وجود ندارد.
             </p>
             <div class="consultation-grid">
-                <article
+                <RefundHistory
                     v-for="r in rows.data"
                     :key="r.id"
-                    class="panel glass consultation-card"
-                >
-                    <span class="status-badge">{{ labels[r.status] }}</span>
-                    <h3>{{ r.title }}</h3>
-                    <p v-if="admin">{{ r.student }}</p>
-                    <p>
-                        {{ money(r.amount) }} ·
-                        <bdi>{{ r.destination_mask }}</bdi>
-                    </p>
-                    <p class="preserve-lines">{{ r.reason }}</p>
-                    <p v-if="r.review_note" class="preserve-lines">
-                        نتیجه بررسی: {{ r.review_note }}
-                    </p>
-                    <p v-if="r.transfer_reference">
-                        شناسه واریز: <bdi>{{ r.transfer_reference }}</bdi> ·
-                        {{ dateOnly(r.transfer_date) }}
-                    </p>
-                    <a
-                        v-if="r.file_url"
-                        :href="r.file_url"
-                        class="btn secondary"
-                        >دریافت مدرک برگشت وجه</a
-                    ><RefundReview v-if="admin" :refund="r" />
-                    <details class="consultation-section">
-                        <summary>تاریخچه درخواست</summary>
-                        <ol>
-                            <li v-for="e in r.events" :key="e.version">
-                                <strong>{{ labels[e.status] }}</strong> ·
-                                {{ dateTime(e.created_at) }}
-                                <p class="preserve-lines">{{ e.note }}</p>
-                            </li>
-                        </ol>
-                    </details>
-                </article>
+                    :refund="r"
+                    :admin="admin"
+                />
             </div>
             <Pagination :links="rows.links" /></section
     ></Shell>

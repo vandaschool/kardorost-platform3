@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditEvent;
 use App\Models\Payment;
 use App\Models\Refund;
+use App\Services\OrganizationBilling;
 use App\Services\RefundService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,10 +23,10 @@ class RefundController extends Controller
         if ($admin) {
             abort_unless($r->user()->hasRole('admin'), 403);
         }
-        $payments = Payment::whereNull('organization_invoice_id')->with(['refund', 'enrollment.course', 'consultation.slot.coach', 'user:id,name'])->when(! $admin, fn ($q) => $q->where('user_id', $r->user()->id));
+        $payments = Payment::with(['refund', 'enrollment.course', 'consultation.slot.coach', 'organizationInvoice', 'user:id,name'])->when(! $admin, fn ($q) => $q->whereNull('organization_invoice_id')->where('user_id', $r->user()->id));
         $selected = isset($d['payment']) ? (clone $payments)->findOrFail($d['payment']) : null;
         $status = $d['status'] ?? ($admin ? 'requested' : 'all');
-        $rows = Refund::with(['events', 'payment.user:id,name', 'payment.enrollment.course', 'payment.consultation.slot.coach'])->when(! $admin, fn ($q) => $q->whereHas('payment', fn ($p) => $p->where('user_id', $r->user()->id)))->when($status !== 'all', fn ($q) => $q->where('status', $status))->when($selected, fn ($q) => $q->where('payment_id', $selected->id))->latest()->paginate(12)->withQueryString()->through(fn ($f) => $this->data($f, $admin));
+        $rows = Refund::with(['events', 'payment.user:id,name', 'payment.enrollment.course', 'payment.consultation.slot.coach', 'payment.organizationInvoice'])->when(! $admin, fn ($q) => $q->whereHas('payment', fn ($p) => $p->whereNull('organization_invoice_id')->where('user_id', $r->user()->id)))->when($status !== 'all', fn ($q) => $q->where('status', $status))->when($selected, fn ($q) => $q->where('payment_id', $selected->id))->latest()->paginate(12)->withQueryString()->through(fn ($f) => $this->data($f, $admin));
         $candidates = (clone $payments)->whereNotNull('captured_at')->whereIn('status', ['paid', 'review_required'])->where(fn ($q) => $q->whereDoesntHave('refund')->orWhereHas('refund', fn ($f) => $f->where('status', 'rejected')))->when($selected, fn ($q) => $q->whereKey($selected->id))->latest()->paginate(12, ['*'], 'payments_page')->withQueryString()->through(fn ($p) => ['id' => $p->id, 'title' => $this->title($p), 'amount' => $p->amount, 'eligible' => $service->eligible($p), 'version' => $p->refund?->version ?? 0]);
 
         return Inertia::render('Refunds', ['admin' => $admin, 'status' => $status, 'rows' => $rows, 'candidates' => $admin ? null : $candidates, 'selected_payment' => $selected?->id]);
@@ -32,12 +34,16 @@ class RefundController extends Controller
 
     private function title(Payment $p): string
     {
+        if ($p->organization_invoice_id) {
+            return $p->organizationInvoice->title.' · '.$p->organizationInvoice->organization_name;
+        }
+
         return $p->consultation_id ? 'مشاوره با '.$p->consultation->slot->coach->name : $p->enrollment->course->title;
     }
 
     public function data(Refund $f, bool $admin): array
     {
-        return [...$f->only('id', 'payment_id', 'amount', 'status', 'version', 'reason', 'review_note', 'reviewed_at', 'completed_at', 'transfer_reference', 'created_at'), 'transfer_date' => $f->transfer_date?->toDateString(), 'destination_mask' => 'IR ···· '.substr($f->destination, -4), 'destination' => $admin && $f->status !== 'completed' ? $f->destination : null, 'student' => $admin ? $f->payment->user->name : null, 'title' => $this->title($f->payment), 'file_url' => $f->file_path ? route('refunds.file', $f) : null, 'events' => $f->events->sortBy('version')->values()->map(fn ($e) => $e->only('status', 'note', 'version', 'created_at'))];
+        return [...$f->only('id', 'payment_id', 'amount', 'status', 'version', 'reason', 'review_note', 'reviewed_at', 'completed_at', 'transfer_reference', 'created_at'), 'organization_invoice_id' => $f->payment->organization_invoice_id, 'beneficiary_name' => $f->beneficiary_name, 'transfer_date' => $f->transfer_date?->toDateString(), 'destination_mask' => 'IR ···· '.substr($f->destination, -4), 'destination' => $admin && $f->status !== 'completed' ? $f->destination : null, 'student' => $admin ? ($f->payment->organization_invoice_id ? $f->payment->organizationInvoice->organization_name : $f->payment->user->name) : null, 'title' => $this->title($f->payment), 'file_url' => $f->file_path ? route('refunds.file', $f) : null, 'events' => $f->events->sortBy('version')->values()->map(fn ($e) => $e->only('status', 'note', 'version', 'created_at'))];
     }
 
     public function store(Request $r, Payment $payment, RefundService $service): RedirectResponse
@@ -58,7 +64,7 @@ class RefundController extends Controller
 
     public function complete(Request $r, Refund $refund, RefundService $service): RedirectResponse
     {
-        $d = $r->validate(['version' => 'required|integer|min:1', 'amount' => 'required|integer|min:1|max:1000000000', 'destination' => 'required|string|max:100', 'transfer_reference' => 'required|string|max:150', 'transfer_date' => 'required|date_format:Y-m-d|before_or_equal:today', 'statement_verified' => 'required|accepted', 'beneficiary_verified' => 'required|accepted', 'file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120']);
+        $d = $r->validate(['version' => 'required|integer|min:1', 'amount' => 'required|integer|min:1|max:100000000000', 'destination' => 'required|string|max:100', 'transfer_reference' => 'required|string|max:150', 'transfer_date' => 'required|date_format:Y-m-d|before_or_equal:today', 'statement_verified' => 'required|accepted', 'beneficiary_verified' => 'required|accepted', 'file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120']);
         $service->complete($r->user(), $refund, $d, $r->file('file'));
 
         return back()->with('success', 'مدرک برگشت کامل وجه ثبت شد.');
@@ -66,8 +72,17 @@ class RefundController extends Controller
 
     public function file(Request $r, Refund $refund): StreamedResponse
     {
-        abort_unless($r->user()->hasRole('admin') || $refund->payment->user_id === $r->user()->id, 403);
+        if (! $r->user()->hasRole('admin')) {
+            if ($refund->payment->organization_invoice_id) {
+                $organization = app(OrganizationController::class)->selected($r);
+                abort_unless($organization && $organization->id === $refund->payment->organizationInvoice->organization_id, 403);
+                app(OrganizationBilling::class)->manager($r->user(), $refund->payment->organizationInvoice);
+            } else {
+                abort_unless($refund->payment->user_id === $r->user()->id, 403);
+            }
+        }
         abort_unless($refund->status === 'completed' && $refund->file_path && Storage::disk('refunds')->exists($refund->file_path), 404);
+        AuditEvent::create(['actor_id' => $r->user()->id, 'action' => 'refund.proof_downloaded', 'subject_type' => 'refund', 'subject_id' => $refund->id]);
 
         return Storage::disk('refunds')->download($refund->file_path, $refund->file_name, ['Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
     }

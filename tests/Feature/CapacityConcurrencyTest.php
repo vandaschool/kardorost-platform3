@@ -790,4 +790,95 @@ CODE;
         $this->assertSame(600000, $payment->organizationInvoice->fresh()->remainingAmount());
         $this->assertSame(3, $payment->organizationInvoice->fresh()->revision);
     }
+
+    private function unallocatedOrganizationPayment(): Payment
+    {
+        $payment = $this->organizationInvoiceCharge();
+        $payment->update(['attempt_expires_at' => now()->subMinute()]);
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        app(OrganizationBilling::class)->void($admin, $payment->organizationInvoice, 2, 'Contract cancelled before funds arrived');
+        app(OrganizationBilling::class)->capture($payment, 'ORG-REFUND-'.$payment->id);
+
+        return $payment->fresh();
+    }
+
+    private function approvedOrganizationRefund(): Refund
+    {
+        $payment = $this->unallocatedOrganizationPayment();
+        $refund = app(RefundService::class)->requestOrganization($payment->user, $payment, 'IR820540102680020817909002', 'Organization account holder', 'Late funds after void', 0);
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        app(RefundService::class)->review($admin, $refund, 1, 'approve', 'Organization destination reviewed');
+
+        return $refund->fresh();
+    }
+
+    public function test_two_organization_managers_cannot_create_duplicate_refund_requests(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Organization refund races require PostgreSQL.');
+        }
+        $payment = $this->unallocatedOrganizationPayment();
+        $second = User::factory()->create();
+        $second->roles()->attach(Role::where('key', 'org_admin')->value('id'));
+        $payment->organizationInvoice->organization->members()->attach($second->id, ['kind' => 'manager']);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+try {app(\App\Services\RefundService::class)->requestOrganization(\App\Models\User::findOrFail((int)$argv[2]),\App\Models\Payment::findOrFail((int)$argv[1]),'IR820540102680020817909002','Organization account holder','Duplicate manager request',0);echo 'REQUESTED';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['REQUESTED', 'STALE'], $this->parallelFinance($code, [[$payment->id, $payment->user_id], [$payment->id, $second->id]]));
+        $this->assertSame(1, Refund::count());
+        $this->assertSame(1, RefundEvent::count());
+        $this->assertSame('review_required', $payment->fresh()->status);
+    }
+
+    public function test_two_admins_cannot_record_organization_refund_completion_twice(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Organization refund races require PostgreSQL.');
+        }
+        $refund = $this->approvedOrganizationRefund();
+        $directory = sys_get_temp_dir().'/kardorost-org-refund-'.Str::uuid();
+        $arguments = [];
+        foreach ([1, 2] as $number) {
+            $admin = User::factory()->create();
+            $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+            $arguments[] = [$refund->id, $admin->id, $directory];
+        }
+        $this->assertSame(['COMPLETED', 'REJECTED'], $this->parallelFinance($this->refundCompletionCode(), $arguments));
+        $this->assertSame('refunded', $refund->payment->fresh()->status);
+        $this->assertSame(3, $refund->fresh()->version);
+        $this->assertSame(3, RefundEvent::where('refund_id', $refund->id)->count());
+        $this->assertSame(0, DB::table('organization_payment_allocations')->count());
+        config(['filesystems.disks.refunds.root' => $directory]);
+        Storage::forgetDisk('refunds');
+        $this->assertSame(1, count(Storage::disk('refunds')->allFiles()));
+        Storage::disk('refunds')->deleteDirectory('proofs');
+    }
+
+    public function test_gateway_replay_racing_organization_refund_completion_cannot_allocate_refunded_funds(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Organization refund races require PostgreSQL.');
+        }
+        $refund = $this->approvedOrganizationRefund();
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $directory = sys_get_temp_dir().'/kardorost-org-refund-'.Str::uuid();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();config(['filesystems.disks.refunds.root'=>$argv[3]]);
+$f=\App\Models\Refund::findOrFail((int)$argv[1]);
+if($argv[4]==='callback') {echo app(\App\Services\OrganizationBilling::class)->capture($f->payment,$f->payment->reference)?'ALLOCATED':'REVIEW';}
+else {app(\App\Services\RefundService::class)->complete(\App\Models\User::findOrFail((int)$argv[2]),$f,['version'=>2,'amount'=>100000,'destination'=>'IR820540102680020817909002','transfer_reference'=>'ORG-REPLAY-REFUND','transfer_date'=>now()->toDateString(),'statement_verified'=>true,'beneficiary_verified'=>true],\Illuminate\Http\UploadedFile::fake()->createWithContent('proof.pdf',"%PDF-1.4\nOrganization refund race"));echo 'REFUNDED';}
+CODE;
+        $this->assertSame(['REFUNDED', 'REVIEW'], $this->parallelFinance($code, [[$refund->id, $admin->id, $directory, 'complete'], [$refund->id, $admin->id, $directory, 'callback']]));
+        $this->assertSame('refunded', $refund->payment->fresh()->status);
+        $this->assertSame('void', $refund->payment->organizationInvoice->fresh()->status);
+        $this->assertNotNull($refund->payment->fresh()->captured_at);
+        $this->assertSame(0, DB::table('organization_payment_allocations')->count());
+        config(['filesystems.disks.refunds.root' => $directory]);
+        Storage::forgetDisk('refunds');
+        Storage::disk('refunds')->deleteDirectory('proofs');
+    }
 }

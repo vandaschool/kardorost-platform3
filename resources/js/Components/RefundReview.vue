@@ -68,11 +68,13 @@ function finish() {
             <label
                 >مبلغ واریزشده (تومان)<input
                     v-model="complete.amount"
+                    name="refund_amount"
                     inputmode="numeric"
                     required /></label
             ><label
                 >شبای واقعی گیرنده<input
                     v-model="complete.destination"
+                    name="refund_destination"
                     dir="ltr"
                     required
                     maxlength="100"
@@ -80,6 +82,7 @@ function finish() {
             ><label
                 >شناسه واریز<input
                     v-model="complete.transfer_reference"
+                    name="refund_reference"
                     dir="ltr"
                     required
                     maxlength="150"
@@ -105,7 +108,11 @@ function finish() {
                     type="checkbox"
                     v-model="complete.beneficiary_verified"
                     required
-                />هویت صاحب شبا با صاحب پرداخت تطبیق داده شد.</label
+                />{{
+                    refund.organization_invoice_id
+                        ? "هویت صاحب شبا و مجوز دریافت وجه برای سازمان با مدارک مستقل تطبیق داده شد."
+                        : "هویت صاحب شبا با صاحب پرداخت تطبیق داده شد."
+                }}</label
             ><button class="btn primary" :disabled="complete.processing">
                 ثبت مدرک انجام بازپرداخت</button
             ><progress

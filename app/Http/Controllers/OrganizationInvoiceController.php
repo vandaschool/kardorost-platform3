@@ -11,6 +11,7 @@ use App\Services\BillingService;
 use App\Services\OrganizationBilling;
 use App\Services\PaymentGateway;
 use App\Services\ReceiptService;
+use App\Services\RefundService;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -68,7 +69,7 @@ class OrganizationInvoiceController extends Controller
         if (! $admin) {
             $this->access($request, $invoice);
         }AuditEvent::create(['actor_id' => $request->user()->id, 'action' => 'organization_invoice.viewed', 'subject_type' => 'organization_invoice', 'subject_id' => $invoice->id]);
-        $payments = $invoice->payments()->with('receipt', 'organizationAllocation')->latest()->paginate(15)->through(fn ($payment) => [...$payment->only('id', 'amount', 'status', 'method', 'reference', 'captured_at', 'created_at', 'payer_name_snapshot'), 'allocated_amount' => $payment->organizationAllocation?->amount ?? 0, 'review_label' => $payment->review_reason ? app(BillingService::class)->reasonLabel($payment->review_reason) : null, 'receipt' => $payment->receipt ? app(FinanceController::class)->receiptData($payment->receipt) : null]);
+        $payments = $invoice->payments()->with('receipt', 'organizationAllocation', 'refund.events', 'refund.payment.organizationInvoice')->latest()->paginate(15)->through(fn ($payment) => [...$payment->only('id', 'amount', 'status', 'method', 'reference', 'captured_at', 'created_at', 'payer_name_snapshot'), 'allocated_amount' => $payment->organizationAllocation?->amount ?? 0, 'can_request_refund' => ! $admin && app(RefundService::class)->eligibleOrganization($payment) && (! $payment->refund || $payment->refund->status === 'rejected'), 'refund_version' => $payment->refund?->version ?? 0, 'refund' => $payment->refund ? app(RefundController::class)->data($payment->refund, $admin) : null, 'review_label' => $payment->review_reason ? app(BillingService::class)->reasonLabel($payment->review_reason) : null, 'receipt' => $payment->receipt ? app(FinanceController::class)->receiptData($payment->receipt) : null]);
         $blocked = $invoice->payments()->whereIn('status', ['pending_review', 'review_required'])->exists();
         $pendingAmount = $invoice->payments()->where('method', 'gateway')->where('status', 'pending')->where('attempt_expires_at', '>', now())->value('amount');
 
@@ -78,6 +79,16 @@ class OrganizationInvoiceController extends Controller
     public function show(Request $request, OrganizationInvoice $invoice): Response
     {
         return $this->page($request, $invoice, false);
+    }
+
+    public function refund(Request $request, OrganizationInvoice $invoice, Payment $payment, RefundService $refunds): RedirectResponse
+    {
+        $this->access($request, $invoice);
+        abort_unless($payment->organization_invoice_id === $invoice->id, 404);
+        $data = $request->validate(['destination' => 'required|string|max:100', 'beneficiary_name' => 'required|string|min:3|max:200', 'reason' => 'required|string|min:3|max:2000', 'version' => 'required|integer|min:0', 'organization_confirmed' => 'required|accepted']);
+        $refunds->requestOrganization($request->user(), $payment, $data['destination'], $data['beneficiary_name'], $data['reason'], $data['version']);
+
+        return back()->with('success', 'درخواست بازپرداخت سازمان ثبت شد؛ واریز پس از بررسی جداگانه پیگیری می‌شود.');
     }
 
     public function adminShow(Request $request, OrganizationInvoice $invoice): Response
