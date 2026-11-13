@@ -12,6 +12,7 @@ use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\LearningController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrganizationController;
+use App\Http\Controllers\OrganizationInvitationController;
 use App\Http\Controllers\OrganizationInvoiceController;
 use App\Http\Controllers\OrganizationLicenseController;
 use App\Http\Controllers\PanelController;
@@ -78,6 +79,8 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::patch('/account', [PanelController::class, 'updateProfile']);
     Route::patch('/account/password', [PanelController::class, 'changePassword'])->middleware('throttle:5,1');
     Route::middleware('panel.role:student')->group(function () {
+        Route::get('/organization-invitations', [OrganizationInvitationController::class, 'mine'])->name('organization-invitations');
+        Route::post('/organization-invitations/{invitation}/respond', [OrganizationInvitationController::class, 'respond'])->middleware('throttle:20,1');
         Route::get('/assessments', [AssessmentController::class, 'index'])->name('assessments');
         Route::post('/assessments/{assessment}/start', [AssessmentController::class, 'start'])->middleware('throttle:20,1');
         Route::get('/assessment-attempts/{attempt}', [AssessmentController::class, 'attempt'])->name('assessments.attempt');
@@ -97,6 +100,12 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/coach', fn (Request $r, PanelController $c) => $c->dashboard($r, 'coach'))->name('panel.coach');
     });
     Route::middleware('panel.role:org_admin')->group(function () {
+        Route::get('/organization/invitations', [OrganizationInvitationController::class, 'index'])->name('organization.invitations');
+        Route::post('/organization/invitations', [OrganizationInvitationController::class, 'invite'])->middleware('throttle:20,1');
+        Route::post('/organization/invitations/{invitation}/change', [OrganizationInvitationController::class, 'change'])->middleware('throttle:20,1');
+        Route::get('/organization/invitations/template', [OrganizationInvitationController::class, 'template']);
+        Route::post('/organization/invitation-imports', [OrganizationInvitationController::class, 'preview'])->middleware('throttle:10,1');
+        Route::post('/organization/invitation-imports/{import}/commit', [OrganizationInvitationController::class, 'commit'])->middleware('throttle:20,1');
         Route::get('/organization/licenses', [OrganizationLicenseController::class, 'index'])->name('organization.licenses');
         Route::get('/organization/licenses/{license}', [OrganizationLicenseController::class, 'show']);
         Route::post('/organization/licenses/{license}/enroll', [OrganizationLicenseController::class, 'enroll'])->middleware('throttle:20,1');
@@ -108,7 +117,7 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::post('/organization/invoices/{invoice}/payments/{payment}/refund', [OrganizationInvoiceController::class, 'refund'])->middleware('throttle:10,1');
         Route::get('/organization', [OrganizationController::class, 'index'])->name('panel.org_admin');
         Route::post('/organization/switch', [OrganizationController::class, 'switch']);
-        Route::post('/organization/members', [OrganizationController::class, 'addMember']);
+        Route::post('/organization/members', [OrganizationController::class, 'addMember'])->middleware('throttle:20,1');
         Route::get('/organization/members/{member}', [OrganizationController::class, 'report']);
     });
     Route::middleware('panel.role:admin')->group(function () {

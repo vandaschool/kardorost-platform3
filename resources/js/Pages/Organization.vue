@@ -1,10 +1,9 @@
 <script setup>
-import { Head, useForm, Link, router } from "@inertiajs/vue3";
+import { Head, Link, router } from "@inertiajs/vue3";
 import Shell from "../Layouts/Shell.vue";
 import Empty from "../Components/Empty.vue";
 import Icon from "../Components/Icon.vue";
 defineProps({ organization: Object, organizations: Array, members: Array });
-const form = useForm({ phone: "" });
 const fa = (n) => new Intl.NumberFormat("fa-IR").format(n);
 </script>
 <template>
@@ -79,28 +78,14 @@ const fa = (n) => new Intl.NumberFormat("fa-IR").format(n);
                         >دسترسی به گزارش کامل اعضای همین سازمان</span
                     >
                 </div>
-                <form
-                    @submit.prevent="
-                        form.post('/organization/members', {
-                            onSuccess: () => form.reset(),
-                        })
-                    "
-                    class="inline-form"
-                >
-                    <label
-                        >افزودن عضو با موبایل<input
-                            v-model="form.phone"
-                            type="tel"
-                            dir="ltr"
-                            placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-                            required /></label
-                    ><button class="btn primary" :disabled="form.processing">
-                        <Icon name="UserPlus" :size="17" />افزودن عضو
-                    </button>
-                </form>
-                <p v-if="form.errors.phone" role="alert" class="field-error">
-                    {{ form.errors.phone }}
+                <p class="muted">
+                    عضو تازه را با دعوت تکی یا فایل CSV اضافه کنید. تا پذیرش
+                    فرد، گزارش او در اختیار سازمان قرار نمی‌گیرد.
                 </p>
+                <Link href="/organization/invitations" class="btn primary"
+                    ><Icon name="UserPlus" :size="17" />دعوت تکی یا گروهی
+                    اعضا</Link
+                >
                 <Link
                     v-for="m in members"
                     :key="m.id"

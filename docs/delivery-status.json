@@ -1,5 +1,5 @@
 {
-  "phase": "organization-unallocated-fund-refunds",
+  "phase": "organization-invitations-and-csv-preview",
   "completed": [
     "phone-verification",
     "password-login",
@@ -87,17 +87,27 @@
     "current-selected-manager-refund-access",
     "corporate-refund-personal-history-isolation",
     "organization-refund-invoice-balance-preservation",
-    "pending-organization-gateway-ui-resume"
+    "pending-organization-gateway-ui-resume",
+    "organization-phone-invitations",
+    "post-registration-invitation-discovery",
+    "explicit-student-organization-consent",
+    "versioned-invitation-revoke-and-renew",
+    "private-csv-invitation-preview",
+    "normalized-phone-csv-deduplication",
+    "creator-and-selected-org-import-scope",
+    "atomic-idempotent-invitation-import",
+    "consent-gated-new-membership",
+    "internal-organization-invitation-notifications"
   ],
   "tests": {
     "postgresql": {
-      "passed": 286,
-      "assertions": 2047
+      "passed": 309,
+      "assertions": 2260
     },
     "sqlite": {
-      "passed": 254,
-      "skipped": 32,
-      "assertions": 1866
+      "passed": 273,
+      "skipped": 36,
+      "assertions": 2054
     },
     "javascript": {
       "passed": 6
@@ -152,7 +162,13 @@
     "organization-refund-admin-review",
     "organization-manual-refund-evidence",
     "organization-refund-private-proof",
-    "organization-refund-mobile-390"
+    "organization-refund-mobile-390",
+    "organization-invalid-csv-preview",
+    "organization-csv-deduplication-and-confirmation",
+    "student-organization-invitation-consent",
+    "organization-report-access-after-acceptance",
+    "organization-invitation-decline-renew-revoke",
+    "organization-invitations-mobile-390"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": false,
@@ -170,7 +186,7 @@
   "assessment_ai_interpretation_complete": false,
   "organization_contract_billing_complete": true,
   "organization_seat_recycling_complete": false,
-  "organization_invitation_import_complete": false,
+  "organization_invitation_import_complete": true,
   "organization_expiry_cuts_existing_learning": false,
   "organization_partial_invoice_payments_complete": true,
   "organization_refunds_complete": false,
@@ -182,5 +198,9 @@
   "organization_unallocated_refunds_complete": true,
   "organization_allocated_fund_refunds_complete": false,
   "organization_cross_invoice_credit_transfer_complete": false,
-  "organization_uncaptured_reference_conflict_resolution_complete": false
+  "organization_uncaptured_reference_conflict_resolution_complete": false,
+  "organization_invitations_complete": true,
+  "organization_invitation_sms_delivery_complete": false,
+  "organization_invitation_csv_scope": "utf8_single_phone_column_up_to_100_rows",
+  "organization_membership_exit_workflow_complete": false
 }

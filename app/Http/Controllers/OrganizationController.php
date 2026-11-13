@@ -11,6 +11,7 @@ use App\Models\Role;
 use App\Models\Submission;
 use App\Models\User;
 use App\Services\LearningProgress;
+use App\Services\OrganizationMembership;
 use App\Services\Phone;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -64,18 +65,9 @@ class OrganizationController extends Controller
         $org = $this->selected($request);
         abort_unless($org, 403);
         $data = $request->validate(['phone' => 'required|string|max:30']);
-        $user = User::where('phone', Phone::normalize($data['phone']))->where('is_active', true)->first();
-        if (! $user) {
-            throw ValidationException::withMessages(['phone' => 'این عضو ابتدا باید در کاردرست ثبت‌نام کند.']);
-        }
-        DB::transaction(function () use ($org, $user, $request) {
-            $org = Organization::whereKey($org->id)->lockForUpdate()->firstOrFail();
-            abort_unless($org->status === 'active' && $org->members()->where('users.id', $request->user()->id)->wherePivot('kind', 'manager')->exists(), 403);
-            $org->members()->syncWithoutDetaching([$user->id]);
-            AuditEvent::create(['actor_id' => $request->user()->id, 'action' => 'organization.member_added', 'subject_type' => 'user', 'subject_id' => $user->id, 'metadata' => ['organization_id' => $org->id]]);
-        });
+        app(OrganizationMembership::class)->invite($request->user(), $org, $data['phone']);
 
-        return back()->with('success', 'عضو به سازمان اضافه شد.');
+        return back()->with('success', 'دعوت ثبت شد یا از قبل وجود داشت؛ عضویت تازه پس از پذیرش فرد فعال می‌شود.');
     }
 
     public function report(Request $request, User $member): Response
