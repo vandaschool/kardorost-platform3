@@ -210,6 +210,7 @@ class BillingService
         if ($enrollment->status !== 'active') {
             $enrollment->update(['status' => 'active', 'expires_at' => null]);
         }
+        app(CourseConsultationBenefits::class)->issueLocked($enrollment);
     }
 
     private function audit(Payment $payment, string $action, ?int $actor = null): void

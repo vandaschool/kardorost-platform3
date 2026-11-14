@@ -6,6 +6,7 @@ use App\Models\AuditEvent;
 use App\Models\Cohort;
 use App\Models\Course;
 use App\Services\CohortCapacity;
+use App\Services\CourseConsultationBenefits;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,9 +19,14 @@ class CourseController extends Controller
     public function index(Request $request): Response
     {
         $q = trim((string) $request->query('q', ''));
-        $courses = Course::where('is_published', true)->when($q, fn ($query) => $query->where('title', 'like', '%'.str_replace(['%', '_'], ['\\%', '\\_'], $q).'%'))->with(['cohorts' => fn ($q) => $q->where('registration_open', true)->with('installmentPlan')])->latest()->get();
+        $courses = Course::where('is_published', true)->when($q, fn ($query) => $query->where('title', 'like', '%'.str_replace(['%', '_'], ['\\%', '\\_'], $q).'%'))->with(['cohorts' => fn ($q) => $q->where('registration_open', true)->with('installmentPlan', 'consultationBenefit.coach:id,name')])->latest()->get();
 
-        $courses->each(fn ($course) => $course->cohorts->each(fn ($cohort) => $cohort->setAttribute('available_seats', app(CohortCapacity::class)->available($cohort))));
+        $courses->each(fn ($course) => $course->cohorts->each(function ($cohort) {
+            $benefit = $cohort->consultationBenefit;
+            $cohort->unsetRelation('consultationBenefit');
+            $cohort->setAttribute('consultation_benefit', $benefit?->enabled ? app(CourseConsultationBenefits::class)->publicDefinition($benefit) : null);
+            $cohort->setAttribute('available_seats', app(CohortCapacity::class)->available($cohort));
+        }));
 
         return Inertia::render('Courses', ['courses' => $courses, 'query' => $q]);
     }

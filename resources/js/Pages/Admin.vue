@@ -4,6 +4,7 @@ import { ref } from "vue";
 import Shell from "../Layouts/Shell.vue";
 import Icon from "../Components/Icon.vue";
 import Empty from "../Components/Empty.vue";
+import CourseBenefitEditor from "../Components/CourseBenefitEditor.vue";
 import BillingPlanEditor from "../Components/BillingPlanEditor.vue";
 const props = defineProps({
     section: String,
@@ -269,6 +270,12 @@ const action = {
                         v-for="cohort in c.cohorts"
                         :key="cohort.id"
                         :cohort="cohort"
+                        :course-price="c.price"
+                    /><CourseBenefitEditor
+                        v-for="cohort in c.cohorts"
+                        :key="'benefit-' + cohort.id"
+                        :cohort="cohort"
+                        :coaches="coaches"
                         :course-price="c.price"
                     /></div
             ></template>

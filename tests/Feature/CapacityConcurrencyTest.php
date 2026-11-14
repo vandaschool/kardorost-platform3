@@ -15,6 +15,7 @@ use App\Models\ConsultationRequest;
 use App\Models\ConsultationSlot;
 use App\Models\Course;
 use App\Models\Enrollment;
+use App\Models\EnrollmentConsultationBenefit;
 use App\Models\Installment;
 use App\Models\InvitationSms;
 use App\Models\Organization;
@@ -32,9 +33,11 @@ use App\Models\Role;
 use App\Models\Submission;
 use App\Models\User;
 use App\Services\AssessmentService;
+use App\Services\BillingService;
 use App\Services\CohortCapacity;
 use App\Services\ConsultationBilling;
 use App\Services\ConsultationService;
+use App\Services\CourseConsultationBenefits;
 use App\Services\EnrollmentService;
 use App\Services\OrganizationBilling;
 use App\Services\OrganizationEnrollment;
@@ -282,6 +285,9 @@ CODE;
 
     protected function tearDown(): void
     {
+        if (Schema::hasTable('enrollment_consultation_benefits')) {
+            DB::table('enrollment_consultation_benefits')->delete();
+        }
         if (Schema::hasTable('consultation_grants')) {
             DB::table('consultation_grant_uses')->delete();
             DB::table('consultations')->update(['consultation_grant_id' => null]);
@@ -1129,5 +1135,91 @@ CODE;
         $this->assertSame(0, $grant->fresh()->remaining());
         $this->assertSame(Consultation::sole()->consultation_slot_id === $first->id ? 'scheduled' : 'pending', $request->fresh()->status);
         $this->assertSame(0, Payment::count());
+    }
+
+    private function courseBenefitInvoice(bool $installments = false): array
+    {
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $coach = User::factory()->create();
+        $coach->roles()->attach(Role::where('key', 'coach')->value('id'));
+        $student = User::factory()->create();
+        $student->roles()->attach(Role::where('key', 'student')->value('id'));
+        $cohort = Cohort::factory()->create(['course_id' => Course::factory()->create(['price' => 1000000])->id, 'installment_enabled' => $installments]);
+        if ($installments) {
+            $cohort->installmentPlan()->createMany([['sequence' => 1, 'amount' => 300000, 'due_date' => now()->toDateString()], ['sequence' => 2, 'amount' => 300000, 'due_date' => now()->addMonth()->toDateString()], ['sequence' => 3, 'amount' => 400000, 'due_date' => now()->addMonths(2)->toDateString()]]);
+        }
+        app(CourseConsultationBenefits::class)->configure($admin, $cohort, ['revision' => 0, 'enabled' => true, 'coach_id' => $coach->id, 'title' => 'Course benefit race', 'sessions' => 2, 'session_minutes' => 60, 'valid_days' => 90, 'activation' => 'paid_in_full']);
+        $enrollment = app(EnrollmentService::class)->reserve($student, $cohort, $installments ? 'installments' : 'full');
+
+        return [$enrollment, $admin];
+    }
+
+    public function test_concurrent_last_course_installments_issue_exactly_one_consultation_grant(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Automatic course grant races require PostgreSQL.');
+        }
+        [$enrollment] = $this->courseBenefitInvoice(true);
+        $invoices = $enrollment->installments()->orderBy('sequence')->get();
+        $first = Payment::factory()->create(['installment_id' => $invoices[0]->id]);
+        app(BillingService::class)->capture($first, 'FIRST-RACE');
+        $arguments = [];
+        foreach ([$invoices[1], $invoices[2]] as $invoice) {
+            $payment = Payment::factory()->create(['installment_id' => $invoice->id]);
+            $arguments[] = [$payment->id, 'LAST-RACE-'.$payment->id];
+        }
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo app(\App\Services\BillingService::class)->capture(\App\Models\Payment::findOrFail((int)$argv[1]),$argv[2])?'PAID':'REVIEW';
+CODE;
+        $this->assertSame(['PAID', 'PAID'], $this->parallelFinance($code, $arguments));
+        $this->assertSame(1, ConsultationGrant::count());
+        $this->assertSame(3, PaymentAllocation::count());
+        $this->assertSame('issued', EnrollmentConsultationBenefit::first()->status);
+    }
+
+    public function test_callback_racing_course_benefit_retry_never_duplicates_or_extends_credit(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Automatic course grant races require PostgreSQL.');
+        }
+        [$enrollment, $admin] = $this->courseBenefitInvoice();
+        $payment = Payment::factory()->create(['installment_id' => $enrollment->installments()->first()->id]);
+        $contract = EnrollmentConsultationBenefit::first();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+if($argv[1]==='capture'){app(\App\Services\BillingService::class)->capture(\App\Models\Payment::findOrFail((int)$argv[2]),'RETRY-RACE');}
+else{app(\App\Services\CourseConsultationBenefits::class)->retry(\App\Models\User::findOrFail((int)$argv[3]),\App\Models\EnrollmentConsultationBenefit::findOrFail((int)$argv[4]));}echo 'DONE';
+CODE;
+        $arguments = [['capture', $payment->id, $admin->id, $contract->id], ['retry', $payment->id, $admin->id, $contract->id]];
+        $this->assertSame(['DONE', 'DONE'], $this->parallelFinance($code, $arguments));
+        $expiry = ConsultationGrant::firstOrFail()->valid_until->toDateString();
+        $this->assertSame(['DONE', 'DONE'], $this->parallelFinance($code, $arguments));
+        $this->assertSame(1, ConsultationGrant::count());
+        $this->assertSame(1, PaymentAllocation::count());
+        $this->assertSame($expiry, ConsultationGrant::first()->valid_until->toDateString());
+    }
+
+    public function test_concurrent_course_benefit_repairs_issue_only_one_grant(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Automatic course grant races require PostgreSQL.');
+        }
+        [$enrollment, $admin] = $this->courseBenefitInvoice();
+        $contract = EnrollmentConsultationBenefit::first();
+        $coach = User::findOrFail($contract->coach_id);
+        $coach->forceFill(['is_active' => false])->save();
+        $payment = Payment::factory()->create(['installment_id' => $enrollment->installments()->first()->id]);
+        app(BillingService::class)->capture($payment, 'BLOCKED-REPAIR-RACE');
+        $this->assertSame('blocked', $contract->fresh()->status);
+        $coach->forceFill(['is_active' => true])->save();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo app(\App\Services\CourseConsultationBenefits::class)->retry(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\EnrollmentConsultationBenefit::findOrFail((int)$argv[2]))->status;
+CODE;
+        $this->assertSame(['issued', 'issued'], $this->parallelFinance($code, [[$admin->id, $contract->id], [$admin->id, $contract->id]]));
+        $this->assertSame(1, ConsultationGrant::count());
+        $this->assertSame(1, AuditEvent::where('action', 'course_benefit.issued')->count());
     }
 }

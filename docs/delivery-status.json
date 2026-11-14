@@ -1,5 +1,5 @@
 {
-  "phase": "consultation-package-entitlements",
+  "phase": "automatic-course-consultation-benefits",
   "completed": [
     "phone-verification",
     "password-login",
@@ -115,17 +115,23 @@
     "coordinated-package-booking",
     "package-grant-versioned-capacity-and-expiry",
     "listed-tariff-and-covered-payment-separation",
-    "package-unexpected-payment-review"
+    "package-unexpected-payment-review",
+    "versioned-cohort-consultation-benefit-configuration",
+    "immutable-enrollment-consultation-contracts",
+    "verified-allocation-triggered-consultation-grants",
+    "first-payment-or-full-settlement-activation",
+    "blocked-course-benefit-admin-repair",
+    "automatic-grant-source-and-edit-protection"
   ],
   "tests": {
     "postgresql": {
-      "passed": 361,
-      "assertions": 2604
+      "passed": 384,
+      "assertions": 2809
     },
     "sqlite": {
-      "passed": 318,
-      "skipped": 43,
-      "assertions": 2354
+      "passed": 338,
+      "skipped": 46,
+      "assertions": 2538
     },
     "javascript": {
       "passed": 6
@@ -195,7 +201,11 @@
     "student-package-booking-without-gateway",
     "package-pre-start-cancellation-release",
     "student-selected-coordinated-package-booking",
-    "consultation-grants-mobile-390"
+    "consultation-grants-mobile-390",
+    "course-benefit-admin-configuration-and-successive-edits",
+    "course-checkout-and-frozen-finance-benefit-terms",
+    "receipt-approval-issues-one-course-benefit",
+    "course-benefit-private-source-and-mobile-390"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -239,7 +249,14 @@
   "sms_delivery_receipts_complete": false,
   "sms_submission_policy": "one_provider_attempt_per_invitation_revision_no_automatic_ambiguous_retries",
   "consultation_package_purchase_complete": false,
-  "automatic_course_consultation_benefits_complete": false,
-  "consultation_grant_issuance_mode": "manual_admin_reviewed_source",
-  "consultation_package_cancellation_policy": "before_start_full_credit_v1"
+  "automatic_course_consultation_benefits_complete": true,
+  "consultation_grant_issuance_mode": "manual_reviewed_source_or_verified_course_payment_allocation",
+  "consultation_package_cancellation_policy": "before_start_full_credit_v1",
+  "automatic_course_consultation_benefits_scope": "paid_personal_enrollment_new_billing_versions_only",
+  "course_benefit_activation_options": [
+    "first_payment",
+    "paid_in_full"
+  ],
+  "organization_consultation_benefits_complete": false,
+  "course_benefit_reversal_complete": false
 }

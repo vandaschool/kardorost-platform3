@@ -31,6 +31,7 @@ const menus = computed(() =>
               ["بازپرداخت‌ها", "ReceiptText", "/refunds?view=admin"],
               ["مشاوره", "MessagesSquare", "/consultations?view=admin"],
               ["سهمیه مشاوره", "MessagesSquare", "/admin/consultation-grants"],
+              ["مشاوره همراه دوره", "MessagesSquare", "/admin/course-benefits"],
               ["کاربران", "Users", "/admin/users"],
               ["سازمان‌ها", "Building2", "/admin/organizations"],
               ["سهمیه سازمان‌ها", "Users", "/admin/organization-licenses"],

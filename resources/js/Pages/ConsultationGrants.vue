@@ -157,8 +157,14 @@ const form = useForm({
                     {{ fa(grant.total_sessions) }} جلسه</strong
                 >
                 <p>آخرین روز پایان جلسه: {{ dateOnly(grant.valid_until) }}</p>
+                <p v-if="grant.source_kind === 'course'">
+                    همراه دوره: {{ grant.source_course }}
+                </p>
                 <p v-if="admin">منبع: {{ grant.source_reference }}</p>
-                <ConsultationGrantEdit v-if="admin" :grant="grant" />
+                <ConsultationGrantEdit
+                    v-if="admin && grant.source_kind !== 'course'"
+                    :grant="grant"
+                />
             </article>
         </div>
         <Pagination :links="grants.links" />

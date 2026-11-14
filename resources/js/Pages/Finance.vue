@@ -1,4 +1,5 @@
 <script setup>
+import CourseBenefitTerms from "../Components/CourseBenefitTerms.vue";
 import { computed } from "vue";
 import { Head, Link, useForm, usePage } from "@inertiajs/vue3";
 import Shell from "../Layouts/Shell.vue";
@@ -99,6 +100,10 @@ const overdue = computed(() =>
                     }}</span
                 >
             </div>
+            <CourseBenefitTerms
+                :definition="e.consultation_benefit?.definition"
+                :contract="e.consultation_benefit"
+            />
             <div class="bill-summary">
                 <span
                     >کل قرارداد: <b>{{ money(e.summary.total) }}</b></span

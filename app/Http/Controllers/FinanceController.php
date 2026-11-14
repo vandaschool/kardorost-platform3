@@ -9,6 +9,7 @@ use App\Models\Payment;
 use App\Models\PaymentAllocation;
 use App\Models\PaymentReceipt;
 use App\Services\BillingService;
+use App\Services\CourseConsultationBenefits;
 use App\Services\RefundService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,7 +24,7 @@ class FinanceController extends Controller
         $enrollments = Enrollment::where('user_id', $request->user()->id)->where('amount', '>', 0)->with('course', 'cohort')->latest()->get();
 
         return Inertia::render('Finance', [
-            'enrollments' => $enrollments->map(fn ($e) => ['id' => $e->id, 'title' => $e->course->title, 'cohort' => $e->cohort->title, 'status' => $e->status, 'payment_plan' => $e->payment_plan, 'expires_at' => $e->expires_at, 'summary' => $billing->summary($e),
+            'enrollments' => $enrollments->map(fn ($e) => ['id' => $e->id, 'title' => $e->course->title, 'cohort' => $e->cohort->title, 'status' => $e->status, 'payment_plan' => $e->payment_plan, 'expires_at' => $e->expires_at, 'summary' => $billing->summary($e), 'consultation_benefit' => app(CourseConsultationBenefits::class)->forEnrollment($e),
                 'installments' => $billing->current($e)->with('payments.receipt')->orderBy('sequence')->get()->map(function ($i) use ($billing, $e, $request) {
                     $reason = null;
                     try {
