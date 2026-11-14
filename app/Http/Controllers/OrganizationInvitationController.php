@@ -22,9 +22,9 @@ class OrganizationInvitationController extends Controller
         return $organization;
     }
 
-    private function data(OrganizationInvitation $invitation): array
+    private function data(OrganizationInvitation $invitation, bool $manager = false): array
     {
-        return [...$invitation->only('id', 'phone', 'status', 'revision', 'expires_at', 'responded_at', 'created_at'), 'expired' => ! $invitation->expires_at->isFuture()];
+        return [...$invitation->only('id', 'phone', 'status', 'revision', 'expires_at', 'responded_at', 'created_at'), 'sms' => $manager ? $invitation->latestSms?->only('status', 'provider_reference', 'attempted_at', 'finished_at') : null, 'expired' => ! $invitation->expires_at->isFuture()];
     }
 
     public function index(Request $request): Response
@@ -33,7 +33,7 @@ class OrganizationInvitationController extends Controller
         $data = $request->validate(['preview' => 'nullable|integer|min:1']);
         $import = isset($data['preview']) ? OrganizationInvitationImport::whereKey($data['preview'])->where('organization_id', $organization->id)->where('created_by', $request->user()->id)->firstOrFail() : null;
 
-        return Inertia::render('OrganizationInvitations', ['organization' => $organization->only('id', 'name'), 'invitations' => OrganizationInvitation::where('organization_id', $organization->id)->latest('id')->paginate(20)->withQueryString()->through(fn ($invitation) => $this->data($invitation)), 'preview' => $import ? [...$import->only('id', 'rows', 'invalid_count', 'duplicate_count', 'expires_at', 'committed_at', 'result'), 'valid_count' => count($import->phones), 'expired' => ! $import->expires_at->isFuture()] : null]);
+        return Inertia::render('OrganizationInvitations', ['organization' => $organization->only('id', 'name'), 'sms_enabled' => (bool) config('platform.sms.melipayamak.invitations_enabled'), 'invitations' => OrganizationInvitation::with('latestSms')->where('organization_id', $organization->id)->latest('id')->paginate(20)->withQueryString()->through(fn ($invitation) => $this->data($invitation, true)), 'preview' => $import ? [...$import->only('id', 'rows', 'invalid_count', 'duplicate_count', 'expires_at', 'committed_at', 'result'), 'valid_count' => count($import->phones), 'expired' => ! $import->expires_at->isFuture()] : null]);
     }
 
     public function invite(Request $request, OrganizationMembership $membership): RedirectResponse

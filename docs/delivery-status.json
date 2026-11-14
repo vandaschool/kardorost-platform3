@@ -1,5 +1,5 @@
 {
-  "phase": "organization-invitations-and-csv-preview",
+  "phase": "melipayamak-and-invitation-sms-outbox",
   "completed": [
     "phone-verification",
     "password-login",
@@ -97,17 +97,26 @@
     "creator-and-selected-org-import-scope",
     "atomic-idempotent-invitation-import",
     "consent-gated-new-membership",
-    "internal-organization-invitation-notifications"
+    "internal-organization-invitation-notifications",
+    "melipayamak-rest-pattern-adapter",
+    "melipayamak-console-pattern-adapter",
+    "provider-validated-otp-submission",
+    "invitation-sms-outbox-per-revision",
+    "durable-invitation-sms-queue",
+    "sms-provider-outcome-tracking",
+    "ambiguous-sms-result-preservation",
+    "interrupted-sms-attempt-reconciliation",
+    "redacted-sms-configuration-status"
   ],
   "tests": {
     "postgresql": {
-      "passed": 309,
-      "assertions": 2260
+      "passed": 340,
+      "assertions": 2429
     },
     "sqlite": {
-      "passed": 273,
-      "skipped": 36,
-      "assertions": 2054
+      "passed": 301,
+      "skipped": 39,
+      "assertions": 2205
     },
     "javascript": {
       "passed": 6
@@ -168,7 +177,11 @@
     "student-organization-invitation-consent",
     "organization-report-access-after-acceptance",
     "organization-invitation-decline-renew-revoke",
-    "organization-invitations-mobile-390"
+    "organization-invitations-mobile-390",
+    "invitation-sms-provider-outcomes-synthetic",
+    "invitation-sms-long-reference",
+    "invitation-sms-student-provider-data-isolation",
+    "invitation-sms-mobile-390"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": false,
@@ -202,5 +215,13 @@
   "organization_invitations_complete": true,
   "organization_invitation_sms_delivery_complete": false,
   "organization_invitation_csv_scope": "utf8_single_phone_column_up_to_100_rows",
-  "organization_membership_exit_workflow_complete": false
+  "organization_membership_exit_workflow_complete": false,
+  "sms_provider": "melipayamak",
+  "sms_connection_modes": [
+    "rest",
+    "console"
+  ],
+  "organization_invitation_sms_submission_complete": true,
+  "sms_delivery_receipts_complete": false,
+  "sms_submission_policy": "one_provider_attempt_per_invitation_revision_no_automatic_ambiguous_retries"
 }

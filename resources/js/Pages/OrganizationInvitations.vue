@@ -9,6 +9,7 @@ const props = defineProps({
     organization: Object,
     invitations: Object,
     preview: Object,
+    sms_enabled: Boolean,
 });
 const single = useForm({ phone: "" });
 const upload = useForm({ file: null });
@@ -47,8 +48,16 @@ function previewFile() {
         <p class="muted">
             فرد می‌تواند پس از ثبت‌نام و تأیید همین شماره، از «دعوت سازمان‌ها»
             در پنل دانشجو پاسخ دهد. اعلان برای حساب‌های واجد شرایط درون سامانه
-            ثبت می‌شود؛ این بخش پیامک دعوت نمی‌فرستد و حساب یا رمز عبور
-            نمی‌سازد.
+            ثبت می‌شود. حساب یا رمز عبور خودکار ساخته نمی‌شود.
+        </p>
+        <p v-if="sms_enabled" class="muted">
+            با ثبت دعوت تازه یا تمدیدشده، درخواست پیامک وارد صف می‌شود. وضعیت
+            ارسال را در کارت دعوت ببینید. ثبت در صف یا پذیرش سرویس پیامک، تحویل
+            قطعی به گوشی نیست.
+        </p>
+        <p v-else class="muted">
+            پیامک دعوت فعلاً غیرفعال است؛ دعوت در حساب دانشجو و اعلان داخلی قابل
+            پیگیری است.
         </p>
         <div class="consultation-grid">
             <section class="panel glass consultation-card">
