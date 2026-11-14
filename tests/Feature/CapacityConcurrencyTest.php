@@ -9,6 +9,8 @@ use App\Models\Assignment;
 use App\Models\AuditEvent;
 use App\Models\Cohort;
 use App\Models\Consultation;
+use App\Models\ConsultationGrant;
+use App\Models\ConsultationGrantUse;
 use App\Models\ConsultationRequest;
 use App\Models\ConsultationSlot;
 use App\Models\Course;
@@ -280,6 +282,12 @@ CODE;
 
     protected function tearDown(): void
     {
+        if (Schema::hasTable('consultation_grants')) {
+            DB::table('consultation_grant_uses')->delete();
+            DB::table('consultations')->update(['consultation_grant_id' => null]);
+            DB::table('consultation_requests')->update(['consultation_grant_id' => null]);
+            DB::table('consultation_grants')->delete();
+        }
         if (Schema::hasTable('refunds')) {
             RefundEvent::query()->delete();
             Refund::query()->delete();
@@ -1037,5 +1045,89 @@ CODE;
         $this->assertSame('revoked', $sms->invitation->fresh()->status);
         $this->assertSame(1, $sms->invitation->organization->members()->count());
         $this->assertSame($sms->fresh()->status === 'accepted' ? 1 : 0, AuditEvent::where('action', 'fixture.sms_provider_call')->count());
+    }
+
+    private function packageSlot(ConsultationGrant $grant, int $day): ConsultationSlot
+    {
+        return ConsultationSlot::factory()->create(['coach_id' => $grant->coach_id, 'price' => 1000000, 'starts_at' => now()->addDays($day), 'ends_at' => now()->addDays($day)->addHour()]);
+    }
+
+    private function packageBookingCode(): string
+    {
+        return <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+try {app(\App\Services\ConsultationService::class)->book(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\ConsultationSlot::findOrFail((int)$argv[2]),'Package race',grantId:(int)$argv[3]);echo 'BOOKED';}catch(\Illuminate\Validation\ValidationException){echo 'BLOCKED';}
+CODE;
+    }
+
+    public function test_one_package_credit_cannot_book_two_different_slots_concurrently(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Consultation grant races require PostgreSQL.');
+        }
+        $grant = ConsultationGrant::factory()->create(['total_sessions' => 1]);
+        $first = $this->packageSlot($grant, 1);
+        $second = $this->packageSlot($grant, 2);
+        $this->assertSame(['BLOCKED', 'BOOKED'], $this->parallelFinance($this->packageBookingCode(), [[$grant->student_id, $first->id, $grant->id], [$grant->student_id, $second->id, $grant->id]]));
+        $this->assertSame(1, ConsultationGrantUse::count());
+        $this->assertSame(0, $grant->fresh()->remaining());
+        $this->assertSame(1, Consultation::where('status', 'confirmed')->count());
+        $this->assertSame(0, Payment::count());
+    }
+
+    public function test_competing_packages_share_one_consultation_slot_without_consuming_losing_credit(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Consultation grant races require PostgreSQL.');
+        }
+        $first = ConsultationGrant::factory()->create(['total_sessions' => 1]);
+        $second = ConsultationGrant::factory()->create(['coach_id' => $first->coach_id, 'total_sessions' => 1]);
+        $slot = $this->packageSlot($first, 1);
+        $this->assertSame(['BLOCKED', 'BOOKED'], $this->parallelFinance($this->packageBookingCode(), [[$first->student_id, $slot->id, $first->id], [$second->student_id, $slot->id, $second->id]]));
+        $this->assertSame(1, ConsultationGrantUse::count());
+        $this->assertSame(1, $first->fresh()->remaining() + $second->fresh()->remaining());
+        $this->assertSame(1, Consultation::count());
+    }
+
+    public function test_package_cancellation_racing_new_booking_preserves_exact_credit_balance(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Consultation grant races require PostgreSQL.');
+        }
+        $grant = ConsultationGrant::factory()->create(['total_sessions' => 1]);
+        $booked = app(ConsultationService::class)->book($grant->student, $this->packageSlot($grant, 1), 'Initial package booking', grantId: $grant->id);
+        $next = $this->packageSlot($grant, 2);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$g=\App\Models\ConsultationGrant::findOrFail((int)$argv[1]);$s=app(\App\Services\ConsultationService::class);
+if($argv[2]==='cancel') {$s->change($g->student,\App\Models\Consultation::findOrFail((int)$argv[3]),1,'cancel','Cancellation race',null);echo 'CANCELLED';}
+else {try {$s->book($g->student,\App\Models\ConsultationSlot::findOrFail((int)$argv[3]),'New booking',grantId:$g->id);echo 'BOOKED';}catch(\Illuminate\Validation\ValidationException){echo 'BLOCKED';}}
+CODE;
+        $result = $this->parallelFinance($code, [[$grant->id, 'cancel', $booked->id], [$grant->id, 'book', $next->id]]);
+        $this->assertContains($result, [['BLOCKED', 'CANCELLED'], ['BOOKED', 'CANCELLED']]);
+        $this->assertNotNull(ConsultationGrantUse::where('consultation_id', $booked->id)->sole()->released_at);
+        $this->assertSame(in_array('BOOKED', $result, true) ? 0 : 1, $grant->fresh()->remaining());
+        $this->assertSame('cancelled', $booked->fresh()->status);
+    }
+
+    public function test_coordinated_and_direct_booking_cannot_spend_same_last_package_credit(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Consultation grant races require PostgreSQL.');
+        }
+        $grant = ConsultationGrant::factory()->create(['total_sessions' => 1]);
+        $request = app(ConsultationService::class)->request($grant->student, 'Coordinated package', 'Evenings', $grant->id);
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $first = $this->packageSlot($grant, 1);
+        $second = $this->packageSlot($grant, 2);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$g=\App\Models\ConsultationGrant::findOrFail((int)$argv[1]);$s=app(\App\Services\ConsultationService::class);$slot=\App\Models\ConsultationSlot::findOrFail((int)$argv[3]);
+try {if($argv[2]==='coordinate') {$s->book($g->student,$slot,'Coordinated',\App\Models\ConsultationRequest::findOrFail((int)$argv[4]),\App\Models\User::findOrFail((int)$argv[5]),1);}else{$s->book($g->student,$slot,'Direct',grantId:$g->id);}echo 'BOOKED';}catch(\Illuminate\Validation\ValidationException){echo 'BLOCKED';}
+CODE;
+        $this->assertSame(['BLOCKED', 'BOOKED'], $this->parallelFinance($code, [[$grant->id, 'coordinate', $first->id, $request->id, $admin->id], [$grant->id, 'direct', $second->id, $request->id, $admin->id]]));
+        $this->assertSame(1, ConsultationGrantUse::count());
+        $this->assertSame(0, $grant->fresh()->remaining());
+        $this->assertSame(Consultation::sole()->consultation_slot_id === $first->id ? 'scheduled' : 'pending', $request->fresh()->status);
+        $this->assertSame(0, Payment::count());
     }
 }

@@ -63,7 +63,7 @@ class ConsultationBilling
 
         return DB::transaction(function () use ($user, $item) {
             [$item,$slot] = $this->locks($item);
-            if ($item->status !== 'pending_payment' || ! $item->expires_at || $item->expires_at->lte(now()) || $slot->starts_at->lte(now()) || ! $slot->coach->is_active || ! $slot->coach->hasRole('coach') || $item->amount <= 0) {
+            if ($item->consultation_grant_id || $item->status !== 'pending_payment' || ! $item->expires_at || $item->expires_at->lte(now()) || $slot->starts_at->lte(now()) || ! $slot->coach->is_active || ! $slot->coach->hasRole('coach') || $item->amount <= 0) {
                 $this->fail('رزرو پولی معتبر و در مهلت پرداخت وجود ندارد.');
             }
             if (Payment::where('consultation_id', $item->id)->where('status', 'review_required')->exists()) {
@@ -98,7 +98,9 @@ class ConsultationBilling
                 }
                 $p->fill(['reference' => $reference, 'captured_at' => now(), 'paid_at' => now()]);
                 $reason = null;
-                if ($p->user_id !== $item->student_id || $p->amount !== $item->amount) {
+                if ($item->consultation_grant_id) {
+                    $reason = 'consultation_package_payment';
+                } elseif ($p->user_id !== $item->student_id || $p->amount !== $item->amount) {
                     $reason = 'consultation_amount_mismatch';
                 } elseif ($item->settled_payment_id) {
                     $reason = 'consultation_duplicate';

@@ -18,7 +18,7 @@ class Consultation extends Model
 
     protected function casts(): array
     {
-        return ['amount' => 'integer', 'expires_at' => 'immutable_datetime', 'version' => 'integer', 'cancelled_at' => 'datetime'];
+        return ['amount' => 'integer', 'listed_amount' => 'integer', 'expires_at' => 'immutable_datetime', 'version' => 'integer', 'cancelled_at' => 'datetime'];
     }
 
     public function slot(): BelongsTo
@@ -29,5 +29,10 @@ class Consultation extends Model
     public function student(): BelongsTo
     {
         return $this->belongsTo(User::class, 'student_id');
+    }
+
+    public function grant(): BelongsTo
+    {
+        return $this->belongsTo(ConsultationGrant::class, 'consultation_grant_id');
     }
 }

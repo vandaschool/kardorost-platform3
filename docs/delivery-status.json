@@ -1,5 +1,5 @@
 {
-  "phase": "melipayamak-and-invitation-sms-outbox",
+  "phase": "consultation-package-entitlements",
   "completed": [
     "phone-verification",
     "password-login",
@@ -106,17 +106,26 @@
     "sms-provider-outcome-tracking",
     "ambiguous-sms-result-preservation",
     "interrupted-sms-attempt-reconciliation",
-    "redacted-sms-configuration-status"
+    "redacted-sms-configuration-status",
+    "admin-reviewed-consultation-entitlements",
+    "student-coach-duration-scoped-session-grants",
+    "consultation-credit-consumption-ledger",
+    "pre-start-cancellation-credit-release",
+    "student-selected-package-booking",
+    "coordinated-package-booking",
+    "package-grant-versioned-capacity-and-expiry",
+    "listed-tariff-and-covered-payment-separation",
+    "package-unexpected-payment-review"
   ],
   "tests": {
     "postgresql": {
-      "passed": 340,
-      "assertions": 2429
+      "passed": 361,
+      "assertions": 2604
     },
     "sqlite": {
-      "passed": 301,
-      "skipped": 39,
-      "assertions": 2205
+      "passed": 318,
+      "skipped": 43,
+      "assertions": 2354
     },
     "javascript": {
       "passed": 6
@@ -181,10 +190,15 @@
     "invitation-sms-provider-outcomes-synthetic",
     "invitation-sms-long-reference",
     "invitation-sms-student-provider-data-isolation",
-    "invitation-sms-mobile-390"
+    "invitation-sms-mobile-390",
+    "admin-consultation-grant",
+    "student-package-booking-without-gateway",
+    "package-pre-start-cancellation-release",
+    "student-selected-coordinated-package-booking",
+    "consultation-grants-mobile-390"
   ],
   "consultation_payments_complete": true,
-  "consultation_package_quotas_complete": false,
+  "consultation_package_quotas_complete": true,
   "consultation_payment_operations_ready": false,
   "consultation_refund_execution_complete": false,
   "validated_phases_merge_to": "main",
@@ -223,5 +237,9 @@
   ],
   "organization_invitation_sms_submission_complete": true,
   "sms_delivery_receipts_complete": false,
-  "sms_submission_policy": "one_provider_attempt_per_invitation_revision_no_automatic_ambiguous_retries"
+  "sms_submission_policy": "one_provider_attempt_per_invitation_revision_no_automatic_ambiguous_retries",
+  "consultation_package_purchase_complete": false,
+  "automatic_course_consultation_benefits_complete": false,
+  "consultation_grant_issuance_mode": "manual_admin_reviewed_source",
+  "consultation_package_cancellation_policy": "before_start_full_credit_v1"
 }

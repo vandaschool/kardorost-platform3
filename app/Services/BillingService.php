@@ -225,6 +225,7 @@ class BillingService
             'organization_invoice_duplicate' => 'دریافتی اضافه برای صورتحساب تسویه‌شده سازمان',
             'organization_invoice_void' => 'وجه صورتحساب ابطال‌شده؛ رسیدگی مدیریت لازم است',
             'consultation_amount_mismatch' => 'مبلغ یا صاحب پرداخت با رزرو مشاوره تطبیق ندارد',
+            'consultation_package_payment' => 'این جلسه با سهمیه پکیج پوشش داده شده؛ وجه جداگانه نیازمند بررسی است',
             'consultation_duplicate' => 'پرداخت اضافه برای مشاوره؛ بررسی بازپرداخت لازم است',
             'consultation_expired' => 'پرداخت پس از پایان یا لغو رزرو مشاوره؛ بررسی بازپرداخت لازم است',
             'reference_conflict' => 'شناسه تراکنش تکراری یا متناقض','obsolete_quote' => 'صورتحساب قدیمی یا باطل‌شده','duplicate_charge' => 'صورتحساب قبلاً تسویه شده','amount_mismatch' => 'مغایرت مبلغ','inactive_enrollment' => 'ثبت‌نام غیرفعال','first_installment_unpaid' => 'قسط اول پرداخت نشده','capacity_unavailable' => 'ظرفیت نوبت تکمیل شده',default => 'نیازمند بررسی'
