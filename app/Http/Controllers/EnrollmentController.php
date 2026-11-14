@@ -75,7 +75,7 @@ class EnrollmentController extends Controller
     {
         $track = $request->query('trackId');
         abort_unless(is_string($track) && strlen($track) <= 100, 400);
-        $payment = Payment::where('track_id', $track)->whereNull('consultation_id')->whereNull('organization_invoice_id')->firstOrFail();
+        $payment = Payment::where('track_id', $track)->whereNull('consultation_id')->whereNull('organization_invoice_id')->whereNull('package_purchase_id')->firstOrFail();
         if ($payment->status === 'refunded') {
             return redirect()->route('refunds')->with('success', 'مدرک بازپرداخت این تراکنش قبلاً ثبت شده است.');
         }

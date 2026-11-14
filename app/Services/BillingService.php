@@ -94,7 +94,7 @@ class BillingService
 
     public function capture(Payment $payment, string $reference): bool
     {
-        abort_if($payment->consultation_id || $payment->organization_invoice_id, 422);
+        abort_if($payment->package_purchase_id || $payment->consultation_id || $payment->organization_invoice_id, 422);
         try {
             return DB::transaction(function () use ($payment, $reference) {
                 $e = Enrollment::findOrFail($payment->enrollment_id);
@@ -146,7 +146,7 @@ class BillingService
     public function resolve(Payment $payment, User $admin): bool
     {
         abort_unless($admin->is_active && $admin->hasRole('admin'), 403);
-        if ($payment->consultation_id || $payment->organization_invoice_id) {
+        if ($payment->package_purchase_id || $payment->consultation_id || $payment->organization_invoice_id) {
             throw ValidationException::withMessages(['payment' => 'پرداخت مشاوره باید با وضعیت جلسه و بازپرداخت آن بررسی شود؛ تخصیص به دوره مجاز نیست.']);
         }
 
@@ -221,6 +221,11 @@ class BillingService
     public function reasonLabel(?string $reason): string
     {
         return match ($reason) {
+            'package_amount_mismatch' => 'مبلغ یا صاحب پرداخت با سفارش پکیج تطبیق ندارد',
+            'package_duplicate' => 'وجه اضافه برای سفارش پکیج پرداخت‌شده؛ بررسی بازپرداخت لازم است',
+            'package_expired' => 'وجه پس از انقضای سفارش پکیج؛ بررسی انجام سفارش یا بازپرداخت لازم است',
+            'package_account_unavailable' => 'حساب دانشجو یا مربی پکیج واجد شرایط نیست',
+            'package_source_conflict' => 'تعارض منبع سهمیه پکیج؛ رسیدگی مدیریت لازم است',
             'organization_invoice_mismatch' => 'مبلغ پرداخت با صورتحساب سازمان تطبیق ندارد',
             'organization_invoice_excess' => 'وجه دریافت‌شده از مانده صورتحساب سازمان بیشتر است؛ بررسی مدیریت لازم است',
             'organization_invoice_duplicate' => 'دریافتی اضافه برای صورتحساب تسویه‌شده سازمان',

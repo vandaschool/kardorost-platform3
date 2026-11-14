@@ -5,7 +5,11 @@ import JalaliDateInput from "./JalaliDateInput.vue";
 import Icon from "./Icon.vue";
 import { money, latinDigits } from "../finance";
 import { tehranInput } from "../dates";
-const props = defineProps({ installment: Object, transfer: Object });
+const props = defineProps({
+    installment: Object,
+    transfer: Object,
+    endpoint: String,
+});
 const open = ref(false);
 const input = ref(null);
 const form = useForm({
@@ -17,15 +21,18 @@ function submit() {
     form.transform((data) => ({
         ...data,
         transfer_reference: latinDigits(data.transfer_reference),
-    })).post("/installments/" + props.installment.id + "/receipts", {
-        forceFormData: true,
-        preserveScroll: true,
-        onSuccess: () => {
-            open.value = false;
-            form.reset();
-            if (input.value) input.value.value = "";
+    })).post(
+        props.endpoint || "/installments/" + props.installment.id + "/receipts",
+        {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                open.value = false;
+                form.reset();
+                if (input.value) input.value.value = "";
+            },
         },
-    });
+    );
 }
 </script>
 <template>

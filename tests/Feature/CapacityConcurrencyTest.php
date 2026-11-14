@@ -11,6 +11,7 @@ use App\Models\Cohort;
 use App\Models\Consultation;
 use App\Models\ConsultationGrant;
 use App\Models\ConsultationGrantUse;
+use App\Models\ConsultationProduct;
 use App\Models\ConsultationRequest;
 use App\Models\ConsultationSlot;
 use App\Models\Course;
@@ -23,6 +24,7 @@ use App\Models\OrganizationInvitation;
 use App\Models\OrganizationInvoice;
 use App\Models\OrganizationLicense;
 use App\Models\OrganizationSeat;
+use App\Models\PackagePurchase;
 use App\Models\Payment;
 use App\Models\PaymentAllocation;
 use App\Models\PaymentReceipt;
@@ -42,6 +44,7 @@ use App\Services\EnrollmentService;
 use App\Services\OrganizationBilling;
 use App\Services\OrganizationEnrollment;
 use App\Services\OrganizationMembership;
+use App\Services\PackageBilling;
 use App\Services\ReceiptService;
 use App\Services\RefundService;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
@@ -285,6 +288,18 @@ CODE;
 
     protected function tearDown(): void
     {
+        if (Schema::hasTable('package_purchases')) {
+            DB::table('package_purchases')->update(['settled_payment_id' => null]);
+            $ids = Payment::whereNotNull('package_purchase_id')->pluck('id');
+            $receiptIds = PaymentReceipt::whereIn('payment_id', $ids)->pluck('id');
+            ReceiptClaim::whereIn('payment_receipt_id', $receiptIds)->delete();
+            PaymentReceipt::whereIn('id', $receiptIds)->delete();
+            $refundIds = Refund::whereIn('payment_id', $ids)->pluck('id');
+            RefundEvent::whereIn('refund_id', $refundIds)->delete();
+            Refund::whereIn('id', $refundIds)->delete();
+            Payment::whereIn('id', $ids)->delete();
+            DB::table('package_purchases')->delete();
+        }
         if (Schema::hasTable('enrollment_consultation_benefits')) {
             DB::table('enrollment_consultation_benefits')->delete();
         }
@@ -1221,5 +1236,78 @@ CODE;
         $this->assertSame(['issued', 'issued'], $this->parallelFinance($code, [[$admin->id, $contract->id], [$admin->id, $contract->id]]));
         $this->assertSame(1, ConsultationGrant::count());
         $this->assertSame(1, AuditEvent::where('action', 'course_benefit.issued')->count());
+    }
+
+    public function test_simultaneous_package_checkout_creates_one_open_order(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Standalone package races require PostgreSQL.');
+        }
+        $product = ConsultationProduct::factory()->create();
+        $student = User::factory()->create();
+        $student->roles()->attach(Role::where('key', 'student')->value('id'));
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo app(\App\Services\PackageBilling::class)->reserve(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\ConsultationProduct::findOrFail((int)$argv[2]),1)->id;
+CODE;
+        $result = $this->parallelFinance($code, [[$student->id, $product->id], [$student->id, $product->id]]);
+        $this->assertSame($result[0], $result[1]);
+        $this->assertSame(1, PackagePurchase::count());
+    }
+
+    public function test_two_captured_package_payments_issue_one_grant_and_preserve_extra_funds(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Standalone package races require PostgreSQL.');
+        }
+        $purchase = PackagePurchase::factory()->create();
+        $arguments = [];
+        foreach ([1, 2] as $number) {
+            $payment = Payment::create(['package_purchase_id' => $purchase->id, 'enrollment_id' => null, 'user_id' => $purchase->student_id, 'amount' => $purchase->amount, 'method' => 'gateway', 'status' => 'pending']);
+            $arguments[] = [$payment->id, 'PACKAGE-DOUBLE-'.$number];
+        }
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo app(\App\Services\PackageBilling::class)->capture(\App\Models\Payment::findOrFail((int)$argv[1]),$argv[2])?'PAID':'REVIEW';
+CODE;
+        $this->assertSame(['PAID', 'REVIEW'], $this->parallelFinance($code, $arguments));
+        $this->assertSame(1, ConsultationGrant::count());
+        $this->assertSame(2, Payment::whereNotNull('captured_at')->count());
+        $this->assertSame(1, Payment::where('review_reason', 'package_duplicate')->count());
+        $this->assertSame(0, PaymentAllocation::count());
+    }
+
+    public function test_two_package_repair_requests_cannot_duplicate_grant(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Standalone package races require PostgreSQL.');
+        }
+        $purchase = PackagePurchase::factory()->create(['expires_at' => now()->subMinute()]);
+        $payment = Payment::create(['package_purchase_id' => $purchase->id, 'enrollment_id' => null, 'user_id' => $purchase->student_id, 'amount' => $purchase->amount, 'method' => 'gateway', 'status' => 'pending']);
+        app(PackageBilling::class)->capture($payment, 'PACKAGE-REPAIR');
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo app(\App\Services\PackageBilling::class)->resolve(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\Payment::findOrFail((int)$argv[2]))?'PAID':'REVIEW';
+CODE;
+        $this->assertSame(['PAID', 'PAID'], $this->parallelFinance($code, [[$purchase->reviewed_by, $payment->id], [$purchase->reviewed_by, $payment->id]]));
+        $this->assertSame(1, ConsultationGrant::count());
+        $this->assertSame(1, AuditEvent::where('action', 'package_purchase.paid')->count());
+    }
+
+    public function test_package_refund_request_racing_fulfillment_cannot_both_succeed(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Standalone package races require PostgreSQL.');
+        }
+        $purchase = PackagePurchase::factory()->create(['expires_at' => now()->subMinute()]);
+        $payment = Payment::create(['package_purchase_id' => $purchase->id, 'enrollment_id' => null, 'user_id' => $purchase->student_id, 'amount' => $purchase->amount, 'method' => 'gateway', 'status' => 'pending']);
+        app(PackageBilling::class)->capture($payment, 'PACKAGE-REFUND-RACE');
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$payment=\App\Models\Payment::findOrFail((int)$argv[1]);
+try {if($argv[2]==='refund'){app(\App\Services\RefundService::class)->request($payment->user,$payment,'IR062960000000100324200001','Package refund race',0);}else{app(\App\Services\PackageBilling::class)->resolve(\App\Models\User::findOrFail((int)$argv[3]),$payment);}echo 'DONE';}catch(\Illuminate\Validation\ValidationException){echo 'BLOCKED';}
+CODE;
+        $this->assertSame(['BLOCKED', 'DONE'], $this->parallelFinance($code, [[$payment->id, 'refund', $purchase->reviewed_by], [$payment->id, 'fulfill', $purchase->reviewed_by]]));
+        $this->assertSame(1, Refund::count() + ConsultationGrant::count());
+        $this->assertSame(Refund::exists() ? 'review_required' : 'paid', $payment->fresh()->status);
     }
 }

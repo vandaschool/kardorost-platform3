@@ -31,6 +31,11 @@ const menus = computed(() =>
               ["بازپرداخت‌ها", "ReceiptText", "/refunds?view=admin"],
               ["مشاوره", "MessagesSquare", "/consultations?view=admin"],
               ["سهمیه مشاوره", "MessagesSquare", "/admin/consultation-grants"],
+              [
+                  "فروش پکیج مشاوره",
+                  "MessagesSquare",
+                  "/admin/consultation-packages",
+              ],
               ["مشاوره همراه دوره", "MessagesSquare", "/admin/course-benefits"],
               ["کاربران", "Users", "/admin/users"],
               ["سازمان‌ها", "Building2", "/admin/organizations"],
@@ -67,6 +72,11 @@ const menus = computed(() =>
                   ["دوره‌ها", "Compass", "/courses"],
                   ["خودشناسی", "Fingerprint", "/assessments"],
                   ["مشاوره", "MessagesSquare", "/consultations"],
+                  [
+                      "پکیج‌های مشاوره",
+                      "MessagesSquare",
+                      "/consultation-packages",
+                  ],
                   ["حساب من", "UserRound", "/account"],
                   ["پرداخت‌ها و اقساط", "ReceiptText", "/finance"],
                   ["بازپرداخت‌ها", "ReceiptText", "/refunds"],

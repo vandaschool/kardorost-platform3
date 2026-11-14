@@ -166,7 +166,7 @@ class OrganizationInvoiceController extends Controller
     {
         $track = $request->query('trackId');
         abort_unless(is_string($track) && strlen($track) <= 100, 400);
-        $payment = Payment::where('track_id', $track)->whereNotNull('organization_invoice_id')->firstOrFail();
+        $payment = Payment::where('track_id', $track)->whereNotNull('organization_invoice_id')->whereNull('package_purchase_id')->firstOrFail();
         if ($payment->status === 'paid') {
             return redirect()->route('organization.invoices.show', $payment->organization_invoice_id)->with('success', 'پرداخت قبلاً تأیید شده است.');
         }

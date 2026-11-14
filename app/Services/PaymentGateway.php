@@ -20,7 +20,7 @@ class PaymentGateway
         $this->ready();
         $response = Http::timeout(15)->post('https://gateway.zibal.ir/v1/request', [
             'merchant' => config('platform.zibal.merchant'), 'amount' => $payment->amount,
-            'callbackUrl' => route($payment->organization_invoice_id ? 'organization-payments.callback' : ($payment->consultation_id ? 'consultation-payments.callback' : 'payments.callback')), 'orderId' => (string) $payment->id, 'description' => $payment->organization_invoice_id ? 'صورتحساب سازمانی کاردرست' : ($payment->consultation_id ? 'مشاوره کاردرست' : 'ثبت‌نام کاردرست'),
+            'callbackUrl' => route($payment->package_purchase_id ? 'package-payments.callback' : ($payment->organization_invoice_id ? 'organization-payments.callback' : ($payment->consultation_id ? 'consultation-payments.callback' : 'payments.callback'))), 'orderId' => (string) $payment->id, 'description' => $payment->package_purchase_id ? 'پکیج مشاوره کاردرست' : ($payment->organization_invoice_id ? 'صورتحساب سازمانی کاردرست' : ($payment->consultation_id ? 'مشاوره کاردرست' : 'ثبت‌نام کاردرست')),
         ]);
         $track = $response->json('trackId');
         if (! $response->successful() || $response->json('result') !== 100 || ! (is_string($track) || is_int($track)) || (string) $track === '' || strlen((string) $track) > 100) {

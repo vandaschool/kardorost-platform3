@@ -100,7 +100,7 @@ class CourseConsultationBenefits
         }
         $paid = DB::table('installments as invoices')->join('payment_allocations as allocations', 'allocations.installment_id', '=', 'invoices.id')->join('payments', 'payments.id', '=', 'allocations.payment_id')
             ->where('invoices.enrollment_id', $enrollment->id)->where('invoices.billing_version', $enrollment->billing_version)->whereNull('invoices.voided_at')->whereNotNull('invoices.paid_at')
-            ->where('payments.enrollment_id', $enrollment->id)->where('payments.user_id', $enrollment->user_id)->where('payments.status', 'paid')->whereNotNull('payments.captured_at')->whereNotNull('payments.reference')->whereNull('payments.consultation_id')->whereNull('payments.organization_invoice_id')
+            ->where('payments.enrollment_id', $enrollment->id)->where('payments.user_id', $enrollment->user_id)->where('payments.status', 'paid')->whereNotNull('payments.captured_at')->whereNotNull('payments.reference')->whereNull('payments.consultation_id')->whereNull('payments.organization_invoice_id')->whereNull('payments.package_purchase_id')
             ->whereColumn('payments.installment_id', 'invoices.id')->whereColumn('allocations.amount', 'invoices.amount')->whereColumn('payments.amount', 'invoices.amount')->get(['invoices.sequence', 'invoices.paid_at']);
         if ($contract->definition['activation'] === 'first_payment') {
             return $paid->firstWhere('sequence', 1)?->paid_at;
