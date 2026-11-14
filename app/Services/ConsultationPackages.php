@@ -32,8 +32,8 @@ class ConsultationPackages
             }
             if ($grant) {
                 $grant = ConsultationGrant::whereKey($grant->id)->lockForUpdate()->firstOrFail();
-                if ($grant->courseBenefit()->exists()) {
-                    $this->fail('سهمیه همراه دوره تابع قرارداد خرید است و از این فرم قابل تغییر نیست.');
+                if ($grant->courseBenefit()->exists() || $grant->packagePurchase()->exists()) {
+                    $this->fail('این سهمیه تابع قرارداد خرید است و از این فرم قابل تغییر نیست.');
                 }
                 if ($grant->student_id !== $student->id || $grant->coach_id !== $coach->id || $grant->revision !== (int) $data['revision'] || (int) $data['total_sessions'] < $grant->uses()->whereNull('released_at')->count()) {
                     $this->fail('نسخه قدیمی است یا سقف سهمیه از مصرف ثبت‌شده کمتر است.');
@@ -41,8 +41,8 @@ class ConsultationPackages
                 $grant->update(['total_sessions' => (int) $data['total_sessions'], 'valid_until' => $data['valid_until'], 'active' => (bool) $data['active'], 'revision' => $grant->revision + 1]);
             } else {
                 $source = mb_strtoupper(trim($data['source_reference']));
-                if (str_starts_with($source, 'COURSE-BENEFIT-')) {
-                    $this->fail('این پیشوند برای سهمیه خودکار دوره رزرو شده است.');
+                if (str_starts_with($source, 'COURSE-BENEFIT-') || str_starts_with($source, 'PACKAGE-PURCHASE-')) {
+                    $this->fail('این پیشوند برای صدور سهمیه از قرارداد خرید رزرو شده است.');
                 }
                 if (ConsultationGrant::where('student_id', $student->id)->where('source_reference', $source)->exists()) {
                     $this->fail('این منبع سهمیه قبلاً برای دانشجو ثبت شده است.');

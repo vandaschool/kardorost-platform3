@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Installment;
 use App\Models\PaymentReceipt;
 use App\Services\OrganizationBilling;
+use App\Services\PackageBilling;
 use App\Services\ReceiptService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,9 +37,9 @@ class ReceiptController extends Controller
             $rules['statement_verified'] = 'required|accepted';
         }
         $data = $request->validate($rules);
-        $allocated = $service->review($request->user(), $receipt, $data);
+        $allocated = $receipt->payment->package_purchase_id ? app(PackageBilling::class)->review($request->user(), $receipt, $data) : $service->review($request->user(), $receipt, $data);
 
-        return back()->with('success', $data['action'] === 'reject' ? 'رسید رد شد و دلیل آن برای دانشجو ثبت شد.' : ($allocated ? 'رسید تأیید و مبلغ تخصیص داده شد.' : 'رسید تأیید شد؛ تخصیص مبلغ به دلیل وضعیت ثبت‌نام نیازمند بررسی است.'));
+        return back()->with('success', $data['action'] === 'reject' ? 'رسید رد شد و دلیل آن برای دانشجو ثبت شد.' : ($allocated ? 'رسید تأیید و مبلغ تخصیص داده شد.' : 'رسید تأیید شد؛ انجام سفارش نیازمند بررسی است.'));
     }
 
     public function file(Request $request, PaymentReceipt $receipt): StreamedResponse

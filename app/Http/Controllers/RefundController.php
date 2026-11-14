@@ -23,10 +23,10 @@ class RefundController extends Controller
         if ($admin) {
             abort_unless($r->user()->hasRole('admin'), 403);
         }
-        $payments = Payment::with(['refund', 'enrollment.course', 'consultation.slot.coach', 'organizationInvoice', 'user:id,name'])->when(! $admin, fn ($q) => $q->whereNull('organization_invoice_id')->where('user_id', $r->user()->id));
+        $payments = Payment::with(['refund', 'enrollment.course', 'consultation.slot.coach', 'organizationInvoice', 'packagePurchase', 'user:id,name'])->when(! $admin, fn ($q) => $q->whereNull('organization_invoice_id')->where('user_id', $r->user()->id));
         $selected = isset($d['payment']) ? (clone $payments)->findOrFail($d['payment']) : null;
         $status = $d['status'] ?? ($admin ? 'requested' : 'all');
-        $rows = Refund::with(['events', 'payment.user:id,name', 'payment.enrollment.course', 'payment.consultation.slot.coach', 'payment.organizationInvoice'])->when(! $admin, fn ($q) => $q->whereHas('payment', fn ($p) => $p->whereNull('organization_invoice_id')->where('user_id', $r->user()->id)))->when($status !== 'all', fn ($q) => $q->where('status', $status))->when($selected, fn ($q) => $q->where('payment_id', $selected->id))->latest()->paginate(12)->withQueryString()->through(fn ($f) => $this->data($f, $admin));
+        $rows = Refund::with(['events', 'payment.user:id,name', 'payment.enrollment.course', 'payment.consultation.slot.coach', 'payment.organizationInvoice', 'payment.packagePurchase'])->when(! $admin, fn ($q) => $q->whereHas('payment', fn ($p) => $p->whereNull('organization_invoice_id')->where('user_id', $r->user()->id)))->when($status !== 'all', fn ($q) => $q->where('status', $status))->when($selected, fn ($q) => $q->where('payment_id', $selected->id))->latest()->paginate(12)->withQueryString()->through(fn ($f) => $this->data($f, $admin));
         $candidates = (clone $payments)->whereNotNull('captured_at')->whereIn('status', ['paid', 'review_required'])->where(fn ($q) => $q->whereDoesntHave('refund')->orWhereHas('refund', fn ($f) => $f->where('status', 'rejected')))->when($selected, fn ($q) => $q->whereKey($selected->id))->latest()->paginate(12, ['*'], 'payments_page')->withQueryString()->through(fn ($p) => ['id' => $p->id, 'title' => $this->title($p), 'amount' => $p->amount, 'eligible' => $service->eligible($p), 'version' => $p->refund?->version ?? 0]);
 
         return Inertia::render('Refunds', ['admin' => $admin, 'status' => $status, 'rows' => $rows, 'candidates' => $admin ? null : $candidates, 'selected_payment' => $selected?->id]);
@@ -34,6 +34,9 @@ class RefundController extends Controller
 
     private function title(Payment $p): string
     {
+        if ($p->package_purchase_id) {
+            return 'پکیج '.$p->packagePurchase->definition['title'];
+        }
         if ($p->organization_invoice_id) {
             return $p->organizationInvoice->title.' · '.$p->organizationInvoice->organization_name;
         }

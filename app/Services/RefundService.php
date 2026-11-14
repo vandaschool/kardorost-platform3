@@ -55,7 +55,9 @@ class RefundService
     /** Uses the same parent-to-payment lock order as allocation and consultation settlement. */
     private function locked(Payment $payment): Payment
     {
-        if ($payment->organization_invoice_id) {
+        if ($payment->package_purchase_id) {
+            app(PackageBilling::class)->locked($payment->packagePurchase);
+        } elseif ($payment->organization_invoice_id) {
             $invoice = OrganizationInvoice::findOrFail($payment->organization_invoice_id);
             Organization::whereKey($invoice->organization_id)->lockForUpdate()->firstOrFail();
             OrganizationInvoice::whereKey($invoice->id)->lockForUpdate()->firstOrFail();
@@ -83,6 +85,9 @@ class RefundService
         }
         if (! $p->captured_at || ! $p->reference || $p->amount <= 0 || ! in_array($p->status, ['paid', 'review_required'], true)) {
             return false;
+        }
+        if ($p->package_purchase_id) {
+            return $p->status === 'review_required' && $p->packagePurchase->settled_payment_id !== $p->id;
         }
         if ($p->consultation_id) {
             $c = $p->consultation;
@@ -112,7 +117,7 @@ class RefundService
 
     public function eligibleOrganization(Payment $payment): bool
     {
-        return (bool) $payment->organization_invoice_id && ! $payment->enrollment_id && ! $payment->consultation_id && ! $payment->installment_id
+        return (bool) $payment->organization_invoice_id && ! $payment->package_purchase_id && ! $payment->enrollment_id && ! $payment->consultation_id && ! $payment->installment_id
             && $payment->status === 'review_required' && (bool) $payment->captured_at && (bool) $payment->reference && $payment->amount > 0
             && ! OrganizationPaymentAllocation::where('payment_id', $payment->id)->exists();
     }
@@ -228,6 +233,12 @@ class RefundService
                 $name = mb_substr(preg_replace('/[\x00-\x1F\x7F]/u', '_', str_replace(['\\', '/'], '_', $file->getClientOriginalName())), 0, 200);
                 $refund->update(['status' => 'completed', 'version' => $refund->version + 1, 'transfer_reference' => $reference, 'transfer_date' => $data['transfer_date'], 'transfer_key' => $key, 'file_hash' => $hash, 'file_path' => $path, 'file_name' => $name, 'completed_by' => $admin->id, 'completed_at' => now()]);
                 $p->update(['status' => 'refunded']);
+                if ($p->package_purchase_id) {
+                    $purchase = $p->packagePurchase;
+                    if (! $purchase->settled_payment_id && ! $purchase->payments()->where('status', '!=', 'refunded')->where(fn ($query) => $query->whereNotNull('captured_at')->orWhereIn('status', ['pending_review', 'review_required']))->exists()) {
+                        $purchase->update(['status' => 'cancelled']);
+                    }
+                }
                 if ($p->consultation_id && $p->consultation->settled_payment_id === $p->id) {
                     $p->consultation->update(['refund_status' => 'completed']);
                 }

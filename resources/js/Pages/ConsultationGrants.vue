@@ -160,9 +160,10 @@ const form = useForm({
                 <p v-if="grant.source_kind === 'course'">
                     همراه دوره: {{ grant.source_course }}
                 </p>
+                <p v-if="grant.source_kind === 'package'">خرید مستقل پکیج</p>
                 <p v-if="admin">منبع: {{ grant.source_reference }}</p>
                 <ConsultationGrantEdit
-                    v-if="admin && grant.source_kind !== 'course'"
+                    v-if="admin && grant.source_kind === 'manual'"
                     :grant="grant"
                 />
             </article>

@@ -200,7 +200,11 @@ const filterStates = () =>
                                 )
                             "
                         >
-                            تلاش برای تخصیص به صورتحساب</button
+                            {{
+                                p.package_purchase_id
+                                    ? "بررسی انجام سفارش پکیج"
+                                    : "تلاش برای تخصیص به صورتحساب"
+                            }}</button
                         ><a
                             v-if="p.receipt"
                             :href="p.receipt.download_url"

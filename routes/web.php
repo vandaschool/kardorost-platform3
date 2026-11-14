@@ -7,6 +7,7 @@ use App\Http\Controllers\BillingPlanController;
 use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\ConsultationGrantController;
 use App\Http\Controllers\ConsultationPaymentController;
+use App\Http\Controllers\ConsultationProductController;
 use App\Http\Controllers\CourseBenefitController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\EnrollmentController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\OrganizationInvitationController;
 use App\Http\Controllers\OrganizationInvoiceController;
 use App\Http\Controllers\OrganizationLicenseController;
+use App\Http\Controllers\PackagePurchaseController;
 use App\Http\Controllers\PanelController;
 use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\RefundController;
@@ -36,6 +38,7 @@ Route::middleware('guest')->group(function () {
     Route::post('/auth/complete', [AuthController::class, 'complete'])->middleware('throttle:10,1');
     Route::post('/auth/restart', [AuthController::class, 'restart']);
 });
+Route::get('/package-payments/callback', [PackagePurchaseController::class, 'callback'])->middleware('throttle:60,1')->name('package-payments.callback');
 Route::get('/consultation-payments/callback', [ConsultationPaymentController::class, 'callback'])->middleware('throttle:60,1')->name('consultation-payments.callback');
 Route::get('/organization-payments/callback', [OrganizationInvoiceController::class, 'callback'])->middleware('throttle:60,1')->name('organization-payments.callback');
 Route::get('/payments/callback', [EnrollmentController::class, 'callback'])->middleware('throttle:60,1')->name('payments.callback');
@@ -73,6 +76,7 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::post('/refunds/{refund}/review', [RefundController::class, 'review'])->middleware('panel.role:admin');
     Route::post('/refunds/{refund}/complete', [RefundController::class, 'complete'])->middleware(['panel.role:admin', 'throttle:10,1']);
     Route::get('/assessment-attempts/{attempt}/report', [AssessmentController::class, 'report'])->name('assessments.report');
+    Route::get('/package-purchases/{purchase}', [PackagePurchaseController::class, 'show'])->name('package-purchases.show');
     Route::get('/finance', [FinanceController::class, 'index'])->name('finance');
     Route::post('/installments/{installment}/pay', [EnrollmentController::class, 'payInstallment'])->middleware('throttle:10,1');
     Route::post('/installments/{installment}/receipts', [ReceiptController::class, 'store'])->middleware('throttle:10,1');
@@ -81,6 +85,10 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::patch('/account', [PanelController::class, 'updateProfile']);
     Route::patch('/account/password', [PanelController::class, 'changePassword'])->middleware('throttle:5,1');
     Route::middleware('panel.role:student')->group(function () {
+        Route::get('/consultation-packages', [ConsultationProductController::class, 'index'])->name('consultation-packages');
+        Route::post('/consultation-packages/{product}/purchase', [PackagePurchaseController::class, 'create'])->middleware('throttle:10,1');
+        Route::post('/package-purchases/{purchase}/pay', [PackagePurchaseController::class, 'pay'])->middleware('throttle:10,1');
+        Route::post('/package-purchases/{purchase}/receipts', [PackagePurchaseController::class, 'receipt'])->middleware('throttle:10,1');
         Route::get('/consultation-grants', [ConsultationGrantController::class, 'index'])->name('consultation-grants');
         Route::get('/organization-invitations', [OrganizationInvitationController::class, 'mine'])->name('organization-invitations');
         Route::post('/organization-invitations/{invitation}/respond', [OrganizationInvitationController::class, 'respond'])->middleware('throttle:20,1');
@@ -124,6 +132,9 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/organization/members/{member}', [OrganizationController::class, 'report']);
     });
     Route::middleware('panel.role:admin')->group(function () {
+        Route::get('/admin/consultation-packages', [ConsultationProductController::class, 'index'])->name('admin.consultation-packages');
+        Route::post('/admin/consultation-packages', [ConsultationProductController::class, 'create']);
+        Route::patch('/admin/consultation-packages/{product}', [ConsultationProductController::class, 'update']);
         Route::get('/admin/course-benefits', [CourseBenefitController::class, 'index'])->name('admin.course-benefits');
         Route::patch('/admin/cohorts/{cohort}/consultation-benefit', [CourseBenefitController::class, 'update']);
         Route::post('/admin/course-benefits/{benefit}/issue', [CourseBenefitController::class, 'retry']);

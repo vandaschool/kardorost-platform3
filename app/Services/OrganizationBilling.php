@@ -249,7 +249,7 @@ class OrganizationBilling
 
     public function capture(Payment $payment, string $reference): bool
     {
-        abort_unless($payment->organization_invoice_id && ! $payment->enrollment_id && ! $payment->consultation_id && ! $payment->installment_id, 422);
+        abort_unless($payment->organization_invoice_id && ! $payment->package_purchase_id && ! $payment->enrollment_id && ! $payment->consultation_id && ! $payment->installment_id, 422);
         try {
             return DB::transaction(function () use ($payment, $reference) {
                 $invoice = $this->locked($payment->organizationInvoice);

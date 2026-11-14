@@ -1,5 +1,5 @@
 {
-  "phase": "automatic-course-consultation-benefits",
+  "phase": "standalone-consultation-package-purchase",
   "completed": [
     "phone-verification",
     "password-login",
@@ -121,17 +121,25 @@
     "verified-allocation-triggered-consultation-grants",
     "first-payment-or-full-settlement-activation",
     "blocked-course-benefit-admin-repair",
-    "automatic-grant-source-and-edit-protection"
+    "automatic-grant-source-and-edit-protection",
+    "versioned-consultation-package-offers",
+    "student-accepted-immutable-package-purchases",
+    "dedicated-package-payment-purpose-and-callback",
+    "private-package-receipts-and-independent-review",
+    "one-paid-purchase-one-consultation-grant",
+    "late-package-payment-admin-fulfillment",
+    "unallocated-package-fund-manual-refunds",
+    "purchased-grant-source-and-edit-protection"
   ],
   "tests": {
     "postgresql": {
-      "passed": 384,
-      "assertions": 2809
+      "passed": 408,
+      "assertions": 3009
     },
     "sqlite": {
-      "passed": 338,
-      "skipped": 46,
-      "assertions": 2538
+      "passed": 358,
+      "skipped": 50,
+      "assertions": 2717
     },
     "javascript": {
       "passed": 6
@@ -205,7 +213,13 @@
     "course-benefit-admin-configuration-and-successive-edits",
     "course-checkout-and-frozen-finance-benefit-terms",
     "receipt-approval-issues-one-course-benefit",
-    "course-benefit-private-source-and-mobile-390"
+    "course-benefit-private-source-and-mobile-390",
+    "admin-package-publication-and-successive-edits",
+    "immutable-standalone-package-checkout",
+    "private-package-receipt-before-fulfillment",
+    "approved-package-purchase-one-grant",
+    "purchased-package-booking-and-cancellation-credit",
+    "standalone-package-source-privacy-and-mobile-390"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -248,9 +262,9 @@
   "organization_invitation_sms_submission_complete": true,
   "sms_delivery_receipts_complete": false,
   "sms_submission_policy": "one_provider_attempt_per_invitation_revision_no_automatic_ambiguous_retries",
-  "consultation_package_purchase_complete": false,
+  "consultation_package_purchase_complete": true,
   "automatic_course_consultation_benefits_complete": true,
-  "consultation_grant_issuance_mode": "manual_reviewed_source_or_verified_course_payment_allocation",
+  "consultation_grant_issuance_mode": "manual_reviewed_source_or_verified_course_allocation_or_settled_package_purchase",
   "consultation_package_cancellation_policy": "before_start_full_credit_v1",
   "automatic_course_consultation_benefits_scope": "paid_personal_enrollment_new_billing_versions_only",
   "course_benefit_activation_options": [
@@ -258,5 +272,9 @@
     "paid_in_full"
   ],
   "organization_consultation_benefits_complete": false,
-  "course_benefit_reversal_complete": false
+  "course_benefit_reversal_complete": false,
+  "consultation_package_purchase_scope": "standalone_full_payment_personal_purchase_zibal_or_reviewed_transfer",
+  "consultation_package_unallocated_refunds_complete": true,
+  "consultation_package_issued_grant_refunds_complete": false,
+  "consultation_package_installments_complete": false
 }

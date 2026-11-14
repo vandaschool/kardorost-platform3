@@ -65,7 +65,7 @@ class ReceiptService
     {
         abort_unless($admin->is_active && $admin->hasRole('admin'), 403);
 
-        abort_if($receipt->payment->organization_invoice_id, 422);
+        abort_if($receipt->payment->organization_invoice_id || $receipt->payment->package_purchase_id, 422);
 
         return DB::transaction(function () use ($admin, $receipt, $data) {
             $payment = $receipt->payment;

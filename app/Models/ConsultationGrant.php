@@ -16,6 +16,11 @@ class ConsultationGrant extends Model
 
     protected $attributes = ['active' => true, 'revision' => 1, 'cancellation_policy' => 'before_start_full_credit_v1'];
 
+    public function packagePurchase(): HasOne
+    {
+        return $this->hasOne(PackagePurchase::class);
+    }
+
     public function courseBenefit(): HasOne
     {
         return $this->hasOne(EnrollmentConsultationBenefit::class);
