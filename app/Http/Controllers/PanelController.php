@@ -84,7 +84,7 @@ class PanelController extends Controller
     {
         abort_unless(in_array($section, ['courses', 'users', 'organizations', 'activity']), 404);
 
-        return Inertia::render('Admin', ['section' => $section, 'courses' => $section === 'courses' ? Course::with('cohorts.installmentPlan')->latest()->get() : [],
+        return Inertia::render('Admin', ['section' => $section, 'courses' => $section === 'courses' ? Course::with('cohorts.installmentPlan', 'cohorts.consultationBenefit')->latest()->get() : [],
             'users' => $section === 'users' ? User::with('roles:id,key,name')->latest()->get(['id', 'name', 'phone', 'is_active']) : [],
             'organizations' => $section === 'organizations' ? Organization::withCount('members')->latest()->get() : [],
             'coaches' => $section === 'courses' ? User::where('is_active', true)->whereHas('roles', fn ($q) => $q->where('key', 'coach'))->get(['id', 'name']) : [],

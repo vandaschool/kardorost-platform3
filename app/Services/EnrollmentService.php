@@ -51,6 +51,7 @@ class EnrollmentService
                 $enrollment = Enrollment::create($attributes);
             }
             app(BillingService::class)->issue($enrollment, $course, $cohort, $attributes['payment_plan']);
+            app(CourseConsultationBenefits::class)->freeze($enrollment, $cohort);
             AuditEvent::create(['actor_id' => $user->id, 'action' => 'enrollment.created', 'subject_type' => 'enrollment', 'subject_id' => $enrollment->id]);
 
             return $enrollment;

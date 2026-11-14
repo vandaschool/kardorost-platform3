@@ -1,5 +1,6 @@
 <script setup>
 import { useForm } from "@inertiajs/vue3";
+import CourseBenefitTerms from "./CourseBenefitTerms.vue";
 import Icon from "./Icon.vue";
 import { money, dateOnly } from "../finance";
 import { fa } from "../dates";
@@ -45,6 +46,7 @@ const formats = { live: "زنده", recorded: "ویدیویی", hybrid: "ترک�
                 }}</span>
             </p>
         </details>
+        <CourseBenefitTerms :definition="cohort.consultation_benefit" />
         <p
             v-for="(v, k) in form.errors"
             :key="k"

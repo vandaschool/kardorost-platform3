@@ -118,6 +118,7 @@ class OrganizationEnrollment
                 } else {
                     $e = Enrollment::create($data);
                 }
+                app(CourseConsultationBenefits::class)->supersede($e);
                 OrganizationSeat::create(['organization_license_id' => $license->id, 'enrollment_id' => $e->id, 'user_id' => $member->id, 'created_by' => $actor->id, 'member_name' => $member->name, 'member_phone' => $member->phone]);
                 $this->audit($actor, 'organization.enrolled', 'enrollment', $e->id, ['organization_id' => $org->id, 'organization_license_id' => $license->id]);
                 $member->notify(new OrganizationEnrolled($cohort->course->title, $org->name));

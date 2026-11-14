@@ -7,6 +7,7 @@ use App\Http\Controllers\BillingPlanController;
 use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\ConsultationGrantController;
 use App\Http\Controllers\ConsultationPaymentController;
+use App\Http\Controllers\CourseBenefitController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\FinanceController;
@@ -123,6 +124,9 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/organization/members/{member}', [OrganizationController::class, 'report']);
     });
     Route::middleware('panel.role:admin')->group(function () {
+        Route::get('/admin/course-benefits', [CourseBenefitController::class, 'index'])->name('admin.course-benefits');
+        Route::patch('/admin/cohorts/{cohort}/consultation-benefit', [CourseBenefitController::class, 'update']);
+        Route::post('/admin/course-benefits/{benefit}/issue', [CourseBenefitController::class, 'retry']);
         Route::get('/admin/consultation-grants', [ConsultationGrantController::class, 'index'])->name('admin.consultation-grants');
         Route::post('/admin/consultation-grants', [ConsultationGrantController::class, 'create']);
         Route::patch('/admin/consultation-grants/{grant}', [ConsultationGrantController::class, 'update']);

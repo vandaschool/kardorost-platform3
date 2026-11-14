@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ConsultationGrant extends Model
 {
@@ -14,6 +15,11 @@ class ConsultationGrant extends Model
     protected $guarded = [];
 
     protected $attributes = ['active' => true, 'revision' => 1, 'cancellation_policy' => 'before_start_full_credit_v1'];
+
+    public function courseBenefit(): HasOne
+    {
+        return $this->hasOne(EnrollmentConsultationBenefit::class);
+    }
 
     protected function casts(): array
     {

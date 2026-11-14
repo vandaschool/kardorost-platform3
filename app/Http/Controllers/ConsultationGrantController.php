@@ -16,13 +16,13 @@ class ConsultationGrantController extends Controller
 {
     public function data(ConsultationGrant $grant, bool $admin = false): array
     {
-        return [...$grant->only('id', 'title', 'coach_id', 'total_sessions', 'session_minutes', 'active', 'revision', 'cancellation_policy'), 'valid_until' => $grant->valid_until->toDateString(), 'expired' => $grant->valid_until->toDateString() < now()->toDateString(), 'remaining' => $grant->remaining(), 'coach_name' => $grant->coach->name, ...($admin ? ['student' => $grant->student->only('id', 'name', 'phone'), 'source_reference' => $grant->source_reference] : [])];
+        return [...$grant->only('id', 'title', 'coach_id', 'total_sessions', 'session_minutes', 'active', 'revision', 'cancellation_policy'), 'valid_until' => $grant->valid_until->toDateString(), 'expired' => $grant->valid_until->toDateString() < now()->toDateString(), 'source_kind' => $grant->courseBenefit ? 'course' : 'manual', 'source_course' => $grant->courseBenefit?->definition['course_title'] ?? null, 'remaining' => $grant->remaining(), 'coach_name' => $grant->coach->name, ...($admin ? ['student' => $grant->student->only('id', 'name', 'phone'), 'source_reference' => $grant->source_reference] : [])];
     }
 
     public function index(Request $request): Response
     {
         $admin = $request->routeIs('admin.consultation-grants');
-        $grants = ConsultationGrant::with('coach:id,name', 'student:id,name,phone')->withCount(['uses as spent_count' => fn ($query) => $query->whereNull('released_at')])->when(! $admin, fn ($query) => $query->where('student_id', $request->user()->id))->latest()->paginate(12)->through(fn ($grant) => $this->data($grant, $admin));
+        $grants = ConsultationGrant::with('coach:id,name', 'student:id,name,phone', 'courseBenefit')->withCount(['uses as spent_count' => fn ($query) => $query->whereNull('released_at')])->when(! $admin, fn ($query) => $query->where('student_id', $request->user()->id))->latest()->paginate(12)->through(fn ($grant) => $this->data($grant, $admin));
 
         return Inertia::render('ConsultationGrants', ['admin' => $admin, 'grants' => $grants, 'coaches' => $admin ? User::where('is_active', true)->whereHas('roles', fn ($query) => $query->where('key', 'coach'))->get(['id', 'name']) : []]);
     }
