@@ -5,6 +5,7 @@ use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BillingPlanController;
 use App\Http\Controllers\ConsultationController;
+use App\Http\Controllers\ConsultationGrantController;
 use App\Http\Controllers\ConsultationPaymentController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\EnrollmentController;
@@ -79,6 +80,7 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::patch('/account', [PanelController::class, 'updateProfile']);
     Route::patch('/account/password', [PanelController::class, 'changePassword'])->middleware('throttle:5,1');
     Route::middleware('panel.role:student')->group(function () {
+        Route::get('/consultation-grants', [ConsultationGrantController::class, 'index'])->name('consultation-grants');
         Route::get('/organization-invitations', [OrganizationInvitationController::class, 'mine'])->name('organization-invitations');
         Route::post('/organization-invitations/{invitation}/respond', [OrganizationInvitationController::class, 'respond'])->middleware('throttle:20,1');
         Route::get('/assessments', [AssessmentController::class, 'index'])->name('assessments');
@@ -121,6 +123,9 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/organization/members/{member}', [OrganizationController::class, 'report']);
     });
     Route::middleware('panel.role:admin')->group(function () {
+        Route::get('/admin/consultation-grants', [ConsultationGrantController::class, 'index'])->name('admin.consultation-grants');
+        Route::post('/admin/consultation-grants', [ConsultationGrantController::class, 'create']);
+        Route::patch('/admin/consultation-grants/{grant}', [ConsultationGrantController::class, 'update']);
         Route::get('/admin', fn (Request $r, PanelController $c) => $c->dashboard($r, 'admin'))->name('panel.admin');
         Route::get('/admin/finance', [FinanceController::class, 'admin'])->name('admin.finance');
         Route::post('/admin/finance/receipts/{receipt}/review', [ReceiptController::class, 'review']);

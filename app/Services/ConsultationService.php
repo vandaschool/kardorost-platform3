@@ -60,19 +60,20 @@ class ConsultationService
         }, 3);
     }
 
-    public function book(User $student, ConsultationSlot $slot, string $topic, ?ConsultationRequest $request = null, ?User $actor = null, ?int $version = null): Consultation
+    public function book(User $student, ConsultationSlot $slot, string $topic, ?ConsultationRequest $request = null, ?User $actor = null, ?int $version = null, ?int $grantId = null): Consultation
     {
         $actor ??= $student;
         abort_unless($student->is_active && $student->hasRole('student'), 403);
         abort_unless($actor->id === $student->id || $actor->hasRole('admin'), 403);
 
-        return DB::transaction(function () use ($student, $slot, $topic, $request, $actor, $version) {
+        return DB::transaction(function () use ($student, $slot, $topic, $request, $actor, $version, $grantId) {
             $this->people([$student->id, $slot->coach_id]);
             if ($request) {
                 $request = ConsultationRequest::whereKey($request->id)->lockForUpdate()->firstOrFail();
                 if ($request->student_id !== $student->id || $request->status !== 'pending' || $request->version !== $version) {
                     $this->fail('درخواست تغییر کرده است؛ صفحه را تازه کنید.');
                 }
+                $grantId = $request->consultation_grant_id;
             }
             $slot = ConsultationSlot::whereKey($slot->id)->lockForUpdate()->firstOrFail();
             app(ConsultationBilling::class)->expireLockedSlot($slot);
@@ -81,7 +82,8 @@ class ConsultationService
             if (! $student->is_active || ! $student->hasRole('student') || ! $coach->is_active || ! $coach->hasRole('coach') || $slot->coach_id === $student->id || ! $slot->published || $slot->booked || $slot->starts_at->lte(now())) {
                 $this->fail('این زمان قابل رزرو نیست.');
             }
-            if ($slot->price > 0 && (! config('platform.zibal.enabled') || ! config('platform.zibal.merchant'))) {
+            $grant = $grantId ? app(ConsultationPackages::class)->select($student, $slot, $grantId) : null;
+            if (! $grant && $slot->price > 0 && (! config('platform.zibal.enabled') || ! config('platform.zibal.merchant'))) {
                 $this->fail('درگاه پرداخت برای رزرو پولی فعال نیست.');
             }
             if (Payment::where('user_id', $student->id)->whereNotNull('consultation_id')->where('status', 'review_required')->exists()) {
@@ -90,7 +92,10 @@ class ConsultationService
             if (Consultation::where('student_id', $student->id)->where(fn ($q) => $q->where('status', 'confirmed')->orWhere(fn ($q) => $q->where('status', 'pending_payment')->where('expires_at', '>', now())))->whereHas('slot', fn ($q) => $q->where('starts_at', '<', $slot->ends_at)->where('ends_at', '>', $slot->starts_at))->exists()) {
                 $this->fail('در این بازه مشاوره دیگری دارید.');
             }
-            $item = Consultation::create(['student_id' => $student->id, 'consultation_slot_id' => $slot->id, 'topic' => $topic, 'amount' => $slot->price, 'status' => $slot->price > 0 ? 'pending_payment' : 'confirmed', 'expires_at' => $slot->price > 0 ? now()->addMinutes(15)->min($slot->starts_at) : null]);
+            $item = Consultation::create(['student_id' => $student->id, 'consultation_slot_id' => $slot->id, 'topic' => $topic, 'amount' => $grant ? 0 : $slot->price, 'listed_amount' => $slot->price, 'consultation_grant_id' => $grant?->id, 'status' => ! $grant && $slot->price > 0 ? 'pending_payment' : 'confirmed', 'expires_at' => ! $grant && $slot->price > 0 ? now()->addMinutes(15)->min($slot->starts_at) : null]);
+            if ($grant) {
+                app(ConsultationPackages::class)->consume($grant, $item, $actor);
+            }
             $slot->update(['booked' => true]);
             if ($request) {
                 $request->update(['status' => 'scheduled', 'consultation_id' => $item->id, 'version' => $request->version + 1, 'resolved_by' => $actor->id, 'resolved_at' => now()]);
@@ -102,16 +107,19 @@ class ConsultationService
         }, 3);
     }
 
-    public function request(User $student, string $topic, string $availability): ConsultationRequest
+    public function request(User $student, string $topic, string $availability, ?int $grantId = null): ConsultationRequest
     {
         abort_unless($student->hasRole('student'), 403);
 
-        return DB::transaction(function () use ($student, $topic, $availability) {
+        return DB::transaction(function () use ($student, $topic, $availability, $grantId) {
             $this->people([$student->id]);
             if (ConsultationRequest::where('student_id', $student->id)->where('status', 'pending')->exists()) {
                 $this->fail('یک درخواست باز دارید؛ نتیجه همان درخواست را پیگیری کنید.');
             }
-            $item = ConsultationRequest::create(['student_id' => $student->id, 'topic' => $topic, 'availability' => $availability]);
+            if ($grantId) {
+                app(ConsultationPackages::class)->forRequest($student, $grantId);
+            }
+            $item = ConsultationRequest::create(['consultation_grant_id' => $grantId, 'student_id' => $student->id, 'topic' => $topic, 'availability' => $availability]);
             $this->audit($student, 'consultation.requested', 'consultation_request', $item->id);
 
             return $item;
@@ -167,6 +175,9 @@ class ConsultationService
             }
             $item->version++;
             $item->save();
+            if ($action === 'cancel') {
+                app(ConsultationPackages::class)->release($item, $actor, (string) $reason);
+            }
             $this->audit($actor, 'consultation.'.$action, 'consultation', $item->id);
             $this->notify($item, 'وضعیت جلسه مشاوره تغییر کرد');
         }, 3);

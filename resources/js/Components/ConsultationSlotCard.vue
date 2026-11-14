@@ -1,13 +1,14 @@
 <script setup>
 import { useForm } from "@inertiajs/vue3";
-import { money } from "../finance";
+import { money, dateOnly } from "../finance";
 import { dateTime, providers } from "../dates";
 const props = defineProps({
     slot: Object,
     role: String,
     gatewayEnabled: Boolean,
+    grants: { type: Array, default: () => [] },
 });
-const book = useForm({ topic: "" });
+const book = useForm({ topic: "", grant_id: "" });
 const link = useForm({ meeting_url: props.slot.meeting_url || "" });
 const visibility = useForm({ published: !props.slot.published });
 function toggle() {
@@ -18,7 +19,7 @@ function toggle() {
 }
 </script>
 <template>
-    <article class="panel glass consultation-card">
+    <article class="panel glass consultation-card" :data-slot-id="slot.id">
         <h3>{{ slot.coach_name }}</h3>
         <p>{{ dateTime(slot.starts_at) }} تا {{ dateTime(slot.ends_at) }}</p>
         <p class="muted">
@@ -26,12 +27,17 @@ function toggle() {
             {{ slot.price ? money(slot.price) : "رایگان" }} · زمان شماره
             {{ slot.id }}
         </p>
-        <p v-if="slot.price > 0" class="muted">
+        <p v-if="slot.price > 0 && !book.grant_id" class="muted">
             رزرو با پرداخت قطعی می‌شود. لغو پس از پرداخت برای بررسی بازپرداخت
             ثبت می‌شود.
         </p>
         <p
-            v-if="role === 'student' && slot.price > 0 && !gatewayEnabled"
+            v-if="
+                role === 'student' &&
+                slot.price > 0 &&
+                !gatewayEnabled &&
+                !book.grant_id
+            "
             class="muted"
         >
             درگاه پرداخت فعلاً فعال نیست.
@@ -53,13 +59,43 @@ function toggle() {
                     minlength="3"
                     maxlength="3000"
                 ></textarea></label
-            ><button
+            ><label
+                v-if="
+                    slot.price > 0 &&
+                    grants.some((g) => (slot.grant_ids || []).includes(g.id))
+                "
+                >روش رزرو<select v-model="book.grant_id" name="booking_grant">
+                    <option value="">پرداخت تعرفه جلسه</option>
+                    <option
+                        v-for="g in grants.filter((g) =>
+                            (slot.grant_ids || []).includes(g.id),
+                        )"
+                        :key="g.id"
+                        :value="g.id"
+                    >
+                        {{ g.title }} · مانده {{ g.remaining }} جلسه · تا
+                        {{ dateOnly(g.valid_until) }}
+                    </option>
+                </select></label
+            >
+            <p v-if="book.grant_id" class="muted">
+                یک جلسه از پکیج مصرف می‌شود و پرداخت جداگانه ندارد. لغو پیش از
+                شروع، سهمیه را برمی‌گرداند؛ عدم حضور آن را مصرف می‌کند.
+            </p>
+            <button
                 class="btn primary"
                 :disabled="
-                    book.processing || (slot.price > 0 && !gatewayEnabled)
+                    book.processing ||
+                    (slot.price > 0 && !gatewayEnabled && !book.grant_id)
                 "
             >
-                {{ slot.price > 0 ? "رزرو موقت و پرداخت" : "رزرو این زمان" }}
+                {{
+                    book.grant_id
+                        ? "رزرو با سهمیه پکیج"
+                        : slot.price > 0
+                          ? "رزرو موقت و پرداخت"
+                          : "رزرو این زمان"
+                }}
             </button>
         </form>
         <div v-else class="stack-form">

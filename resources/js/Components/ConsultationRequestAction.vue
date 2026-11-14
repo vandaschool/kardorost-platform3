@@ -13,6 +13,11 @@ function send(action) {
 </script>
 <template>
     <div v-if="item.status === 'pending'" class="stack-form">
+        <p v-if="item.package_title">
+            پکیج انتخاب‌شده دانشجو: {{ item.package_title }} ·
+            {{ item.package_minutes }} دقیقه. فقط از همین سهمیه و مربی سازگار
+            استفاده می‌شود؛ در صورت اتمام مانده، درخواست باز می‌ماند.
+        </p>
         <form
             v-if="admin"
             @submit.prevent="send('schedule')"
@@ -28,6 +33,13 @@ function send(action) {
                         v-for="slot in slots.filter(
                             (s) =>
                                 s.published &&
+                                (!item.consultation_grant_id ||
+                                    (s.coach_id === item.package_coach_id &&
+                                        s.price > 0 &&
+                                        (new Date(s.ends_at) -
+                                            new Date(s.starts_at)) /
+                                            60000 ===
+                                            item.package_minutes)) &&
                                 !s.booked &&
                                 new Date(s.starts_at) > new Date(),
                         )"

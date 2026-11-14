@@ -6,10 +6,11 @@ import JalaliDateInput from "../Components/JalaliDateInput.vue";
 import ConsultationAction from "../Components/ConsultationAction.vue";
 import ConsultationRequestAction from "../Components/ConsultationRequestAction.vue";
 import ConsultationSlotCard from "../Components/ConsultationSlotCard.vue";
-import { money } from "../finance";
+import { money, dateOnly } from "../finance";
 import { dateTime } from "../dates";
 const props = defineProps({
     role: String,
+    grants: { type: Array, default: () => [] },
     slots: Object,
     bookings: Object,
     requests: Object,
@@ -17,7 +18,7 @@ const props = defineProps({
     gateway_enabled: Boolean,
 });
 const page = usePage();
-const request = useForm({ topic: "", availability: "" });
+const request = useForm({ topic: "", availability: "", grant_id: "" });
 const slot = useForm({
     coach_id: props.role === "coach" ? page.props.auth.user.id : "",
     date: "",
@@ -54,6 +55,12 @@ const labels = {
                 </p>
             </div>
         </section>
+        <Link
+            v-if="role === 'student'"
+            href="/consultation-grants"
+            class="text-link"
+            >مانده و شرایط سهمیه‌های مشاوره</Link
+        >
         <div v-if="role === 'student'" class="panel glass consultation-card">
             <h2>برای انتخاب زمان کمک می‌خواهید؟</h2>
             <p class="muted">
@@ -83,7 +90,26 @@ const labels = {
                         maxlength="1500"
                         required
                     ></textarea></label
-                ><button class="btn primary" :disabled="request.processing">
+                ><label v-if="grants.length"
+                    >سهمیه مورد نظر برای هماهنگی<select
+                        v-model="request.grant_id"
+                        name="request_grant"
+                    >
+                        <option value="">
+                            بدون مصرف پکیج؛ هماهنگی با تعرفه جلسه
+                        </option>
+                        <option v-for="g in grants" :key="g.id" :value="g.id">
+                            {{ g.title }} · {{ g.coach_name }} ·
+                            {{ g.session_minutes }} دقیقه · تا
+                            {{ dateOnly(g.valid_until) }}
+                        </option>
+                    </select></label
+                >
+                <p v-if="request.grant_id" class="muted">
+                    ثبت درخواست سهمیه را نگه نمی‌دارد؛ مانده و اعتبار هنگام
+                    تعیین زمان دوباره بررسی می‌شوند.
+                </p>
+                <button class="btn primary" :disabled="request.processing">
                     درخواست هماهنگی
                 </button>
             </form>
@@ -183,6 +209,7 @@ const labels = {
                     :slot="s"
                     :role="role"
                     :gateway-enabled="gateway_enabled"
+                    :grants="grants"
                 />
             </div>
             <Pagination :links="slots.links" />
@@ -197,6 +224,7 @@ const labels = {
             <div class="consultation-grid">
                 <article
                     v-for="b in bookings.data"
+                    :data-booking-id="b.id"
                     :key="b.id"
                     class="panel glass consultation-card"
                 >
@@ -206,7 +234,10 @@ const labels = {
                         {{ dateTime(b.starts_at) }} تا {{ dateTime(b.ends_at) }}
                     </p>
                     <p class="preserve-lines">{{ b.topic }}</p>
-                    <p>{{ b.amount ? money(b.amount) : "رایگان" }}</p>
+                    <p v-if="b.package_title">
+                        پوشش پکیج: {{ b.package_title }} · بدون پرداخت جداگانه
+                    </p>
+                    <p v-else>{{ b.amount ? money(b.amount) : "رایگان" }}</p>
                     <p v-if="b.refund_status === 'pending'" class="muted">
                         لغو ثبت شد؛ بازپرداخت نیازمند بررسی و اقدام مدیریت است.
                         وجه خودکار برگردانده نشده است.
