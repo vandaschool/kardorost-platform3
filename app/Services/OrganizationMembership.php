@@ -31,6 +31,7 @@ class OrganizationMembership
 
     private function notify(OrganizationInvitation $invitation, Organization $organization): void
     {
+        app(InvitationSmsService::class)->enqueue($invitation, $organization);
         $user = User::where('phone', $invitation->phone)->where('is_active', true)->whereNotNull('phone_verified_at')->whereHas('roles', fn ($query) => $query->where('key', 'student'))->first();
         $user?->notify(new OrganizationInvited($organization->name));
     }

@@ -13,6 +13,14 @@ const labels = {
     declined: "ردشده توسط فرد",
     revoked: "لغوشده توسط سازمان",
 };
+const smsLabels = {
+    queued: "در صف ارسال",
+    processing: "در حال ارسال",
+    accepted: "پذیرفته‌شده توسط سرویس؛ تحویل به گوشی تأیید نشده",
+    failed: "ارسال انجام نشد؛ با مدیریت کاردرست پیگیری کنید",
+    unknown: "نتیجه ارسال نامشخص است؛ با مدیریت کاردرست پیگیری کنید",
+    skipped: "دعوت تغییر کرده یا ارسال غیرفعال شده؛ پیامک ارسال نشد",
+};
 function act(action) {
     form.revision = props.invitation.revision;
     form.action = action;
@@ -42,6 +50,17 @@ function act(action) {
         <p v-if="invitation.responded_at" class="muted">
             زمان پاسخ: {{ dateTime(invitation.responded_at) }}
         </p>
+        <div
+            v-if="manager && invitation.sms"
+            class="invitation-sms-status"
+            role="status"
+        >
+            <p>پیامک: {{ smsLabels[invitation.sms.status] }}</p>
+            <p v-if="invitation.sms.provider_reference" class="muted">
+                شناسه پیگیری پیامک:
+                <bdi>{{ invitation.sms.provider_reference }}</bdi>
+            </p>
+        </div>
         <template v-if="manager">
             <p class="muted">
                 تا پیش از پذیرش، این دعوت عضویت یا دسترسی به گزارش فرد ایجاد

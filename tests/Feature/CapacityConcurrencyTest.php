@@ -14,6 +14,7 @@ use App\Models\ConsultationSlot;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Installment;
+use App\Models\InvitationSms;
 use App\Models\Organization;
 use App\Models\OrganizationInvitation;
 use App\Models\OrganizationInvoice;
@@ -971,5 +972,70 @@ CODE;
         $this->assertSame(3, OrganizationInvitation::count());
         $this->assertSame(1, $student->notifications()->count());
         $this->assertSame(2, $organization->members()->count());
+    }
+
+    private function invitationSms(): InvitationSms
+    {
+        config(['platform.sms.melipayamak.invitations_enabled' => true]);
+        [$organization, $manager, $student] = $this->invitationOrganization();
+        app(OrganizationMembership::class)->invite($manager, $organization, $student->phone);
+
+        return InvitationSms::sole();
+    }
+
+    private function invitationSmsWorkerCode(): string
+    {
+        return <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+config(['platform.sms.driver'=>'melipayamak','platform.sms.melipayamak.mode'=>'rest','platform.sms.melipayamak.username'=>'fixture','platform.sms.melipayamak.api_key'=>'fixture-secret','platform.sms.melipayamak.invitation_body_id'=>'456','platform.sms.melipayamak.invitations_enabled'=>true]);
+\Illuminate\Support\Facades\Http::preventStrayRequests();
+\Illuminate\Support\Facades\Http::fake(function() {\App\Models\AuditEvent::create(['action'=>'fixture.sms_provider_call','subject_type'=>'invitation_sms','subject_id'=>1]);usleep(200000);return \Illuminate\Support\Facades\Http::response(['RetStatus'=>1,'Value'=>'123456789012345678901']);});
+$s=\App\Models\InvitationSms::findOrFail((int)$argv[1]);
+if(($argv[2]??'send')==='revoke') {app(\App\Services\OrganizationMembership::class)->change(\App\Models\User::findOrFail((int)$argv[3]),$s->invitation,1,'revoke');echo 'REVOKED';}
+else {app(\App\Services\InvitationSmsService::class)->send($s->id,app(\App\Services\SmsSender::class));echo strtoupper($s->fresh()->status);}
+CODE;
+    }
+
+    public function test_duplicate_sms_workers_cannot_contact_provider_twice(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('SMS outbox races require PostgreSQL.');
+        }
+        $sms = $this->invitationSms();
+        $this->parallelFinance($this->invitationSmsWorkerCode(), [[$sms->id], [$sms->id]]);
+        $this->assertSame(1, AuditEvent::where('action', 'fixture.sms_provider_call')->count());
+        $this->assertSame('accepted', $sms->fresh()->status);
+        $this->assertSame('123456789012345678901', $sms->fresh()->provider_reference);
+        $this->assertSame(1, AuditEvent::where('action', 'invitation_sms.accepted')->count());
+    }
+
+    public function test_two_sms_dispatchers_schedule_one_initial_job(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('SMS outbox races require PostgreSQL.');
+        }
+        $sms = $this->invitationSms();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo app(\App\Services\InvitationSmsService::class)->dispatchPending();
+CODE;
+        $this->assertSame(['0', '1'], $this->parallelFinance($code, [[], []]));
+        $this->assertSame(1, DB::table('jobs')->where('queue', 'sms')->count());
+        $this->assertSame('queued', $sms->fresh()->status);
+        $this->assertNotNull($sms->fresh()->dispatched_at);
+    }
+
+    public function test_sms_send_racing_revoke_never_reactivates_an_invitation(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('SMS outbox races require PostgreSQL.');
+        }
+        $sms = $this->invitationSms();
+        $managerId = $sms->invitation->created_by;
+        $result = $this->parallelFinance($this->invitationSmsWorkerCode(), [[$sms->id, 'send', $managerId], [$sms->id, 'revoke', $managerId]]);
+        $this->assertContains($result, [['ACCEPTED', 'REVOKED'], ['REVOKED', 'SKIPPED']]);
+        $this->assertSame('revoked', $sms->invitation->fresh()->status);
+        $this->assertSame(1, $sms->invitation->organization->members()->count());
+        $this->assertSame($sms->fresh()->status === 'accepted' ? 1 : 0, AuditEvent::where('action', 'fixture.sms_provider_call')->count());
     }
 }
