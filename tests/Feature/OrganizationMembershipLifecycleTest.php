@@ -263,4 +263,11 @@ class OrganizationMembershipLifecycleTest extends TestCase
         $this->assertSame(1, Organization::count());
         $this->assertFalse($target->hasRole('org_admin'));
     }
+
+    public function test_member_can_withdraw_consent_after_student_role_is_replaced(): void
+    {
+        $this->student->roles()->sync([Role::where('key', 'coach')->value('id')]);
+        $this->leave();
+        $this->assertFalse($this->organization->members()->where('users.id', $this->student->id)->exists());
+    }
 }

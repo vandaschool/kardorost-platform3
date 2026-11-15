@@ -1,7 +1,8 @@
 <script setup>
-import { computed, ref } from "vue";
+import { computed, ref, onMounted, onBeforeUnmount } from "vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
 import Icon from "../Components/Icon.vue";
+import PanelNavLink from "../Components/PanelNavLink.vue";
 const props = defineProps({
     title: String,
     role: { type: String, default: "student" },
@@ -9,6 +10,14 @@ const props = defineProps({
 const page = usePage();
 const mobile = ref(false);
 const roleOpen = ref(false);
+function handleEscape(event) {
+    if (event.key === "Escape") {
+        mobile.value = false;
+        roleOpen.value = false;
+    }
+}
+onMounted(() => document.addEventListener("keydown", handleEscape));
+onBeforeUnmount(() => document.removeEventListener("keydown", handleEscape));
 const roles = {
     student: "پنل دانشجو",
     coach: "پنل مربی",
@@ -21,85 +30,142 @@ const urls = {
     org_admin: "/organization",
     admin: "/admin",
 };
-const menus = computed(() =>
-    props.role === "admin"
-        ? [
-              ["پشتیبانی", "MessagesSquare", "/support?view=admin"],
-              ["محتوای سایت", "FileText", "/admin/content"],
-              ["خانه مدیریت", "LayoutDashboard", "/admin"],
-              ["خودشناسی", "Fingerprint", "/admin/assessments"],
-              ["دوره‌ها", "BookOpen", "/admin/courses"],
-              ["گواهی‌ها", "GraduationCap", "/admin/certificates"],
-              ["نظرسنجی دوره‌ها", "FileText", "/admin/surveys"],
-              ["گفت‌وگوی دوره‌ها", "MessagesSquare", "/discussions"],
-              ["مالی و رسیدها", "ReceiptText", "/admin/finance"],
-              ["بازپرداخت‌ها", "ReceiptText", "/refunds?view=admin"],
-              ["مشاوره", "MessagesSquare", "/consultations?view=admin"],
-              ["سهمیه مشاوره", "MessagesSquare", "/admin/consultation-grants"],
-              [
-                  "فروش پکیج مشاوره",
-                  "MessagesSquare",
-                  "/admin/consultation-packages",
-              ],
-              ["مشاوره همراه دوره", "MessagesSquare", "/admin/course-benefits"],
-              ["کاربران", "Users", "/admin/users"],
-              ["سازمان‌ها", "Building2", "/admin/organizations"],
-              ["مدیران سازمان", "Users", "/admin/organization-managers"],
-              ["سهمیه سازمان‌ها", "Users", "/admin/organization-licenses"],
-              [
-                  "صورتحساب سازمان‌ها",
-                  "ReceiptText",
-                  "/admin/organization-invoices",
-              ],
-              ["سابقه فعالیت", "History", "/admin/activity"],
-          ]
-        : props.role === "org_admin"
-          ? [
-                ["پشتیبانی", "MessagesSquare", "/support"],
-                ["سازمان من", "Building2", "/organization"],
+const item = (label, icon, href) => ({ label, icon, href });
+const group = (label, icon, items) => ({ label, icon, items });
+const accountItems = [
+    ["پروفایل و امنیت", "UserRound", "/account"],
+    ["پرداخت‌ها و اقساط", "ReceiptText", "/finance"],
+    ["بازپرداخت‌ها", "ReceiptText", "/refunds"],
+    ["عضویت‌های سازمانی من", "Building2", "/organization-memberships"],
+];
+const menus = computed(() => {
+    if (props.role === "admin")
+        return [
+            item("خانه مدیریت", "LayoutDashboard", "/admin"),
+            group("آموزش", "BookOpen", [
+                ["دوره‌ها", "BookOpen", "/admin/courses"],
+                ["گواهی‌ها", "GraduationCap", "/admin/certificates"],
+                ["معیارهای گواهی", "FileText", "/admin/certificate-policies"],
+                ["نظرسنجی دوره‌ها", "FileText", "/admin/surveys"],
+                ["گفت‌وگوی دوره‌ها", "MessagesSquare", "/discussions"],
+            ]),
+            group("خودشناسی و مسیر شغلی", "Fingerprint", [
+                [
+                    "مدیریت ابزارهای خودشناسی",
+                    "Fingerprint",
+                    "/admin/assessments",
+                ],
+                ["کارتابل رزومه‌ها", "FileText", "/career/resumes?view=admin"],
+            ]),
+            group("مشاوره", "MessagesSquare", [
+                [
+                    "جلسات و درخواست‌ها",
+                    "CalendarDays",
+                    "/consultations?view=admin",
+                ],
+                [
+                    "سهمیه مشاوره",
+                    "MessagesSquare",
+                    "/admin/consultation-grants",
+                ],
+                [
+                    "فروش پکیج مشاوره",
+                    "MessagesSquare",
+                    "/admin/consultation-packages",
+                ],
+                [
+                    "مشاوره همراه دوره",
+                    "MessagesSquare",
+                    "/admin/course-benefits",
+                ],
+            ]),
+            group("مالی", "ReceiptText", [
+                ["مالی و رسیدها", "ReceiptText", "/admin/finance"],
+                ["بازپرداخت‌ها", "ReceiptText", "/refunds?view=admin"],
+            ]),
+            group("سازمان‌ها", "Building2", [
+                ["سازمان‌ها", "Building2", "/admin/organizations"],
+                ["مدیران سازمان", "Users", "/admin/organization-managers"],
+                ["سهمیه سازمان‌ها", "Users", "/admin/organization-licenses"],
+                [
+                    "صورتحساب سازمان‌ها",
+                    "ReceiptText",
+                    "/admin/organization-invoices",
+                ],
+            ]),
+            item("محتوای سایت", "FileText", "/admin/content"),
+            group("مدیریت دسترسی", "ShieldCheck", [
+                ["کاربران", "Users", "/admin/users"],
+                ["سابقه فعالیت", "History", "/admin/activity"],
+            ]),
+        ];
+    if (props.role === "org_admin")
+        return [
+            item("سازمان من", "Building2", "/organization"),
+            group("اعضا و دعوت‌ها", "Users", [
                 ["دعوت اعضا", "UserPlus", "/organization/invitations"],
+                [
+                    "عضویت‌های سازمانی من",
+                    "Building2",
+                    "/organization-memberships",
+                ],
+            ]),
+            group("دوره‌ها و قرارداد", "BookOpen", [
                 ["ثبت‌نام گروهی", "Users", "/organization/licenses"],
                 ["صورتحساب سازمان", "ReceiptText", "/organization/invoices"],
-                ["حساب من", "UserRound", "/account"],
-                ["پرداخت‌ها و اقساط", "ReceiptText", "/finance"],
-                ["بازپرداخت‌ها", "ReceiptText", "/refunds"],
-            ]
-          : props.role === "coach"
-            ? [
-                  [
-                      "پیام‌های آموزشی خصوصی",
-                      "MessagesSquare",
-                      "/support?view=coach",
-                  ],
-                  ["پشتیبانی", "MessagesSquare", "/support"],
-                  ["خانه مربی", "LayoutDashboard", "/coach"],
-                  ["گفت‌وگوی دوره‌ها", "MessagesSquare", "/discussions"],
-                  ["مشاوره", "MessagesSquare", "/consultations?view=coach"],
-                  ["حساب من", "UserRound", "/account"],
-                  ["پرداخت‌ها و اقساط", "ReceiptText", "/finance"],
-                  ["بازپرداخت‌ها", "ReceiptText", "/refunds"],
-              ]
-            : [
-                  ["پشتیبانی و پیام خصوصی", "MessagesSquare", "/support"],
-                  ["خانه", "House", "/student"],
-                  ["دعوت سازمان‌ها", "Building2", "/organization-invitations"],
-                  ["یادگیری من", "BookOpen", "/learning"],
-                  ["گواهی‌های من", "GraduationCap", "/certificates"],
-                  ["نظرسنجی دوره‌ها", "FileText", "/surveys"],
-                  ["گفت‌وگوی دوره‌ها", "MessagesSquare", "/discussions"],
-                  ["دوره‌ها", "Compass", "/courses"],
-                  ["خودشناسی", "Fingerprint", "/assessments"],
-                  ["مشاوره", "MessagesSquare", "/consultations"],
-                  [
-                      "پکیج‌های مشاوره",
-                      "MessagesSquare",
-                      "/consultation-packages",
-                  ],
-                  ["حساب من", "UserRound", "/account"],
-                  ["پرداخت‌ها و اقساط", "ReceiptText", "/finance"],
-                  ["بازپرداخت‌ها", "ReceiptText", "/refunds"],
-              ],
-);
+            ]),
+            item("رزومه شخصی", "FileText", "/career/resumes"),
+            group(
+                "حساب من",
+                "UserRound",
+                accountItems.filter(
+                    (row) => row[2] !== "/organization-memberships",
+                ),
+            ),
+        ];
+    if (props.role === "coach")
+        return [
+            item("خانه مربی", "LayoutDashboard", "/coach"),
+            group("گفت‌وگوهای آموزشی", "BookOpen", [
+                ["گفت‌وگوی دوره‌ها", "MessagesSquare", "/discussions"],
+                [
+                    "پیام‌های خصوصی دانشجویان",
+                    "MessagesSquare",
+                    "/support?view=coach",
+                ],
+            ]),
+            item("جلسات مشاوره", "CalendarDays", "/consultations?view=coach"),
+            item("رزومه شخصی", "FileText", "/career/resumes"),
+            group("حساب من", "UserRound", accountItems),
+        ];
+    return [
+        item("خانه", "House", "/student"),
+        group("یادگیری من", "BookOpen", [
+            ["دوره‌های من", "BookOpen", "/learning"],
+            ["پیدا کردن دوره", "Compass", "/courses"],
+            ["گواهی‌های من", "GraduationCap", "/certificates"],
+            ["گفت‌وگوی دوره‌ها", "MessagesSquare", "/discussions"],
+            ["نظرسنجی دوره‌ها", "FileText", "/surveys"],
+        ]),
+        group("خودشناسی و مسیر شغلی", "Fingerprint", [
+            ["ابزارهای خودشناسی", "Fingerprint", "/assessments"],
+            ["رزومه و بررسی متنی", "FileText", "/career/resumes"],
+        ]),
+        group("مشاوره", "MessagesSquare", [
+            ["جلسات و درخواست‌ها", "CalendarDays", "/consultations"],
+            ["پکیج‌های مشاوره", "MessagesSquare", "/consultation-packages"],
+        ]),
+        group("حساب من", "UserRound", [
+            ...accountItems,
+            ["دعوت سازمان‌ها", "Building2", "/organization-invitations"],
+        ]),
+    ];
+});
+const supportItem = computed(() => [
+    "پشتیبانی و تیکت‌ها",
+    "MessagesSquare",
+    props.role === "admin" ? "/support?view=admin" : "/support",
+]);
 function switchRole(role) {
     roleOpen.value = false;
     router.post("/panel/role", { role });
@@ -113,25 +179,54 @@ function toggleTheme() {
     } catch (e) {}
 }
 const current = (href) => {
-    const path = page.url.split("?")[0];
-    return (
-        href &&
-        (page.url === href ||
-            path === href ||
-            (href === "/learning" && path.startsWith("/learning/")) ||
-            (href === "/admin/courses" && path.startsWith("/teaching/")) ||
-            (href === "/coach" && path.startsWith("/teaching/")))
+    const actual = new URL(page.url, window.location.origin);
+    const target = new URL(href, window.location.origin);
+    const path = actual.pathname;
+    const base = target.pathname;
+    const aliases =
+        (base === "/career/resumes" && path.startsWith("/career/checks/")) ||
+        (base === "/surveys" && path.startsWith("/survey-responses/")) ||
+        (base === "/assessments" && path.startsWith("/assessment-attempts/")) ||
+        (base === "/admin/courses" && path.startsWith("/teaching/")) ||
+        (base === "/coach" && path.startsWith("/teaching/")) ||
+        (base === "/organization" && path.startsWith("/organization/members/"));
+    if (aliases) return true;
+    if (
+        base === "/career/resumes" &&
+        (path === base || path.startsWith(base + "/"))
+    )
+        return true;
+    if (
+        base === "/support" &&
+        !target.searchParams.has("view") &&
+        (actual.searchParams.get("view") === "coach" ||
+            (props.role === "coach" &&
+                path.startsWith("/support/") &&
+                !page.props.own))
+    )
+        return false;
+    if (
+        !(
+            path === base ||
+            (!Object.values(urls).includes(base) && path.startsWith(base + "/"))
+        )
+    )
+        return false;
+    return Array.from(target.searchParams).every(
+        ([key, value]) =>
+            actual.searchParams.get(key) === value ||
+            (base === "/support" &&
+                path.startsWith("/support/") &&
+                key === "view" &&
+                ((value === "admin" && props.role === "admin") ||
+                    (value === "coach" &&
+                        props.role === "coach" &&
+                        !page.props.own))),
     );
 };
 </script>
 <template>
-    <div
-        class="app-shell"
-        @keydown.esc="
-            mobile = false;
-            roleOpen = false;
-        "
-    >
+    <div class="app-shell">
         <button
             v-if="mobile"
             class="mobile-scrim"
@@ -157,61 +252,55 @@ const current = (href) => {
             <div class="workspace-label">
                 <span class="online-dot"></span>{{ roles[role] }}
             </div>
-            <nav>
-                <template v-for="[label, icon, href] in menus" :key="label">
-                    <Link
-                        v-if="href"
-                        :href="href"
-                        :class="['nav-item', { active: current(href) }]"
-                        :aria-current="current(href) ? 'page' : undefined"
-                        @click="mobile = false"
-                        ><Icon :name="icon" /><span
-                            >{{ label
-                            }}<small
-                                v-if="
-                                    href === '/organization-invitations' &&
-                                    page.props.organizationInvitationCount
-                                "
-                            >
-                                ({{
-                                    new Intl.NumberFormat("fa-IR").format(
-                                        page.props.organizationInvitationCount,
-                                    )
-                                }})</small
-                            ></span
-                        ><span
-                            v-if="current(href)"
-                            class="nav-active-dot"
-                        ></span
-                    ></Link>
-                    <span
-                        v-else
-                        class="nav-item unavailable"
-                        aria-disabled="true"
-                        ><Icon :name="icon" /><span
-                            >{{ label
-                            }}<small
-                                v-if="
-                                    href === '/organization-invitations' &&
-                                    page.props.organizationInvitationCount
-                                "
-                            >
-                                ({{
-                                    new Intl.NumberFormat("fa-IR").format(
-                                        page.props.organizationInvitationCount,
-                                    )
-                                }})</small
-                            ></span
-                        ><small>به‌زودی</small></span
+            <nav aria-label="بخش‌های پنل" data-panel-navigation>
+                <template v-for="entry in menus" :key="entry.label">
+                    <details
+                        v-if="entry.items"
+                        class="nav-group"
+                        :open="entry.items.some((row) => current(row[2]))"
                     >
+                        <summary class="nav-item">
+                            <Icon :name="entry.icon" /><span>{{
+                                entry.label
+                            }}</span
+                            ><Icon
+                                name="ChevronDown"
+                                class="nav-group-chevron"
+                                :size="15"
+                            />
+                        </summary>
+                        <div class="nav-group-items">
+                            <PanelNavLink
+                                v-for="row in entry.items"
+                                :key="row[2]"
+                                :item="row"
+                                :active="current(row[2])"
+                                :invitation-count="
+                                    page.props.organizationInvitationCount
+                                "
+                                @navigate="mobile = false"
+                            />
+                        </div>
+                    </details>
+                    <PanelNavLink
+                        v-else
+                        :item="[entry.label, entry.icon, entry.href]"
+                        :active="current(entry.href)"
+                        @navigate="mobile = false"
+                    />
                 </template>
             </nav>
             <div class="sidebar-bottom">
-                <div class="sidebar-note">
-                    <Icon name="Waypoints" :size="25" />
-                    <p>مسیر شما،<br /><strong>قدم‌به‌قدم روشن‌تر.</strong></p>
-                    <span class="note-line"></span>
-                </div>
+                <PanelNavLink
+                    :item="supportItem"
+                    :active="current(supportItem[2])"
+                    @navigate="mobile = false"
+                />
+                <a href="/" class="nav-item"
+                    ><Icon name="ExternalLink" /><span
+                        >سایت عمومی کاردرست</span
+                    ></a
+                >
                 <div class="account-mini">
                     <span class="avatar">{{
                         page.props.auth.user?.name?.slice(0, 1)
