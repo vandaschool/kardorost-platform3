@@ -635,6 +635,7 @@ const assignmentOf = (id) => props.assignments.find((a) => a.id === id);
                                 pending: "گواهی در انتظار بررسی",
                                 issued: "گواهی صادرشده",
                                 revoked: "گواهی باطل‌شده",
+                                withdrawn: "انصراف از درخواست گواهی",
                                 rejected: "درخواست گواهی نیازمند اصلاح",
                             }[m.certificate_status]
                         }}</span

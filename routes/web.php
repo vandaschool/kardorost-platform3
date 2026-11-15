@@ -131,6 +131,7 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::post('/discussions/{discussion}/answer', [DiscussionController::class, 'accept']);
     Route::get('/discussions/{discussion}/posts/{post}/locate', [DiscussionController::class, 'locate'])->name('discussions.locate');
     Route::get('/discussions/{discussion}/posts/{post}/history', [DiscussionController::class, 'history']);
+    Route::post('/certificate-requests/{application}/withdraw', [CertificateController::class, 'withdraw'])->middleware('throttle:10,1');
     Route::get('/certificates/enrollments/{enrollment}', [CertificateController::class, 'enrollment'])->name('certificates.enrollment');
     Route::get('/package-purchases/{purchase}', [PackagePurchaseController::class, 'show'])->name('package-purchases.show');
     Route::get('/finance', [FinanceController::class, 'index'])->name('finance');

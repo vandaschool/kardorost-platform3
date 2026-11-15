@@ -2253,4 +2253,39 @@ CODE;
         $this->assertSame(10, (int) LearningRewardEvent::sum('points'));
         $this->assertSame(1, LearningBadge::count());
     }
+
+    public function test_two_certificate_withdrawals_preserve_one_terminal_consent_event(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Certificate withdrawal races require PostgreSQL.');
+        }
+        [$request] = $this->certificationRequest();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$request=\App\Models\CertificateRequest::findOrFail((int)$argv[1]);
+try {app(\App\Services\Certification::class)->withdraw($request->enrollment->user,$request,1);echo 'WITHDRAWN';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['STALE', 'WITHDRAWN'], $this->parallelFinance($code, [[$request->id], [$request->id]]));
+        $this->assertSame('withdrawn', $request->fresh()->status);
+        $this->assertSame(2, $request->fresh()->revision);
+        $this->assertSame(1, AuditEvent::where('action', 'certificate.request_withdrawn')->count());
+        $this->assertSame(0, CourseCertificate::count());
+    }
+
+    public function test_certificate_withdrawal_and_admin_issuance_cannot_both_finish(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Certificate withdrawal races require PostgreSQL.');
+        }
+        [$request, $admin] = $this->certificationRequest();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$request=\App\Models\CertificateRequest::findOrFail((int)$argv[1]);
+try {if($argv[2]==='withdraw'){app(\App\Services\Certification::class)->withdraw($request->enrollment->user,$request,1);}else{app(\App\Services\Certification::class)->review(\App\Models\User::findOrFail((int)$argv[3]),$request,1,'issue','Reviewed fixture');}echo 'DONE';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['DONE', 'STALE'], $this->parallelFinance($code, [[$request->id, 'withdraw', $admin->id], [$request->id, 'issue', $admin->id]]));
+        $request->refresh();
+        $this->assertContains($request->status, ['issued', 'withdrawn']);
+        $this->assertSame(2, $request->revision);
+        $this->assertSame($request->status === 'issued' ? 1 : 0, CourseCertificate::count());
+        $this->assertSame($request->status === 'withdrawn', $request->withdrawn_at !== null);
+    }
 }

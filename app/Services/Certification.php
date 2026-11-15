@@ -139,6 +139,21 @@ class Certification
         }, 3);
     }
 
+    public function withdraw(User $actor, CertificateRequest $request, int $revision): void
+    {
+        DB::transaction(function () use ($actor, $request, $revision) {
+            $enrollment = $this->locked($request->enrollment);
+            $request = CertificateRequest::whereKey($request->id)->lockForUpdate()->firstOrFail();
+            $actor = User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+            abort_unless($actor->is_active && $actor->id === $enrollment->user_id, 403);
+            if ($request->status !== 'pending' || $request->revision !== $revision) {
+                $this->fail('فقط درخواست در انتظار بررسی با نسخه تازه قابل انصراف است.');
+            }
+            $request->update(['status' => 'withdrawn', 'withdrawn_at' => now(), 'revision' => $request->revision + 1]);
+            $this->audit('certificate.request_withdrawn', 'certificate_request', $request->id, $actor->id);
+        }, 3);
+    }
+
     public function review(User $admin, CertificateRequest $request, int $revision, string $action, string $note): ?CourseCertificate
     {
         abort_unless($admin->is_active && $admin->hasRole('admin'), 403);

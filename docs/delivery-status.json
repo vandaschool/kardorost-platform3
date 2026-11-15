@@ -1,5 +1,5 @@
 {
-  "phase": "versioned-private-learning-points-badges-and-reward-day-streaks",
+  "phase": "owner-pending-certificate-request-withdrawal",
   "completed": [
     "phone-verification",
     "password-login",
@@ -245,17 +245,23 @@
     "one-time-snapshot-learning-goal-badges",
     "encrypted-owner-learning-reward-history",
     "audited-admin-learning-reward-lookup",
-    "distinct-tehran-reward-day-current-and-best-streaks"
+    "distinct-tehran-reward-day-current-and-best-streaks",
+    "owner-pending-certificate-request-withdrawal",
+    "historical-certificate-consent-withdrawal-preservation",
+    "concurrent-withdrawal-and-issuance-exclusion",
+    "fresh-certificate-request-consent-after-withdrawal",
+    "role-independent-owner-certificate-consent-withdrawal",
+    "admin-withdrawn-certificate-request-filter"
   ],
   "tests": {
     "postgresql": {
-      "passed": 714,
-      "assertions": 5596
+      "passed": 726,
+      "assertions": 5698
     },
     "sqlite": {
-      "passed": 617,
-      "skipped": 97,
-      "assertions": 5060
+      "passed": 627,
+      "skipped": 99,
+      "assertions": 5148
     },
     "javascript": {
       "passed": 6
@@ -415,7 +421,11 @@
     "duplicate-completion-no-additional-reward",
     "private-reward-history-and-audited-admin-lookup",
     "rule-edit-preserves-earlier-points-and-badge",
-    "learning-rewards-mobile-390"
+    "learning-rewards-mobile-390",
+    "owner-certificate-request-withdrawal-and-timestamp",
+    "fresh-public-consent-checkbox-after-withdrawal",
+    "independent-new-certificate-request-with-old-history",
+    "admin-pending-withdrawn-certificate-filter-and-mobile-390"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -477,7 +487,7 @@
   "course_certificates_scope": "selected_evidence_admin_review_one_document_per_enrollment",
   "certificate_public_verification": "student_consented_unguessable_link",
   "certificate_reissue_complete": false,
-  "certificate_request_withdrawal_complete": false,
+  "certificate_request_withdrawal_complete": true,
   "certificate_qr_complete": false,
   "certificate_server_pdf_complete": false,
   "certificate_digital_signatures_complete": false,
@@ -492,7 +502,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase29_verified_pending_pr_merge_then_continue_certificate_request_withdrawal",
+    "current_work": "phase30_verified_pending_pr_merge_then_continue_issued_certificate_public_visibility_consent",
     "next_groups": [
       "organization_contract_installments_and_lifecycle",
       "remaining_purchase_cancellation_refunds_awaiting_policy",
@@ -565,5 +575,7 @@
   "learning_rewards_financial_conversion_complete": false,
   "learning_rewards_public_leaderboard_complete": false,
   "referral_rewards_complete": false,
-  "learning_rewards_assessment_or_grade_points_complete": false
+  "learning_rewards_assessment_or_grade_points_complete": false,
+  "certificate_request_withdrawal_scope": "active_owner_pending_only_revision_checked_preserved_history_fresh_consent_for_new_request",
+  "certificate_public_visibility_control_complete": false
 }

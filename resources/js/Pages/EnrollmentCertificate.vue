@@ -1,10 +1,11 @@
 <script setup>
-import { computed } from "vue";
-import { Head, Link, useForm } from "@inertiajs/vue3";
+import { computed, watch } from "vue";
+import { Head, Link, useForm, usePage } from "@inertiajs/vue3";
 import Shell from "../Layouts/Shell.vue";
 import { dateTime } from "../dates";
 const props = defineProps({
     admin: Boolean,
+    can_request: Boolean,
     enrollment: Object,
     course_title: String,
     cohort_title: String,
@@ -15,6 +16,14 @@ const props = defineProps({
     requests: Array,
     certificate: Object,
 });
+const page = usePage();
+const withdrawal = useForm({ revision: 0 });
+function withdraw(request) {
+    withdrawal.revision = request.revision;
+    withdrawal.post(`/certificate-requests/${request.id}/withdraw`, {
+        preserveScroll: true,
+    });
+}
 const pending = computed(() =>
     props.requests.some((r) => r.status === "pending"),
 );
@@ -23,16 +32,31 @@ const form = useForm({
     expected_name: props.recipient_name,
     public_consent: false,
 });
+watch(
+    () => [
+        props.policy?.revision,
+        props.recipient_name,
+        props.requests
+            .map((row) => `${row.id}:${row.revision}:${row.status}`)
+            .join(","),
+    ],
+    () => {
+        form.public_consent = false;
+        form.revision = props.policy?.revision || 0;
+        form.expected_name = props.recipient_name;
+    },
+);
 const labels = {
     pending: "در انتظار بررسی مدیریت",
     issued: "گواهی صادر شده",
     rejected: "نیازمند اصلاح",
+    withdrawn: "انصراف ثبت‌شده",
 };
 </script>
 <template>
     <Head title="گواهی دوره" /><Shell
         title="گواهی دوره"
-        :role="admin ? 'admin' : 'student'"
+        :role="admin ? 'admin' : page.props.activeRole"
     >
         <section class="page-intro">
             <div>
@@ -40,9 +64,15 @@ const labels = {
                 <p>{{ cohort_title }} · گواهی پایان دوره</p>
             </div>
             <Link
-                :href="admin ? '/admin/certificates' : '/certificates'"
+                :href="
+                    admin
+                        ? '/admin/certificates'
+                        : can_request
+                          ? '/certificates'
+                          : '/panel'
+                "
                 class="btn secondary"
-                >سوابق گواهی‌ها</Link
+                >بازگشت</Link
             >
         </section>
         <section
@@ -92,7 +122,7 @@ const labels = {
                 بررسی خواهند بود.
             </p>
             <form
-                v-if="!admin && !pending && policy"
+                v-if="can_request && !pending && policy"
                 class="form-stack"
                 @submit.prevent="
                     form.post(
@@ -146,6 +176,19 @@ const labels = {
                 class="glass panel-card"
             >
                 <strong>{{ labels[request.status] }}</strong>
+                <p v-if="request.withdrawn_at">
+                    زمان انصراف: {{ dateTime(request.withdrawn_at) }}
+                </p>
+                <button
+                    v-if="request.can_withdraw"
+                    class="btn secondary"
+                    type="button"
+                    :disabled="withdrawal.processing"
+                    :data-withdraw-request="request.id"
+                    @click="withdraw(request)"
+                >
+                    انصراف از درخواست گواهی
+                </button>
                 <p>
                     {{ request.recipient_name }} ·
                     {{ dateTime(request.created_at) }}
