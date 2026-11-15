@@ -140,6 +140,7 @@ onBeforeUnmount(() => {
                 >پرسش و گفت‌وگو با اعضای این نوبت</Link
             >
         </p>
+        <p><Link href="/surveys" class="text-link">نظرسنجی تجربه دوره</Link></p>
         <nav class="learning-tabs" aria-label="بخش‌های دوره">
             <button
                 v-for="[key, label, icon] in [

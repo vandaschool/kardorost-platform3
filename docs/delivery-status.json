@@ -1,5 +1,5 @@
 {
-  "phase": "cohort-scoped-course-discussions",
+  "phase": "versioned-cohort-feedback-surveys",
   "completed": [
     "phone-verification",
     "password-login",
@@ -150,17 +150,25 @@
     "question-answer-selection-and-invalidation",
     "generic-participant-discussion-notifications",
     "paginated-discussion-message-deep-links",
-    "pinned-searchable-course-discussion-lists"
+    "pinned-searchable-course-discussion-lists",
+    "versioned-course-survey-drafts-and-publications",
+    "identified-or-aggregate-survey-report-scope",
+    "encrypted-resumable-survey-responses",
+    "immutable-final-survey-submission",
+    "per-question-minimum-response-suppression",
+    "current-instructor-scoped-feedback-reports",
+    "versioned-receiving-window-extensions",
+    "streamed-feedback-aggregation"
   ],
   "tests": {
     "postgresql": {
-      "passed": 459,
-      "assertions": 3532
+      "passed": 484,
+      "assertions": 3762
     },
     "sqlite": {
-      "passed": 400,
-      "skipped": 59,
-      "assertions": 3191
+      "passed": 421,
+      "skipped": 63,
+      "assertions": 3402
     },
     "javascript": {
       "passed": 6
@@ -257,7 +265,12 @@
     "staff-message-history-and-moderation",
     "course-discussion-lock-and-pin",
     "hidden-discussion-peer-isolation",
-    "course-discussion-mobile-390"
+    "course-discussion-mobile-390",
+    "admin-survey-draft-and-immutable-publication",
+    "survey-draft-save-and-resume",
+    "three-independent-student-survey-submissions",
+    "aggregate-report-threshold-and-identity-isolation",
+    "survey-editor-report-catalog-mobile-390"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -330,5 +343,26 @@
   "discussion_live_chat_complete": false,
   "discussion_file_attachments_complete": false,
   "discussion_nested_replies_complete": false,
-  "course_surveys_complete": false
+  "course_surveys_complete": true,
+  "continuous_delivery": {
+    "requested": true,
+    "mode": "continue_after_each_verified_merge_without_user_prompt",
+    "current_work": "phase20_support_and_private_communication_next",
+    "next_groups": [
+      "cohort_surveys",
+      "support_and_private_messaging",
+      "remaining_purchase_cancellation_refunds",
+      "organization_lifecycle",
+      "public_site_and_cms",
+      "career_resume_and_assessment_extensions",
+      "notifications_and_delivery_reports",
+      "reporting_and_gamification",
+      "deployment_and_end_to_end_acceptance"
+    ],
+    "resume_instructions": "Inspect git status and this file; preserve unfinished changes, verify each coherent phase, merge through a PR to main, and continue. Do not claim live integrations or unknown psychometric content are verified. The owner asked to persist across phases and resume after limits when available.",
+    "resumption": "hourly_conditional_followup_enabled_with_active_run_guard"
+  },
+  "course_surveys_scope": "versioned_cohort_rating_and_short_text_identified_or_thresholded_aggregate",
+  "survey_csv_exports_complete": false,
+  "survey_final_response_correction_complete": false
 }
