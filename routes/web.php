@@ -13,6 +13,7 @@ use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\ConsultationGrantController;
 use App\Http\Controllers\ConsultationPaymentController;
 use App\Http\Controllers\ConsultationProductController;
+use App\Http\Controllers\ContactLeadController;
 use App\Http\Controllers\ContentController;
 use App\Http\Controllers\CourseBenefitController;
 use App\Http\Controllers\CourseController;
@@ -42,6 +43,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/verify/certificates/{token}', [CertificateController::class, 'verify'])->middleware('throttle:60,1')->name('certificates.verify');
 Route::get('/', [PublicSiteController::class, 'home'])->name('home');
+Route::get('/contact', [PublicSiteController::class, 'contact'])->name('public.contact');
+Route::post('/contact', [ContactLeadController::class, 'store'])->middleware('throttle:5,60');
 Route::get('/mentors', [PublicSiteController::class, 'mentors'])->name('public.mentors');
 Route::get('/mentors/{slug}', [PublicSiteController::class, 'mentor'])->whereUuid('slug')->name('public.mentor');
 Route::get('/catalog', [PublicSiteController::class, 'catalog'])->name('public.catalog');
@@ -204,6 +207,9 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/organization/members/{member}', [OrganizationController::class, 'report']);
     });
     Route::middleware('panel.role:admin')->group(function () {
+        Route::get('/admin/contact-leads', [ContactLeadController::class, 'admin'])->name('admin.contact-leads');
+        Route::get('/admin/contact-leads/{lead}', [ContactLeadController::class, 'admin'])->whereNumber('lead')->name('admin.contact-leads.show');
+        Route::post('/admin/contact-leads/{lead}/follow-up', [ContactLeadController::class, 'followUp'])->whereNumber('lead');
         Route::get('/admin/coach-profiles', [CoachProfileController::class, 'admin'])->name('admin.coach-profiles');
         Route::get('/admin/coach-profiles/{profile}', [CoachProfileController::class, 'admin'])->name('admin.coach-profiles.show');
         Route::post('/admin/coach-profiles/{profile}/review', [CoachProfileController::class, 'review']);

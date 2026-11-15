@@ -9,6 +9,7 @@ use App\Services\CohortCapacity;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Str;
 
 class PublicSiteController extends Controller
 {
@@ -48,6 +49,13 @@ class PublicSiteController extends Controller
         $cohorts = $course->cohorts()->where('registration_open', true)->orderBy('starts_at')->get()->map(fn ($cohort) => [...$cohort->only('id', 'title', 'format', 'starts_at'), 'available_seats' => app(CohortCapacity::class)->available($cohort)]);
 
         return $this->render('course', $course->title, mb_substr($course->description, 0, 160), compact('course', 'cohorts'));
+    }
+
+    public function contact(Request $request): Response
+    {
+        $data = $request->validate(['audience' => 'nullable|in:individual,company,university']);
+
+        return $this->render('contact', 'ارتباط با کاردرست', 'ثبت درخواست آموزش، مشاوره و همکاری سازمان یا دانشگاه با کاردرست.', ['requestKey' => (string) Str::uuid(), 'audience' => $data['audience'] ?? 'individual']);
     }
 
     public function mentors(CoachProfiles $service): Response
@@ -94,7 +102,7 @@ class PublicSiteController extends Controller
 
     public function sitemap(): Response
     {
-        $paths = ['/', '/catalog', '/journal', '/mentors'];
+        $paths = ['/', '/catalog', '/journal', '/mentors', '/contact'];
         foreach (app(CoachProfiles::class)->visible()->without('currentPublication')->orderBy('id')->cursor(['id', 'slug']) as $profile) {
             $paths[] = '/mentors/'.$profile->slug;
         }

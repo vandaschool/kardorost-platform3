@@ -1,5 +1,5 @@
 {
-  "phase": "consented-reviewed-versioned-public-coach-profiles",
+  "phase": "consented-anonymous-contact-leads-private-admin-follow-up",
   "completed": [
     "phone-verification",
     "password-login",
@@ -269,17 +269,25 @@
     "owner-admin-coach-publication-withdrawal-history",
     "role-activity-verified-phone-public-coach-visibility",
     "server-rendered-public-mentor-directory-and-profiles",
-    "published-current-coach-only-sitemap"
+    "published-current-coach-only-sitemap",
+    "anonymous-individual-company-university-contact-form",
+    "explicit-purpose-bound-contact-follow-up-consent",
+    "encrypted-contact-lead-pii-and-follow-up-notes",
+    "idempotent-contact-retry-and-initial-event",
+    "private-full-admin-contact-queue-and-detail-audit",
+    "normalized-phone-contact-fingerprint-filter",
+    "versioned-manual-contact-follow-up-history",
+    "concurrent-contact-follow-up-conflict-protection"
   ],
   "tests": {
     "postgresql": {
-      "passed": 765,
-      "assertions": 5989
+      "passed": 784,
+      "assertions": 6171
     },
     "sqlite": {
-      "passed": 661,
-      "skipped": 104,
-      "assertions": 5408
+      "passed": 678,
+      "skipped": 106,
+      "assertions": 5576
     },
     "javascript": {
       "passed": 6
@@ -455,7 +463,13 @@
     "coach-draft-keeps-prior-public-copy",
     "network-delayed-save-edit-remains-dirty",
     "owner-profile-withdrawal-sitemap-removal-and-fresh-consent",
-    "public-mentor-layouts-320-390-768-1440"
+    "public-mentor-layouts-320-390-768-1440",
+    "anonymous-consented-university-contact-form",
+    "contact-idempotent-replay-original-data-preservation",
+    "private-admin-contact-follow-up-history-close-and-reopen",
+    "contact-exact-normalized-phone-filter",
+    "contact-text-escaping-and-three-role-isolation",
+    "public-and-admin-contact-layouts-320-390-768-1440"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -532,7 +546,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase32_verified_pending_pr_merge_then_continue_organization_contact_leads",
+    "current_work": "phase33_contact_leads_verified_ready_for_merge_then_mentor_specific_availability",
     "next_groups": [
       "organization_contract_installments_and_lifecycle",
       "remaining_purchase_cancellation_refunds_awaiting_policy",
@@ -564,7 +578,7 @@
   "public_media_library_complete": false,
   "public_rich_text_editor_complete": false,
   "public_scheduled_publishing_complete": false,
-  "public_anonymous_contact_leads_complete": false,
+  "public_anonymous_contact_leads_complete": true,
   "career_resume_builder_complete": true,
   "career_resume_text_review_complete": true,
   "career_resume_review_method": "structure_keyword_overlap_v1",
@@ -613,5 +627,8 @@
   "coach_uploaded_credentials_complete": false,
   "public_coach_specialty_search_complete": false,
   "public_coach_specific_availability_link_complete": false,
-  "coach_official_credentials_automatically_verified": false
+  "coach_official_credentials_automatically_verified": false,
+  "public_anonymous_contact_leads_scope": "unverified_contact_phone_explicit_follow_up_consent_encrypted_pii_idempotent_form_private_admin_manual_follow_up",
+  "contact_leads_auto_create_accounts_or_organizations": false,
+  "contact_leads_automated_outbound_messages_complete": false
 }
