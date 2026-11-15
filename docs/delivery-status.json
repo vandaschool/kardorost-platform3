@@ -1,5 +1,5 @@
 {
-  "phase": "versioned-cohort-feedback-surveys",
+  "phase": "private-support-and-educational-communication",
   "completed": [
     "phone-verification",
     "password-login",
@@ -158,17 +158,26 @@
     "per-question-minimum-response-suppression",
     "current-instructor-scoped-feedback-reports",
     "versioned-receiving-window-extensions",
-    "streamed-feedback-aggregation"
+    "streamed-feedback-aggregation",
+    "private-support-for-all-panels",
+    "enrollment-scoped-private-instructor-threads",
+    "encrypted-support-messages-and-event-reasons",
+    "private-support-attachments",
+    "admin-only-support-notes",
+    "versioned-ticket-resolution-and-assignment",
+    "idempotent-support-message-submission",
+    "support-upload-rollback-cleanup",
+    "legacy-and-object-pagination-compatibility"
   ],
   "tests": {
     "postgresql": {
-      "passed": 484,
-      "assertions": 3762
+      "passed": 509,
+      "assertions": 4066
     },
     "sqlite": {
-      "passed": 421,
-      "skipped": 63,
-      "assertions": 3402
+      "passed": 442,
+      "skipped": 67,
+      "assertions": 3685
     },
     "javascript": {
       "passed": 6
@@ -270,7 +279,13 @@
     "survey-draft-save-and-resume",
     "three-independent-student-survey-submissions",
     "aggregate-report-threshold-and-identity-isolation",
-    "survey-editor-report-catalog-mobile-390"
+    "survey-editor-report-catalog-mobile-390",
+    "private-support-file-upload",
+    "assigned-coach-private-reply",
+    "admin-note-student-isolation",
+    "support-resolve-and-reopen",
+    "support-mobile-390",
+    "legacy-paginator-next-page"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -347,10 +362,8 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase20_support_and_private_communication_next",
+    "current_work": "phase21_organization_membership_lifecycle_next",
     "next_groups": [
-      "cohort_surveys",
-      "support_and_private_messaging",
       "remaining_purchase_cancellation_refunds",
       "organization_lifecycle",
       "public_site_and_cms",
@@ -364,5 +377,13 @@
   },
   "course_surveys_scope": "versioned_cohort_rating_and_short_text_identified_or_thresholded_aggregate",
   "survey_csv_exports_complete": false,
-  "survey_final_response_correction_complete": false
+  "survey_final_response_correction_complete": false,
+  "support_tickets_complete": true,
+  "private_messaging_scope": "owner_admin_and_current_instructor_for_active_enrollment",
+  "support_live_chat_complete": false,
+  "support_sms_complete": false,
+  "arbitrary_direct_messages_complete": false,
+  "pending_business_decisions": [
+    "active_course_and_consumed_package_cancellation_refund_amount_policy_asked_owner"
+  ]
 }

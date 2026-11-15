@@ -40,8 +40,11 @@ use App\Models\Refund;
 use App\Models\RefundEvent;
 use App\Models\Role;
 use App\Models\Submission;
+use App\Models\SupportTicket;
 use App\Models\SurveyPublication;
 use App\Models\SurveyResponse;
+use App\Models\TicketEvent;
+use App\Models\TicketMessage;
 use App\Models\User;
 use App\Services\AssessmentService;
 use App\Services\BillingService;
@@ -299,6 +302,11 @@ CODE;
 
     protected function tearDown(): void
     {
+        if (Schema::hasTable('support_tickets')) {
+            DB::table('ticket_events')->delete();
+            DB::table('ticket_messages')->delete();
+            DB::table('support_tickets')->delete();
+        }
         if (Schema::hasTable('survey_responses')) {
             DB::table('survey_responses')->delete();
         }
@@ -1592,5 +1600,76 @@ CODE;
         $this->assertContains('CLOSED', $result);
         $this->assertFalse($response->publication->fresh()->accepting);
         $this->assertSame(in_array('SUBMITTED', $result, true) ? 'submitted' : 'in_progress', $response->fresh()->status);
+    }
+
+    public function test_simultaneous_support_creation_with_same_uuid_creates_one_private_thread(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Private support concurrency requires PostgreSQL.');
+        }
+        $owner = User::factory()->create();
+        $key = (string) Str::uuid();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo app(\App\Services\SupportDesk::class)->create(\App\Models\User::findOrFail((int)$argv[1]),['subject'=>'Private question','category'=>'technical','priority'=>'normal','body'=>'Same content','request_key'=>$argv[2]],null)->id;
+CODE;
+        $results = $this->parallelFinance($code, [[$owner->id, $key], [$owner->id, $key]]);
+        $this->assertSame($results[0], $results[1]);
+        $this->assertSame(1, SupportTicket::count());
+        $this->assertSame(1, TicketMessage::count());
+    }
+
+    public function test_simultaneous_private_replies_with_same_key_create_one_message(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Private support concurrency requires PostgreSQL.');
+        }
+        $ticket = SupportTicket::factory()->create();
+        $key = (string) Str::uuid();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$ticket=\App\Models\SupportTicket::findOrFail((int)$argv[1]);
+app(\App\Services\SupportDesk::class)->reply($ticket->owner,$ticket,['body'=>'Concurrent private reply','request_key'=>$argv[2]],null);echo 'SENT';
+CODE;
+        $this->assertSame(['SENT', 'SENT'], $this->parallelFinance($code, [[$ticket->id, $key], [$ticket->id, $key]]));
+        $this->assertSame(1, TicketMessage::count());
+        $this->assertSame(2, $ticket->fresh()->revision);
+    }
+
+    public function test_support_reply_racing_closure_has_consistent_status_and_history(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Private support concurrency requires PostgreSQL.');
+        }
+        $ticket = SupportTicket::factory()->create();
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$ticket=\App\Models\SupportTicket::findOrFail((int)$argv[1]);$service=app(\App\Services\SupportDesk::class);
+try{if($argv[2]==='close'){$service->change(\App\Models\User::findOrFail((int)$argv[3]),$ticket,['revision'=>1,'action'=>'close','reason'=>'Resolved by staff']);echo 'CLOSED';}else{$service->reply($ticket->owner,$ticket,['body'=>'Owner reply','request_key'=>$argv[4]],null);echo 'SENT';}}catch(\Illuminate\Validation\ValidationException){echo 'BLOCKED';}
+CODE;
+        $results = $this->parallelFinance($code, [[$ticket->id, 'close', $admin->id, (string) Str::uuid()], [$ticket->id, 'reply', $admin->id, (string) Str::uuid()]]);
+        $this->assertContains('BLOCKED', $results);
+        $this->assertSame(in_array('CLOSED', $results, true) ? 'closed' : 'waiting_staff', $ticket->fresh()->status);
+        $this->assertSame(in_array('SENT', $results, true) ? 1 : 0, TicketMessage::count());
+        $this->assertSame(in_array('CLOSED', $results, true) ? 1 : 0, TicketEvent::count());
+    }
+
+    public function test_competing_support_assignments_cannot_overwrite_newer_revision(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Private support concurrency requires PostgreSQL.');
+        }
+        $ticket = SupportTicket::factory()->create();
+        $admins = User::factory()->count(2)->create();
+        foreach ($admins as $admin) {
+            $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        }
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$ticket=\App\Models\SupportTicket::findOrFail((int)$argv[1]);
+try{app(\App\Services\SupportDesk::class)->change(\App\Models\User::findOrFail((int)$argv[2]),$ticket,['revision'=>1,'action'=>'assign','assigned_to'=>(int)$argv[2],'reason'=>'Private routing']);echo 'ASSIGNED';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['ASSIGNED', 'STALE'], $this->parallelFinance($code, [[$ticket->id, $admins[0]->id], [$ticket->id, $admins[1]->id]]));
+        $this->assertSame(2, $ticket->fresh()->revision);
+        $this->assertSame(1, TicketEvent::count());
     }
 }
