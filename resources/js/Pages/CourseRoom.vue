@@ -133,6 +133,13 @@ onBeforeUnmount(() => {
                 >معیارها و درخواست گواهی دوره</Link
             >
         </p>
+        <p>
+            <Link
+                :href="'/cohorts/' + cohort.id + '/discussions'"
+                class="text-link"
+                >پرسش و گفت‌وگو با اعضای این نوبت</Link
+            >
+        </p>
         <nav class="learning-tabs" aria-label="بخش‌های دوره">
             <button
                 v-for="[key, label, icon] in [

@@ -17,6 +17,9 @@ use App\Models\ConsultationRequest;
 use App\Models\ConsultationSlot;
 use App\Models\Course;
 use App\Models\CourseCertificate;
+use App\Models\CourseDiscussion;
+use App\Models\DiscussionPost;
+use App\Models\DiscussionPostRevision;
 use App\Models\Enrollment;
 use App\Models\EnrollmentConsultationBenefit;
 use App\Models\Installment;
@@ -44,6 +47,7 @@ use App\Services\CohortCapacity;
 use App\Services\ConsultationBilling;
 use App\Services\ConsultationService;
 use App\Services\CourseConsultationBenefits;
+use App\Services\CourseDiscussions;
 use App\Services\EnrollmentService;
 use App\Services\OrganizationBilling;
 use App\Services\OrganizationEnrollment;
@@ -292,6 +296,12 @@ CODE;
 
     protected function tearDown(): void
     {
+        if (Schema::hasTable('course_discussions')) {
+            DB::table('course_discussions')->update(['accepted_post_id' => null]);
+            DB::table('discussion_post_revisions')->delete();
+            DB::table('discussion_posts')->delete();
+            DB::table('course_discussions')->delete();
+        }
         if (Schema::hasTable('course_certificates')) {
             DB::table('course_certificates')->delete();
             DB::table('certificate_requests')->delete();
@@ -1406,5 +1416,107 @@ CODE;
         $this->assertSame(['REVOKED', 'STALE'], $this->parallelFinance($code, [[$admin->id, $certificate->id], [$admin->id, $certificate->id]]));
         $this->assertSame('revoked', $certificate->fresh()->status);
         $this->assertSame(1, AuditEvent::where('action', 'certificate.revoked')->count());
+    }
+
+    private function discussionFixture(): array
+    {
+        $coach = User::factory()->create();
+        $coach->roles()->attach(Role::where('key', 'coach')->value('id'));
+        $student = User::factory()->create();
+        $student->roles()->attach(Role::where('key', 'student')->value('id'));
+        $cohort = Cohort::factory()->create(['course_id' => Course::factory()->create(['coach_id' => $coach->id])->id]);
+        Enrollment::factory()->create(['cohort_id' => $cohort->id, 'user_id' => $student->id]);
+
+        return [$student, $coach, $cohort];
+    }
+
+    public function test_simultaneous_discussion_creation_is_one_topic_post_and_notification(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Discussion lifecycle races require PostgreSQL.');
+        }
+        [$student, $coach, $cohort] = $this->discussionFixture();
+        $key = (string) Str::uuid();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo app(\App\Services\CourseDiscussions::class)->create(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\Cohort::findOrFail((int)$argv[2]),['title'=>'Concurrent question','body'=>'Shared classroom message','kind'=>'question','request_key'=>$argv[3]])->id;
+CODE;
+        $result = $this->parallelFinance($code, [[$student->id, $cohort->id, $key], [$student->id, $cohort->id, $key]]);
+        $this->assertSame($result[0], $result[1]);
+        $this->assertSame(1, CourseDiscussion::count());
+        $this->assertSame(1, DiscussionPost::count());
+        $this->assertSame(1, $coach->notifications()->count());
+    }
+
+    public function test_simultaneous_discussion_reply_retries_create_one_post_and_revision(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Discussion lifecycle races require PostgreSQL.');
+        }
+        [$student, $coach, $cohort] = $this->discussionFixture();
+        $discussion = app(CourseDiscussions::class)->create($student, $cohort, ['title' => 'Question', 'body' => 'Question body', 'kind' => 'question', 'request_key' => (string) Str::uuid()]);
+        $key = (string) Str::uuid();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo app(\App\Services\CourseDiscussions::class)->reply(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\CourseDiscussion::findOrFail((int)$argv[2]),'One coach reply',$argv[3])->id;
+CODE;
+        $result = $this->parallelFinance($code, [[$coach->id, $discussion->id, $key], [$coach->id, $discussion->id, $key]]);
+        $this->assertSame($result[0], $result[1]);
+        $this->assertSame(2, DiscussionPost::count());
+        $this->assertSame(2, DiscussionPostRevision::count());
+        $this->assertSame(1, $student->notifications()->count());
+    }
+
+    public function test_competing_discussion_body_edits_preserve_one_winning_version(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Discussion lifecycle races require PostgreSQL.');
+        }
+        [$student, $coach, $cohort] = $this->discussionFixture();
+        $discussion = app(CourseDiscussions::class)->create($student, $cohort, ['title' => 'Question', 'body' => 'Original body', 'kind' => 'question', 'request_key' => (string) Str::uuid()]);
+        $post = $discussion->posts()->first();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+try{app(\App\Services\CourseDiscussions::class)->edit(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\DiscussionPost::findOrFail((int)$argv[2]),1,$argv[3]);echo 'EDITED';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['EDITED', 'STALE'], $this->parallelFinance($code, [[$student->id, $post->id, 'First edit'], [$student->id, $post->id, 'Second edit']]));
+        $this->assertSame(2, $post->fresh()->revision);
+        $this->assertSame(2, $post->revisions()->count());
+        $this->assertSame('Original body', $post->revisions()->where('revision', 1)->value('body'));
+    }
+
+    public function test_hiding_a_reply_racing_answer_selection_never_leaves_hidden_accepted_answer(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Discussion lifecycle races require PostgreSQL.');
+        }
+        [$student, $coach, $cohort] = $this->discussionFixture();
+        $discussion = app(CourseDiscussions::class)->create($student, $cohort, ['title' => 'Question', 'body' => 'Question body', 'kind' => 'question', 'request_key' => (string) Str::uuid()]);
+        $post = app(CourseDiscussions::class)->reply($coach, $discussion, 'Coach answer', (string) Str::uuid());
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$service=app(\App\Services\CourseDiscussions::class);$user=\App\Models\User::findOrFail((int)$argv[1]);$discussion=\App\Models\CourseDiscussion::findOrFail((int)$argv[2]);$post=\App\Models\DiscussionPost::findOrFail((int)$argv[3]);
+if($argv[4]==='hide'){$service->moderatePost($user,$post,1,true,'Reviewed hide');echo 'HIDDEN';}else{try{$service->accept($user,$discussion,1,$post->id);echo 'SELECTED';}catch(\Illuminate\Validation\ValidationException){echo 'BLOCKED';}}
+CODE;
+        $result = $this->parallelFinance($code, [[$coach->id, $discussion->id, $post->id, 'hide'], [$student->id, $discussion->id, $post->id, 'accept']]);
+        $this->assertContains('HIDDEN', $result);
+        $this->assertTrue($post->fresh()->hidden);
+        $this->assertNull($discussion->fresh()->accepted_post_id);
+    }
+
+    public function test_discussion_lock_racing_reply_has_a_consistent_final_state(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Discussion lifecycle races require PostgreSQL.');
+        }
+        [$student, $coach, $cohort] = $this->discussionFixture();
+        $discussion = app(CourseDiscussions::class)->create($student, $cohort, ['title' => 'Question', 'body' => 'Question body', 'kind' => 'question', 'request_key' => (string) Str::uuid()]);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$service=app(\App\Services\CourseDiscussions::class);$user=\App\Models\User::findOrFail((int)$argv[1]);$discussion=\App\Models\CourseDiscussion::findOrFail((int)$argv[2]);
+if($argv[3]==='lock'){$service->moderate($user,$discussion,['revision'=>1,'hidden'=>false,'pinned'=>false,'locked'=>true,'reason'=>'Close classroom topic']);echo 'LOCKED';}else{try{$service->reply($user,$discussion,'Concurrent reply',$argv[4]);echo 'POSTED';}catch(\Illuminate\Validation\ValidationException){echo 'BLOCKED';}}
+CODE;
+        $result = $this->parallelFinance($code, [[$coach->id, $discussion->id, 'lock', (string) Str::uuid()], [$student->id, $discussion->id, 'reply', (string) Str::uuid()]]);
+        $this->assertContains('LOCKED', $result);
+        $this->assertTrue($discussion->fresh()->locked);
+        $this->assertSame(in_array('POSTED', $result, true) ? 2 : 1, DiscussionPost::count());
     }
 }
