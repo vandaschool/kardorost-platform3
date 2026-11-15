@@ -28,6 +28,7 @@ const menus = computed(() =>
               ["خودشناسی", "Fingerprint", "/admin/assessments"],
               ["دوره‌ها", "BookOpen", "/admin/courses"],
               ["گواهی‌ها", "GraduationCap", "/admin/certificates"],
+              ["گفت‌وگوی دوره‌ها", "MessagesSquare", "/discussions"],
               ["مالی و رسیدها", "ReceiptText", "/admin/finance"],
               ["بازپرداخت‌ها", "ReceiptText", "/refunds?view=admin"],
               ["مشاوره", "MessagesSquare", "/consultations?view=admin"],
@@ -61,6 +62,7 @@ const menus = computed(() =>
           : props.role === "coach"
             ? [
                   ["خانه مربی", "LayoutDashboard", "/coach"],
+                  ["گفت‌وگوی دوره‌ها", "MessagesSquare", "/discussions"],
                   ["مشاوره", "MessagesSquare", "/consultations?view=coach"],
                   ["حساب من", "UserRound", "/account"],
                   ["پرداخت‌ها و اقساط", "ReceiptText", "/finance"],
@@ -71,6 +73,7 @@ const menus = computed(() =>
                   ["دعوت سازمان‌ها", "Building2", "/organization-invitations"],
                   ["یادگیری من", "BookOpen", "/learning"],
                   ["گواهی‌های من", "GraduationCap", "/certificates"],
+                  ["گفت‌وگوی دوره‌ها", "MessagesSquare", "/discussions"],
                   ["دوره‌ها", "Compass", "/courses"],
                   ["خودشناسی", "Fingerprint", "/assessments"],
                   ["مشاوره", "MessagesSquare", "/consultations"],

@@ -182,6 +182,13 @@ const assignmentOf = (id) => props.assignments.find((a) => a.id === id);
                 </select></label
             >
         </section>
+        <p v-if="cohort">
+            <Link
+                :href="'/cohorts/' + cohort.id + '/discussions'"
+                class="text-link"
+                >مدیریت پرسش‌ها و گفت‌وگوهای این نوبت</Link
+            >
+        </p>
         <nav class="learning-tabs" aria-label="مدیریت دوره">
             <button
                 v-for="[key, label, icon] in [

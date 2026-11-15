@@ -1,5 +1,5 @@
 {
-  "phase": "reviewed-verifiable-course-certificates",
+  "phase": "cohort-scoped-course-discussions",
   "completed": [
     "phone-verification",
     "password-login",
@@ -140,17 +140,27 @@
     "random-token-anonymous-certificate-verification",
     "versioned-terminal-certificate-revocation",
     "scoped-coach-organization-certificate-status",
-    "browser-printable-one-page-a4-certificate"
+    "browser-printable-one-page-a4-certificate",
+    "cohort-scoped-course-questions-and-discussions",
+    "active-membership-and-current-instructor-discussion-access",
+    "uuid-idempotent-classroom-message-posting",
+    "versioned-own-message-edit-history",
+    "current-staff-discussion-moderation",
+    "hidden-discussion-and-message-redaction",
+    "question-answer-selection-and-invalidation",
+    "generic-participant-discussion-notifications",
+    "paginated-discussion-message-deep-links",
+    "pinned-searchable-course-discussion-lists"
   ],
   "tests": {
     "postgresql": {
-      "passed": 430,
-      "assertions": 3228
+      "passed": 459,
+      "assertions": 3532
     },
     "sqlite": {
-      "passed": 376,
-      "skipped": 54,
-      "assertions": 2915
+      "passed": 400,
+      "skipped": 59,
+      "assertions": 3191
     },
     "javascript": {
       "passed": 6
@@ -238,7 +248,16 @@
     "anonymous-verification-data-isolation",
     "one-page-a4-certificate-pdf",
     "revocation-visible-without-internal-note",
-    "course-certificate-mobile-390"
+    "course-certificate-mobile-390",
+    "student-course-question-and-escaped-text",
+    "own-classroom-message-edit",
+    "assigned-coach-reply-and-generic-notification",
+    "paginated-discussion-notification-link",
+    "selected-answer-invalidated-by-edit",
+    "staff-message-history-and-moderation",
+    "course-discussion-lock-and-pin",
+    "hidden-discussion-peer-isolation",
+    "course-discussion-mobile-390"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -304,5 +323,12 @@
   "certificate_qr_complete": false,
   "certificate_server_pdf_complete": false,
   "certificate_digital_signatures_complete": false,
-  "certificate_changes_learning_access": false
+  "certificate_changes_learning_access": false,
+  "course_discussions_complete": true,
+  "course_discussions_scope": "active_cohort_members_current_instructor_and_admin_plain_text",
+  "discussion_message_history_complete": true,
+  "discussion_live_chat_complete": false,
+  "discussion_file_attachments_complete": false,
+  "discussion_nested_replies_complete": false,
+  "course_surveys_complete": false
 }
