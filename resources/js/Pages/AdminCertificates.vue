@@ -1,5 +1,6 @@
 <script setup>
 import { Head, Link, router } from "@inertiajs/vue3";
+import { dateTime } from "../dates";
 import Shell from "../Layouts/Shell.vue";
 import Pagination from "../Components/Pagination.vue";
 import CertificateReview from "../Components/CertificateReview.vue";
@@ -9,6 +10,7 @@ const labels = {
     pending: "در انتظار بررسی",
     issued: "گواهی صادر شده",
     rejected: "برگشت برای اصلاح",
+    withdrawn: "انصراف متقاضی",
 };
 </script>
 <template>
@@ -33,6 +35,7 @@ const labels = {
                 <option value="pending">در انتظار بررسی</option>
                 <option value="issued">صادرشده</option>
                 <option value="rejected">برگشت برای اصلاح</option>
+                <option value="withdrawn">انصراف متقاضی</option>
                 <option value="all">همه</option>
             </select></label
         >
@@ -46,6 +49,9 @@ const labels = {
             :data-certificate-application="request.id"
         >
             <span class="badge">{{ labels[request.status] }}</span>
+            <p v-if="request.withdrawn_at">
+                زمان انصراف: {{ dateTime(request.withdrawn_at) }}
+            </p>
             <h2>{{ request.course_title }} · {{ request.cohort_title }}</h2>
             <p>
                 نام گواهی: {{ request.recipient_name }} · نام فعلی حساب:

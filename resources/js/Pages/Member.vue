@@ -83,6 +83,7 @@ defineProps({
                                 pending: "در انتظار بررسی",
                                 issued: "صادرشده",
                                 revoked: "باطل‌شده",
+                                withdrawn: "انصراف از درخواست گواهی",
                                 rejected: "نیازمند اصلاح",
                             }[learningReports[e.id].certificate_status]
                         }}

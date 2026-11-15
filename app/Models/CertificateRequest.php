@@ -16,7 +16,7 @@ class CertificateRequest extends Model
 
     protected function casts(): array
     {
-        return ['definition' => 'array', 'revision' => 'integer', 'public_consent_at' => 'datetime', 'reviewed_at' => 'datetime'];
+        return ['definition' => 'array', 'revision' => 'integer', 'public_consent_at' => 'datetime', 'reviewed_at' => 'datetime', 'withdrawn_at' => 'datetime'];
     }
 
     public function enrollment(): BelongsTo

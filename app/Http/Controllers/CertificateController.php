@@ -39,8 +39,16 @@ class CertificateController extends Controller
         $definition = $requests->firstWhere('status', 'pending')?->definition ?? ($policy?->enabled ? $policy->definition : null);
 
         return Inertia::render('EnrollmentCertificate', ['admin' => $admin, 'enrollment' => $enrollment->only('id', 'status'), 'course_title' => $enrollment->course->title, 'cohort_title' => $enrollment->cohort->title, 'recipient_name' => $enrollment->user->name,
-            'policy' => $policy?->enabled ? ['definition' => $policy->definition, 'revision' => $policy->revision] : null, 'definition' => $definition, 'evidence' => $definition ? $service->evidence($enrollment, $definition) : null,
-            'requests' => $requests->map(fn ($row) => $row->only('id', 'status', 'recipient_name', 'created_at', 'review_note', 'reviewed_at')), 'certificate' => $this->certificateData(CourseCertificate::where('enrollment_id', $enrollment->id)->first(), $service, $admin)]);
+            'can_request' => ! $admin && $request->user()->hasRole('student') && $enrollment->status === 'active', 'policy' => $policy?->enabled ? ['definition' => $policy->definition, 'revision' => $policy->revision] : null, 'definition' => $definition, 'evidence' => $definition ? $service->evidence($enrollment, $definition) : null,
+            'requests' => $requests->map(fn ($row) => [...$row->only('id', 'revision', 'status', 'recipient_name', 'created_at', 'review_note', 'reviewed_at', 'withdrawn_at'), 'can_withdraw' => $row->status === 'pending' && $enrollment->user_id === $request->user()->id]), 'certificate' => $this->certificateData(CourseCertificate::where('enrollment_id', $enrollment->id)->first(), $service, $admin)]);
+    }
+
+    public function withdraw(Request $request, CertificateRequest $application, Certification $service): RedirectResponse
+    {
+        $data = $request->validate(['revision' => 'required|integer|min:1']);
+        $service->withdraw($request->user(), $application, $data['revision']);
+
+        return back()->with('success', 'انصراف از درخواست ثبت شد؛ درخواست تازه به تأیید دوباره نام و نمایش عمومی نیاز دارد.');
     }
 
     public function configure(Request $request, Cohort $cohort, Certification $service): RedirectResponse
@@ -64,9 +72,9 @@ class CertificateController extends Controller
 
     public function admin(Request $request, Certification $service): Response
     {
-        $data = $request->validate(['status' => 'nullable|in:all,pending,rejected,issued']);
+        $data = $request->validate(['status' => 'nullable|in:all,pending,rejected,issued,withdrawn']);
         $status = $data['status'] ?? 'pending';
-        $requests = CertificateRequest::with('enrollment.user', 'enrollment.course', 'enrollment.cohort')->when($status !== 'all', fn ($query) => $query->where('status', $status))->latest()->paginate(12)->withQueryString()->through(fn ($row) => [...$row->only('id', 'revision', 'recipient_name', 'definition', 'status', 'created_at', 'review_note'), 'student' => $row->enrollment->user->only('name', 'phone'), 'course_title' => $row->enrollment->course->title, 'cohort_title' => $row->enrollment->cohort->title, 'evidence' => $row->status === 'pending' ? $service->evidence($row->enrollment, $row->definition) : null, 'certificate' => $this->certificateData(CourseCertificate::where('certificate_request_id', $row->id)->first(), $service, true)]);
+        $requests = CertificateRequest::with('enrollment.user', 'enrollment.course', 'enrollment.cohort')->when($status !== 'all', fn ($query) => $query->where('status', $status))->latest()->paginate(12)->withQueryString()->through(fn ($row) => [...$row->only('id', 'revision', 'recipient_name', 'definition', 'status', 'created_at', 'review_note', 'withdrawn_at'), 'student' => $row->enrollment->user->only('name', 'phone'), 'course_title' => $row->enrollment->course->title, 'cohort_title' => $row->enrollment->cohort->title, 'evidence' => $row->status === 'pending' ? $service->evidence($row->enrollment, $row->definition) : null, 'certificate' => $this->certificateData(CourseCertificate::where('certificate_request_id', $row->id)->first(), $service, true)]);
 
         return Inertia::render('AdminCertificates', ['requests' => $requests, 'status' => $status]);
     }
