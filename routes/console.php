@@ -38,3 +38,5 @@ Schedule::command('platform:poll-sms-deliveries')->everyMinute()->withoutOverlap
 Schedule::command('platform:dispatch-announcements')->everyMinute()->withoutOverlapping();
 
 Schedule::command('platform:dispatch-heartbeats')->everyMinute()->withoutOverlapping();
+
+Schedule::command('platform:publish-scheduled-content')->everyMinute()->withoutOverlapping();

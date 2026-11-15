@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\ContentPage;
+use App\Models\ContentSchedule;
 use App\Services\ContentPublishing;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -13,7 +15,7 @@ class ContentController extends Controller
 {
     public function index(): Response
     {
-        return Inertia::render('AdminContent', ['pages' => ContentPage::with('currentPublication')->latest('id')->paginate(20)->through(fn ($page) => [...$page->only('id', 'slug', 'kind', 'current_version', 'available'), 'title' => $page->draft['title'], 'public_path' => $page->publicPath()])]);
+        return Inertia::render('AdminContent', ['pages' => ContentPage::with('currentPublication', 'pendingSchedule')->latest('id')->paginate(20)->through(fn ($page) => [...$page->only('id', 'slug', 'kind', 'current_version', 'available'), 'title' => $page->draft['title'], 'public_path' => $page->publicPath(), 'scheduled_for' => $page->pendingSchedule?->scheduled_for])]);
     }
 
     public function create(Request $request, ContentPublishing $publishing): RedirectResponse
@@ -26,7 +28,7 @@ class ContentController extends Controller
 
     public function edit(ContentPage $page): Response
     {
-        return Inertia::render('ContentEditor', ['page' => [...$page->only('id', 'slug', 'kind', 'revision', 'current_version', 'available', 'draft'), 'public_path' => $page->publicPath()], 'publications' => $page->publications()->latest('number')->paginate(10)->through(fn ($publication) => $publication->only('id', 'number', 'definition', 'published_at'))]);
+        return Inertia::render('ContentEditor', ['page' => [...$page->only('id', 'slug', 'kind', 'revision', 'current_version', 'available', 'draft'), 'public_path' => $page->publicPath()], 'pending_schedule' => $page->pendingSchedule?->only('id', 'scheduled_for'), 'schedules' => $page->schedules()->with('author:id,name', 'publication:id,number')->latest('id')->paginate(10, ['*'], 'schedules_page')->withQueryString()->through(fn ($row) => [...$row->only('id', 'source_revision', 'definition', 'scheduled_for', 'status', 'reason', 'closed_at'), 'author_name' => $row->author->name, 'publication_number' => $row->publication?->number]), 'publications' => $page->publications()->latest('number')->paginate(10)->through(fn ($publication) => $publication->only('id', 'number', 'definition', 'published_at'))]);
     }
 
     public function draft(Request $request, ContentPage $page, ContentPublishing $publishing): RedirectResponse
@@ -51,5 +53,22 @@ class ContentController extends Controller
         $publishing->availability($request->user(), $page, $data['revision'], $data['available']);
 
         return back()->with('success', 'وضعیت نمایش عمومی تغییر کرد.');
+    }
+
+    public function schedule(Request $request, ContentPage $page, ContentPublishing $publishing): RedirectResponse
+    {
+        $data = $request->validate(['revision' => 'required|integer|min:1', 'date' => 'required|date_format:Y-m-d', 'time' => 'required|date_format:H:i', 'reviewed' => 'required|accepted']);
+        $at = CarbonImmutable::createFromFormat('!Y-m-d H:i', $data['date'].' '.$data['time'], 'Asia/Tehran');
+        $publishing->schedule($request->user(), $page, $data['revision'], $at, true);
+
+        return back()->with('success', 'همین نسخه برای انتشار در زمان انتخاب‌شده ثبت شد.');
+    }
+
+    public function cancelSchedule(Request $request, ContentPage $page, ContentSchedule $schedule, ContentPublishing $publishing): RedirectResponse
+    {
+        $data = $request->validate(['revision' => 'required|integer|min:1']);
+        $publishing->cancelSchedule($request->user(), $page, $data['revision'], $schedule);
+
+        return back()->with('success', 'برنامه انتشار لغو شد؛ نسخه عمومی فعلی تغییر نکرد.');
     }
 }

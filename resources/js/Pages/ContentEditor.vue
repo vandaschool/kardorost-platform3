@@ -2,8 +2,15 @@
 import { Head, Link, useForm } from "@inertiajs/vue3";
 import Shell from "../Layouts/Shell.vue";
 import Pagination from "../Components/Pagination.vue";
+import JalaliDateInput from "../Components/JalaliDateInput.vue";
+import { computed } from "vue";
 import { dateTime, fa } from "../dates";
-const props = defineProps({ page: Object, publications: Object });
+const props = defineProps({
+    page: Object,
+    publications: Object,
+    pending_schedule: Object,
+    schedules: Object,
+});
 const draft = useForm({
     revision: props.page.revision,
     definition: JSON.parse(JSON.stringify(props.page.draft)),
@@ -13,6 +20,53 @@ const visibility = useForm({
     revision: props.page.revision,
     available: props.page.available,
 });
+const scheduled = useForm({
+    revision: props.page.revision,
+    date: "",
+    time: "",
+    reviewed: false,
+});
+const cancellation = useForm({ revision: props.page.revision });
+const busy = computed(
+    () =>
+        draft.processing ||
+        publish.processing ||
+        visibility.processing ||
+        scheduled.processing ||
+        cancellation.processing,
+);
+const scheduleLabels = {
+    pending: "در انتظار زمان انتشار",
+    published: "منتشرشده",
+    cancelled: "لغوشده",
+    blocked: "متوقف‌شده؛ نیازمند بررسی تازه",
+};
+const reasonLabels = {
+    draft_changed: "پیش‌نویس ویرایش شد",
+    visibility_changed: "وضعیت نمایش تغییر کرد",
+    published_now: "نسخه به صورت فوری منتشر شد",
+    replaced: "برنامه دیگری جایگزین شد",
+    admin_cancelled: "مدیر برنامه را لغو کرد",
+    author_ineligible: "مدیر تأییدکننده دیگر دسترسی فعال ندارد",
+    page_changed: "نسخه محتوا تغییر کرده است",
+    snapshot_changed: "نسخه برنامه با تأیید ثبت‌شده همخوان نیست",
+    already_published: "این متن قبلاً منتشر شده است",
+    invalid_content: "نسخه محتوا معتبر نیست",
+};
+function scheduleVersion() {
+    scheduled.revision = props.page.revision;
+    scheduled.post(`/admin/content/${props.page.id}/schedule`, {
+        preserveScroll: true,
+        onSuccess: () => scheduled.reset("reviewed"),
+    });
+}
+function cancelScheduled() {
+    cancellation.revision = props.page.revision;
+    cancellation.post(
+        `/admin/content/${props.page.id}/schedules/${props.pending_schedule.id}/cancel`,
+        { preserveScroll: true },
+    );
+}
 function save() {
     draft.revision = props.page.revision;
     draft.patch("/admin/content/" + props.page.id + "/draft", {
@@ -92,10 +146,7 @@ function toggle() {
                 >
                     {{ error }}
                 </p>
-                <button
-                    class="btn secondary"
-                    :disabled="draft.processing || publish.processing"
-                >
+                <button class="btn secondary" :disabled="busy">
                     ذخیره پیش‌نویس
                 </button>
             </form>
@@ -113,12 +164,7 @@ function toggle() {
                 <button
                     class="btn primary"
                     data-content-publish
-                    :disabled="
-                        draft.isDirty ||
-                        draft.processing ||
-                        publish.processing ||
-                        visibility.processing
-                    "
+                    :disabled="draft.isDirty || busy"
                     @click="publishVersion"
                 >
                     انتشار نسخه ذخیره‌شده</button
@@ -126,11 +172,7 @@ function toggle() {
                     v-if="page.current_version"
                     class="btn secondary"
                     data-content-visibility
-                    :disabled="
-                        visibility.processing ||
-                        publish.processing ||
-                        draft.processing
-                    "
+                    :disabled="busy"
                     @click="toggle"
                 >
                     {{
@@ -158,6 +200,118 @@ function toggle() {
                 {{ error }}
             </p>
         </section>
+        <section
+            class="glass panel-card consultation-section"
+            data-content-scheduling
+        >
+            <h2>انتشار در زمان مشخص</h2>
+            <p>
+                همین پیش‌نویس ذخیره‌شده در زمان انتخابی به وقت تهران منتشر
+                می‌شود. نسخه عمومی فعلی تا آن زمان باقی می‌ماند. ویرایش
+                پیش‌نویس، تغییر نمایش یا انتشار فوری، برنامه قبلی را لغو می‌کند.
+            </p>
+            <div v-if="pending_schedule" data-pending-content-schedule>
+                <p>
+                    زمان برنامه فعلی:
+                    {{ dateTime(pending_schedule.scheduled_for) }}
+                </p>
+                <button
+                    class="btn secondary"
+                    data-cancel-content-schedule
+                    :disabled="busy"
+                    @click="cancelScheduled"
+                >
+                    لغو برنامه انتشار
+                </button>
+            </div>
+            <form @submit.prevent="scheduleVersion" data-content-schedule>
+                <fieldset
+                    class="stack-form content-schedule-fields"
+                    :disabled="busy"
+                >
+                    <label
+                        >تاریخ انتشار<JalaliDateInput
+                            v-model="scheduled.date"
+                            label="انتشار محتوا"
+                            required
+                    /></label>
+                    <label
+                        >ساعت تهران<input
+                            name="content_schedule_time"
+                            v-model="scheduled.time"
+                            type="time"
+                            required
+                    /></label>
+                    <label class="checkbox-label"
+                        ><input
+                            type="checkbox"
+                            name="content_schedule_reviewed"
+                            v-model="scheduled.reviewed"
+                            required
+                        />همین نسخه ذخیره‌شده را برای انتشار عمومی در زمان
+                        انتخاب‌شده بررسی و تأیید می‌کنم.</label
+                    >
+                    <p v-if="draft.isDirty" class="muted">
+                        ابتدا تغییرات پیش‌نویس را ذخیره کنید.
+                    </p>
+                    <button
+                        class="btn primary"
+                        :disabled="draft.isDirty || busy"
+                    >
+                        {{
+                            pending_schedule
+                                ? "جایگزینی برنامه انتشار"
+                                : "ثبت برنامه انتشار"
+                        }}
+                    </button>
+                </fieldset>
+            </form>
+            <p
+                v-for="error in scheduled.errors"
+                class="field-error"
+                role="alert"
+            >
+                {{ error }}
+            </p>
+            <p
+                v-for="error in cancellation.errors"
+                class="field-error"
+                role="alert"
+            >
+                {{ error }}
+            </p>
+            <h3>سوابق برنامه‌ها</h3>
+            <p v-if="!schedules.data.length" class="muted">
+                برنامه‌ای ثبت نشده است.
+            </p>
+            <details
+                v-for="item in schedules.data"
+                :key="item.id"
+                class="consultation-section"
+                :data-content-schedule-history="item.id"
+            >
+                <summary>
+                    {{ scheduleLabels[item.status] }} ·
+                    {{ dateTime(item.scheduled_for) }}
+                </summary>
+                <p>
+                    تأییدکننده: {{ item.author_name }} · نسخه پیش‌نویس
+                    {{ fa(item.source_revision) }}
+                </p>
+                <p v-if="item.reason">
+                    {{ reasonLabels[item.reason] || "نیازمند بررسی" }}
+                </p>
+                <p v-if="item.closed_at">
+                    زمان رسیدگی: {{ dateTime(item.closed_at) }}
+                </p>
+                <p v-if="item.publication_number">
+                    نسخه عمومی حاصل: {{ fa(item.publication_number) }}
+                </p>
+                <h4>{{ item.definition.title }}</h4>
+                <p class="preserve-lines">{{ item.definition.body }}</p>
+            </details>
+            <Pagination :page="schedules" />
+        </section>
         <section class="glass panel-card consultation-section">
             <h2>نسخه‌های منتشرشده</h2>
             <p v-if="!publications.data.length" class="muted">
@@ -181,3 +335,12 @@ function toggle() {
             <Pagination :page="publications" /></section
     ></Shell>
 </template>
+
+<style scoped>
+.content-schedule-fields {
+    border: 0;
+    padding: 0;
+    margin: 1rem 0;
+    min-width: 0;
+}
+</style>

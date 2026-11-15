@@ -234,6 +234,8 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::post('/admin/content', [ContentController::class, 'create']);
         Route::get('/admin/content/{page}', [ContentController::class, 'edit'])->name('admin.content.edit');
         Route::patch('/admin/content/{page}/draft', [ContentController::class, 'draft']);
+        Route::post('/admin/content/{page}/schedule', [ContentController::class, 'schedule']);
+        Route::post('/admin/content/{page}/schedules/{schedule}/cancel', [ContentController::class, 'cancelSchedule']);
         Route::post('/admin/content/{page}/publish', [ContentController::class, 'publish']);
         Route::post('/admin/content/{page}/availability', [ContentController::class, 'availability']);
         Route::get('/admin/organization-managers', [OrganizationMembershipController::class, 'admin'])->name('admin.organization-managers');

@@ -1,5 +1,5 @@
 {
-  "phase": "private-operational-configuration-and-runtime-readiness",
+  "phase": "immutable-consented-scheduled-public-content",
   "completed": [
     "phone-verification",
     "password-login",
@@ -292,17 +292,26 @@
     "scheduled-local-heartbeat-probes",
     "separate-actual-default-and-sms-worker-heartbeats",
     "stale-expired-future-invalid-heartbeat-rejection",
-    "ready-queue-delay-inspection"
+    "ready-queue-delay-inspection",
+    "immutable-reviewed-content-schedule-snapshots",
+    "tehran-jalali-public-content-scheduling",
+    "scheduled-content-keeps-old-public-copy-until-execution",
+    "versioned-content-schedule-cancellation-and-replacement-history",
+    "content-edit-visibility-immediate-publish-cancel-pending-schedule",
+    "due-content-current-admin-revision-hash-rechecks",
+    "account-page-schedule-serialized-publication-lifecycle",
+    "idempotent-actual-time-scheduled-content-publications",
+    "safe-bounded-per-minute-scheduled-content-command"
   ],
   "tests": {
     "postgresql": {
-      "passed": 812,
-      "assertions": 6479
+      "passed": 835,
+      "assertions": 6641
     },
     "sqlite": {
-      "passed": 705,
-      "skipped": 107,
-      "assertions": 5877
+      "passed": 723,
+      "skipped": 112,
+      "assertions": 6010
     },
     "javascript": {
       "passed": 6
@@ -494,7 +503,13 @@
     "actual-local-schedule-run-heartbeat-enqueue",
     "actual-local-default-and-sms-worker-heartbeat-execution",
     "enqueue-does-not-imply-worker-or-live-provider-acceptance",
-    "readiness-three-role-isolation-and-320-1440-layouts"
+    "readiness-three-role-isolation-and-320-1440-layouts",
+    "content-schedule-reviewed-saved-snapshot-and-fresh-checkbox",
+    "old-public-content-preserved-before-real-due-time",
+    "content-schedule-explicit-cancel-and-draft-edit-cancellation-history",
+    "unsaved-content-edit-does-not-replace-approved-scheduled-text",
+    "actual-wall-clock-due-local-scheduler-publication",
+    "scheduled-content-escaped-text-and-editor-public-320-1440-layouts"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -571,7 +586,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase35_verified_ready_for_merge_then_scheduled_public_content",
+    "current_work": "phase36_verified_ready_for_merge_then_mentor_bound_consultation_coordination",
     "next_groups": [
       "organization_contract_installments_and_lifecycle",
       "remaining_purchase_cancellation_refunds_awaiting_policy",
@@ -602,7 +617,7 @@
   "public_coach_profiles_complete": true,
   "public_media_library_complete": false,
   "public_rich_text_editor_complete": false,
-  "public_scheduled_publishing_complete": false,
+  "public_scheduled_publishing_complete": true,
   "public_anonymous_contact_leads_complete": true,
   "career_resume_builder_complete": true,
   "career_resume_text_review_complete": true,
@@ -663,5 +678,6 @@
   "operational_readiness_scope": "configuration_and_local_runtime_only_no_live_provider_or_domain_restore_deployment_acceptance",
   "scheduler_and_queue_heartbeat_probes_complete": true,
   "offserver_backup_complete": false,
-  "backup_restore_acceptance_complete": false
+  "backup_restore_acceptance_complete": false,
+  "public_scheduled_publishing_scope": "immutable_reviewed_home_article_page_snapshots_tehran_minute_1_minute_to_1_year_fresh_active_admin_at_actual_execution"
 }
