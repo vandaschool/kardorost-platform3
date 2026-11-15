@@ -1,5 +1,5 @@
 {
-  "phase": "current-lesson-access-and-progress-concurrency",
+  "phase": "versioned-private-learning-points-badges-and-reward-day-streaks",
   "completed": [
     "phone-verification",
     "password-login",
@@ -236,17 +236,26 @@
     "fresh-enrollment-account-role-and-publication-validation",
     "shared-parent-read-lock-compatible-progress-writes",
     "current-video-duration-progress-clamping",
-    "concurrent-idempotent-lesson-completion"
+    "concurrent-idempotent-lesson-completion",
+    "disabled-by-default-versioned-cohort-reward-rules",
+    "pre-completion-current-learning-reward-terms",
+    "atomic-first-completion-learning-reward-ledger",
+    "lifetime-account-lesson-reward-uniqueness",
+    "no-retroactive-disabled-period-or-autosave-rewards",
+    "one-time-snapshot-learning-goal-badges",
+    "encrypted-owner-learning-reward-history",
+    "audited-admin-learning-reward-lookup",
+    "distinct-tehran-reward-day-current-and-best-streaks"
   ],
   "tests": {
     "postgresql": {
-      "passed": 692,
-      "assertions": 5448
+      "passed": 714,
+      "assertions": 5596
     },
     "sqlite": {
-      "passed": 598,
-      "skipped": 94,
-      "assertions": 4932
+      "passed": 617,
+      "skipped": 97,
+      "assertions": 5060
     },
     "javascript": {
       "passed": 6
@@ -399,7 +408,14 @@
     "announcement-mobile-390",
     "small-204-lesson-autosave-and-current-duration-clamping",
     "explicit-lesson-completion-next-lesson-and-reload",
-    "repeated-completion-single-count-and-progress-mobile-390"
+    "repeated-completion-single-count-and-progress-mobile-390",
+    "admin-cohort-learning-reward-version-configuration",
+    "classroom-pre-completion-reward-terms",
+    "actual-local-completion-points-and-one-goal-badge",
+    "duplicate-completion-no-additional-reward",
+    "private-reward-history-and-audited-admin-lookup",
+    "rule-edit-preserves-earlier-points-and-badge",
+    "learning-rewards-mobile-390"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -476,7 +492,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase28_verified_pending_pr_merge_then_continue_configurable_private_learning_rewards",
+    "current_work": "phase29_verified_pending_pr_merge_then_continue_certificate_request_withdrawal",
     "next_groups": [
       "organization_contract_installments_and_lifecycle",
       "remaining_purchase_cancellation_refunds_awaiting_policy",
@@ -543,5 +559,11 @@
   "organization_or_cohort_targeted_announcements_complete": false,
   "scheduled_announcements_complete": false,
   "bulk_sms_complete": false,
-  "lesson_completion_evidence": "student_self_report_not_verified_video_watch_or_skill"
+  "lesson_completion_evidence": "student_self_report_not_verified_video_watch_or_skill",
+  "learning_rewards_complete": true,
+  "learning_rewards_scope": "admin_configured_self_reported_first_lesson_completion_points_private_goal_badges_tehran_reward_day_streaks",
+  "learning_rewards_financial_conversion_complete": false,
+  "learning_rewards_public_leaderboard_complete": false,
+  "referral_rewards_complete": false,
+  "learning_rewards_assessment_or_grade_points_complete": false
 }

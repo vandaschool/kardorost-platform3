@@ -19,6 +19,7 @@ use App\Http\Controllers\DiscussionController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\LearningController;
+use App\Http\Controllers\LearningRewardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OperationalReportController;
 use App\Http\Controllers\OrganizationController;
@@ -85,6 +86,7 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::get('/support-files/{message}', [SupportController::class, 'file'])->name('support.file');
     Route::get('/reminders/{reminder}', [CommunicationController::class, 'open'])->name('reminders.open');
     Route::patch('/notification-preferences', [NotificationController::class, 'preferences'])->middleware('throttle:20,1');
+    Route::get('/learning-rewards', [LearningRewardController::class, 'index'])->name('learning-rewards');
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications');
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'read']);
     Route::get('/submissions/{submission}/file', [SubmissionController::class, 'file'])->name('submissions.file');
@@ -193,6 +195,9 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/organization/members/{member}', [OrganizationController::class, 'report']);
     });
     Route::middleware('panel.role:admin')->group(function () {
+        Route::get('/admin/learning-reward-policies', [LearningRewardController::class, 'policies'])->name('admin.learning-reward-policies');
+        Route::patch('/admin/cohorts/{cohort}/learning-rewards', [LearningRewardController::class, 'configure']);
+        Route::get('/admin/learning-rewards', [LearningRewardController::class, 'index'])->name('admin.learning-rewards');
         Route::get('/admin/announcements', [AnnouncementController::class, 'index'])->name('admin.announcements');
         Route::post('/admin/announcements', [AnnouncementController::class, 'save']);
         Route::get('/admin/announcements/{announcement}', [AnnouncementController::class, 'show'])->name('admin.announcements.show');

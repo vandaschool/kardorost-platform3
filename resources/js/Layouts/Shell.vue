@@ -35,6 +35,7 @@ const group = (label, icon, items) => ({ label, icon, items });
 const accountItems = [
     ["پروفایل و امنیت", "UserRound", "/account"],
     ["پرداخت‌ها و اقساط", "ReceiptText", "/finance"],
+    ["امتیاز و نشان یادگیری", "Sparkles", "/learning-rewards"],
     ["بازپرداخت‌ها", "ReceiptText", "/refunds"],
     ["عضویت‌های سازمانی من", "Building2", "/organization-memberships"],
 ];
@@ -46,6 +47,12 @@ const menus = computed(() => {
                 ["دوره‌ها", "BookOpen", "/admin/courses"],
                 ["گواهی‌ها", "GraduationCap", "/admin/certificates"],
                 ["معیارهای گواهی", "FileText", "/admin/certificate-policies"],
+                [
+                    "قواعد امتیاز یادگیری",
+                    "Sparkles",
+                    "/admin/learning-reward-policies",
+                ],
+                ["سابقه امتیاز کاربران", "History", "/admin/learning-rewards"],
                 ["نظرسنجی دوره‌ها", "FileText", "/admin/surveys"],
                 ["گفت‌وگوی دوره‌ها", "MessagesSquare", "/discussions"],
             ]),
@@ -144,6 +151,7 @@ const menus = computed(() => {
     return [
         item("خانه", "House", "/student"),
         group("یادگیری من", "BookOpen", [
+            ["امتیاز و نشان یادگیری", "Sparkles", "/learning-rewards"],
             ["دوره‌های من", "BookOpen", "/learning"],
             ["پیدا کردن دوره", "Compass", "/courses"],
             ["گواهی‌های من", "GraduationCap", "/certificates"],
@@ -159,7 +167,7 @@ const menus = computed(() => {
             ["پکیج‌های مشاوره", "MessagesSquare", "/consultation-packages"],
         ]),
         group("حساب من", "UserRound", [
-            ...accountItems,
+            ...accountItems.filter((row) => row[2] !== "/learning-rewards"),
             ["دعوت سازمان‌ها", "Building2", "/organization-invitations"],
         ]),
     ];
