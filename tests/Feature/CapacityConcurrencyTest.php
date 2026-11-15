@@ -21,6 +21,8 @@ use App\Models\ConsultationGrantUse;
 use App\Models\ConsultationProduct;
 use App\Models\ConsultationRequest;
 use App\Models\ConsultationSlot;
+use App\Models\ContactLead;
+use App\Models\ContactLeadEvent;
 use App\Models\ContentPage;
 use App\Models\ContentPublication;
 use App\Models\Course;
@@ -327,6 +329,10 @@ CODE;
 
     protected function tearDown(): void
     {
+        if (Schema::hasTable('contact_leads')) {
+            DB::table('contact_lead_events')->delete();
+            DB::table('contact_leads')->delete();
+        }
         if (Schema::hasTable('coach_profiles')) {
             DB::table('coach_profiles')->update(['current_publication_id' => null, 'latest_submission_id' => null]);
             DB::table('coach_profile_withdrawals')->delete();
@@ -2398,5 +2404,45 @@ CODE;
         $this->assertSame(3, $profile->revision);
         $this->assertSame($profile->public_enabled ? 1 : 0, CoachProfilePublication::count());
         $this->assertSame($profile->public_enabled ? 0 : 1, CoachProfileWithdrawal::count());
+    }
+
+    public function test_simultaneous_public_contact_retries_preserve_one_initial_request(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Contact idempotency races require PostgreSQL.');
+        }
+        $key = (string) Str::uuid();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$lead=app(\App\Services\ContactLeads::class)->receive(['request_key'=>$argv[1],'name'=>'Contact fixture','phone'=>'09121112222','audience'=>'individual','subject'=>'training','message'=>$argv[2],'consent'=>true]);echo (string)$lead->id;
+CODE;
+        $results = $this->parallelFinance($code, [[$key, 'First independent concurrent message'], [$key, 'Second independent concurrent message']]);
+        $this->assertSame($results[0], $results[1]);
+        $this->assertSame(1, ContactLead::count());
+        $this->assertSame(1, ContactLeadEvent::count());
+        $this->assertSame(1, AuditEvent::where('action', 'contact_lead.received')->count());
+        $this->assertContains(ContactLead::sole()->message, ['First independent concurrent message', 'Second independent concurrent message']);
+    }
+
+    public function test_two_admin_contact_follow_ups_cannot_overwrite_the_same_revision(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Contact follow-up races require PostgreSQL.');
+        }
+        $lead = ContactLead::factory()->create();
+        $admins = User::factory()->count(2)->create();
+        foreach ($admins as $admin) {
+            $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        }
+        $original = $lead->only('name', 'phone', 'message', 'consented_at');
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+try{app(\App\Services\ContactLeads::class)->followUp(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\ContactLead::findOrFail((int)$argv[2]),['revision'=>1,'status'=>$argv[3],'note'=>'Concurrent follow-up fixture']);echo 'SAVED';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['SAVED', 'STALE'], $this->parallelFinance($code, [[$admins[0]->id, $lead->id, 'working'], [$admins[1]->id, $lead->id, 'qualified']]));
+        $this->assertSame(2, $lead->fresh()->revision);
+        $this->assertSame(1, ContactLeadEvent::count());
+        $this->assertSame(1, AuditEvent::where('action', 'contact_lead.follow_up')->count());
+        $this->assertEquals($original, $lead->fresh()->only('name', 'phone', 'message', 'consented_at'));
     }
 }

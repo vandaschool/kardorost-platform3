@@ -493,3 +493,30 @@
 .public-mentor-bio {
     white-space: pre-line;
 }
+
+.public-contact-form {
+    max-width: 800px;
+    margin-inline: auto;
+    gap: 18px;
+    align-items: stretch;
+}
+.public-contact-form label {
+    display: grid;
+    gap: 8px;
+}
+.public-contact-form input,
+.public-contact-form textarea,
+.public-contact-form select {
+    max-width: 100%;
+    min-width: 0;
+}
+.public-contact-form .public-contact-consent {
+    display: flex;
+    align-items: start;
+    gap: 10px;
+    line-height: 2;
+}
+.public-contact-consent input {
+    width: auto;
+    margin-top: 8px;
+}
