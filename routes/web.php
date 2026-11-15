@@ -4,6 +4,7 @@ use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BillingPlanController;
+use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\ConsultationGrantController;
 use App\Http\Controllers\ConsultationPaymentController;
@@ -27,6 +28,7 @@ use App\Http\Controllers\TeachingController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/verify/certificates/{token}', [CertificateController::class, 'verify'])->middleware('throttle:60,1')->name('certificates.verify');
 Route::get('/', fn () => redirect()->route(auth()->check() ? 'panel' : 'login'))->name('home');
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'show'])->name('login');
@@ -76,6 +78,7 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::post('/refunds/{refund}/review', [RefundController::class, 'review'])->middleware('panel.role:admin');
     Route::post('/refunds/{refund}/complete', [RefundController::class, 'complete'])->middleware(['panel.role:admin', 'throttle:10,1']);
     Route::get('/assessment-attempts/{attempt}/report', [AssessmentController::class, 'report'])->name('assessments.report');
+    Route::get('/certificates/enrollments/{enrollment}', [CertificateController::class, 'enrollment'])->name('certificates.enrollment');
     Route::get('/package-purchases/{purchase}', [PackagePurchaseController::class, 'show'])->name('package-purchases.show');
     Route::get('/finance', [FinanceController::class, 'index'])->name('finance');
     Route::post('/installments/{installment}/pay', [EnrollmentController::class, 'payInstallment'])->middleware('throttle:10,1');
@@ -85,6 +88,8 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::patch('/account', [PanelController::class, 'updateProfile']);
     Route::patch('/account/password', [PanelController::class, 'changePassword'])->middleware('throttle:5,1');
     Route::middleware('panel.role:student')->group(function () {
+        Route::get('/certificates', [CertificateController::class, 'index'])->name('certificates');
+        Route::post('/certificates/enrollments/{enrollment}/request', [CertificateController::class, 'apply'])->middleware('throttle:10,1');
         Route::get('/consultation-packages', [ConsultationProductController::class, 'index'])->name('consultation-packages');
         Route::post('/consultation-packages/{product}/purchase', [PackagePurchaseController::class, 'create'])->middleware('throttle:10,1');
         Route::post('/package-purchases/{purchase}/pay', [PackagePurchaseController::class, 'pay'])->middleware('throttle:10,1');
@@ -132,6 +137,11 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/organization/members/{member}', [OrganizationController::class, 'report']);
     });
     Route::middleware('panel.role:admin')->group(function () {
+        Route::get('/admin/certificates', [CertificateController::class, 'admin'])->name('admin.certificates');
+        Route::get('/admin/certificate-policies', [CertificateController::class, 'policies'])->name('admin.certificate-policies');
+        Route::patch('/admin/cohorts/{cohort}/certificate-policy', [CertificateController::class, 'configure']);
+        Route::post('/admin/certificate-requests/{application}/review', [CertificateController::class, 'review']);
+        Route::post('/admin/certificates/{certificate}/revoke', [CertificateController::class, 'revoke']);
         Route::get('/admin/consultation-packages', [ConsultationProductController::class, 'index'])->name('admin.consultation-packages');
         Route::post('/admin/consultation-packages', [ConsultationProductController::class, 'create']);
         Route::patch('/admin/consultation-packages/{product}', [ConsultationProductController::class, 'update']);

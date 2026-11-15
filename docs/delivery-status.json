@@ -1,5 +1,5 @@
 {
-  "phase": "standalone-consultation-package-purchase",
+  "phase": "reviewed-verifiable-course-certificates",
   "completed": [
     "phone-verification",
     "password-login",
@@ -129,17 +129,28 @@
     "one-paid-purchase-one-consultation-grant",
     "late-package-payment-admin-fulfillment",
     "unallocated-package-fund-manual-refunds",
-    "purchased-grant-source-and-edit-protection"
+    "purchased-grant-source-and-edit-protection",
+    "cohort-selected-certificate-criteria",
+    "frozen-student-certificate-applications",
+    "explicit-public-verification-consent",
+    "latest-graded-attempt-and-attendance-eligibility",
+    "optional-verified-tuition-certificate-gate",
+    "admin-recomputed-manual-certificate-issuance",
+    "immutable-certificate-identity-and-evidence",
+    "random-token-anonymous-certificate-verification",
+    "versioned-terminal-certificate-revocation",
+    "scoped-coach-organization-certificate-status",
+    "browser-printable-one-page-a4-certificate"
   ],
   "tests": {
     "postgresql": {
-      "passed": 408,
-      "assertions": 3009
+      "passed": 430,
+      "assertions": 3228
     },
     "sqlite": {
-      "passed": 358,
-      "skipped": 50,
-      "assertions": 2717
+      "passed": 376,
+      "skipped": 54,
+      "assertions": 2915
     },
     "javascript": {
       "passed": 6
@@ -219,7 +230,15 @@
     "private-package-receipt-before-fulfillment",
     "approved-package-purchase-one-grant",
     "purchased-package-booking-and-cancellation-credit",
-    "standalone-package-source-privacy-and-mobile-390"
+    "standalone-package-source-privacy-and-mobile-390",
+    "admin-certificate-criteria",
+    "student-completion-and-public-consent",
+    "pending-certificate-policy-freeze",
+    "manual-issuance-after-current-evidence-review",
+    "anonymous-verification-data-isolation",
+    "one-page-a4-certificate-pdf",
+    "revocation-visible-without-internal-note",
+    "course-certificate-mobile-390"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -276,5 +295,14 @@
   "consultation_package_purchase_scope": "standalone_full_payment_personal_purchase_zibal_or_reviewed_transfer",
   "consultation_package_unallocated_refunds_complete": true,
   "consultation_package_issued_grant_refunds_complete": false,
-  "consultation_package_installments_complete": false
+  "consultation_package_installments_complete": false,
+  "course_certificates_complete": true,
+  "course_certificates_scope": "selected_evidence_admin_review_one_document_per_enrollment",
+  "certificate_public_verification": "student_consented_unguessable_link",
+  "certificate_reissue_complete": false,
+  "certificate_request_withdrawal_complete": false,
+  "certificate_qr_complete": false,
+  "certificate_server_pdf_complete": false,
+  "certificate_digital_signatures_complete": false,
+  "certificate_changes_learning_access": false
 }

@@ -613,6 +613,18 @@ const assignmentOf = (id) => props.assignments.find((a) => a.id === id);
             >
                 <div class="section-heading">
                     <h3>{{ m.name }}</h3>
+                    <span
+                        v-if="m.certificate_status !== 'none'"
+                        class="badge"
+                        >{{
+                            {
+                                pending: "گواهی در انتظار بررسی",
+                                issued: "گواهی صادرشده",
+                                revoked: "گواهی باطل‌شده",
+                                rejected: "درخواست گواهی نیازمند اصلاح",
+                            }[m.certificate_status]
+                        }}</span
+                    >
                     <span class="badge teal"
                         >{{ fa(m.progress.percent) }}٪ درس‌ها تکمیل شده</span
                     >

@@ -71,6 +71,22 @@ defineProps({
                     e.status === "active" ? "فعال" : "در انتظار پرداخت"
                 }}</span>
                 <div class="member-learning-details">
+                    <p
+                        v-if="
+                            learningReports[e.id]?.certificate_status &&
+                            learningReports[e.id].certificate_status !== 'none'
+                        "
+                    >
+                        وضعیت گواهی:
+                        {{
+                            {
+                                pending: "در انتظار بررسی",
+                                issued: "صادرشده",
+                                revoked: "باطل‌شده",
+                                rejected: "نیازمند اصلاح",
+                            }[learningReports[e.id].certificate_status]
+                        }}
+                    </p>
                     <p>
                         درس‌ها:
                         {{ fa(learningReports[e.id]?.progress.completed) }} از
