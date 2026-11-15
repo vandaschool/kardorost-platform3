@@ -24,6 +24,7 @@ const urls = {
 const menus = computed(() =>
     props.role === "admin"
         ? [
+              ["پشتیبانی", "MessagesSquare", "/support?view=admin"],
               ["خانه مدیریت", "LayoutDashboard", "/admin"],
               ["خودشناسی", "Fingerprint", "/admin/assessments"],
               ["دوره‌ها", "BookOpen", "/admin/courses"],
@@ -52,6 +53,7 @@ const menus = computed(() =>
           ]
         : props.role === "org_admin"
           ? [
+                ["پشتیبانی", "MessagesSquare", "/support"],
                 ["سازمان من", "Building2", "/organization"],
                 ["دعوت اعضا", "UserPlus", "/organization/invitations"],
                 ["ثبت‌نام گروهی", "Users", "/organization/licenses"],
@@ -62,6 +64,12 @@ const menus = computed(() =>
             ]
           : props.role === "coach"
             ? [
+                  [
+                      "پیام‌های آموزشی خصوصی",
+                      "MessagesSquare",
+                      "/support?view=coach",
+                  ],
+                  ["پشتیبانی", "MessagesSquare", "/support"],
                   ["خانه مربی", "LayoutDashboard", "/coach"],
                   ["گفت‌وگوی دوره‌ها", "MessagesSquare", "/discussions"],
                   ["مشاوره", "MessagesSquare", "/consultations?view=coach"],
@@ -70,6 +78,7 @@ const menus = computed(() =>
                   ["بازپرداخت‌ها", "ReceiptText", "/refunds"],
               ]
             : [
+                  ["پشتیبانی و پیام خصوصی", "MessagesSquare", "/support"],
                   ["خانه", "House", "/student"],
                   ["دعوت سازمان‌ها", "Building2", "/organization-invitations"],
                   ["یادگیری من", "BookOpen", "/learning"],
