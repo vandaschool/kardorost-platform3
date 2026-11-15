@@ -12,6 +12,7 @@ import { dateTime } from "../dates";
 const props = defineProps({
     role: String,
     mentor_filter: { type: Object, default: null },
+    coordination_filter: { type: Object, default: null },
     grants: { type: Array, default: () => [] },
     slots: Object,
     bookings: Object,
@@ -39,7 +40,19 @@ watch(
     },
     { immediate: true, flush: "post" },
 );
-const request = useForm({ topic: "", availability: "", grant_id: "" });
+const request = useForm({
+    topic: "",
+    availability: "",
+    grant_id: "",
+    mentor: props.mentor_filter?.slug || "",
+});
+const requestGrants = computed(() =>
+    props.mentor_filter
+        ? props.grants.filter(
+              (grant) => grant.coach_id === props.mentor_filter.coach_id,
+          )
+        : props.grants,
+);
 const slot = useForm({
     coach_id: props.role === "coach" ? page.props.auth.user.id : "",
     date: "",
@@ -82,16 +95,24 @@ const labels = {
             class="text-link"
             >مانده و شرایط سهمیه‌های مشاوره</Link
         >
-        <div
-            v-if="role === 'student' && !mentor_filter"
-            class="panel glass consultation-card"
-        >
-            <h2>برای انتخاب زمان کمک می‌خواهید؟</h2>
-            <p class="muted">
+        <div v-if="role === 'student'" class="panel glass consultation-card">
+            <h2>
+                {{
+                    mentor_filter
+                        ? `هماهنگی با ${mentor_filter.display_name}`
+                        : "برای انتخاب زمان کمک می‌خواهید؟"
+                }}
+            </h2>
+            <p v-if="mentor_filter" class="muted">
+                این درخواست فقط برای همین مربی ثبت می‌شود؛ ادمین پس از هماهنگی،
+                زمان همان مربی را برای شما رزرو می‌کند.
+            </p>
+            <p v-else class="muted">
                 موضوع و زمان‌های مناسب خود را بنویسید؛ ادمین پس از هماهنگی، جلسه
                 را در همین صفحه ثبت می‌کند.
             </p>
             <form
+                data-coordination-request
                 @submit.prevent="
                     request.post('/consultations/requests', {
                         preserveScroll: true,
@@ -103,6 +124,8 @@ const labels = {
                 <label
                     >موضوع مشاوره<textarea
                         v-model="request.topic"
+                        name="request_topic"
+                        :disabled="request.processing"
                         minlength="3"
                         maxlength="3000"
                         required
@@ -110,19 +133,26 @@ const labels = {
                 ><label
                     >روزها و ساعت‌های مناسب شما<textarea
                         v-model="request.availability"
+                        name="request_availability"
+                        :disabled="request.processing"
                         minlength="3"
                         maxlength="1500"
                         required
                     ></textarea></label
-                ><label v-if="grants.length"
+                ><label v-if="requestGrants.length"
                     >سهمیه مورد نظر برای هماهنگی<select
                         v-model="request.grant_id"
                         name="request_grant"
+                        :disabled="request.processing"
                     >
                         <option value="">
                             بدون مصرف پکیج؛ هماهنگی با تعرفه جلسه
                         </option>
-                        <option v-for="g in grants" :key="g.id" :value="g.id">
+                        <option
+                            v-for="g in requestGrants"
+                            :key="g.id"
+                            :value="g.id"
+                        >
                             {{ g.title }} · {{ g.coach_name }} ·
                             {{ g.session_minutes }} دقیقه · تا
                             {{ dateOnly(g.valid_until) }}
@@ -134,7 +164,11 @@ const labels = {
                     تعیین زمان دوباره بررسی می‌شوند.
                 </p>
                 <button class="btn primary" :disabled="request.processing">
-                    درخواست هماهنگی
+                    {{
+                        mentor_filter
+                            ? "درخواست هماهنگی با این مربی"
+                            : "درخواست هماهنگی"
+                    }}
                 </button>
             </form>
         </div>
@@ -219,6 +253,24 @@ const labels = {
             </form>
         </details>
         <section class="consultation-section">
+            <div
+                v-if="coordination_filter"
+                class="panel glass consultation-card"
+                data-coordination-filter
+            >
+                <h2>زمان‌های سازگار درخواست {{ coordination_filter.id }}</h2>
+                <p v-if="coordination_filter.requested_coach_name">
+                    مربی درخواستی:
+                    {{ coordination_filter.requested_coach_name }}
+                </p>
+                <p class="muted">
+                    زمان آزاد آینده با مربی و سهمیه انتخاب‌شده فیلتر شده است؛
+                    توافق نهایی با دانشجو پیش از رزرو لازم است.
+                </p>
+                <Link href="/consultations?view=admin" class="text-link"
+                    >نمایش همه زمان‌ها</Link
+                >
+            </div>
             <h2>
                 {{
                     role === "student"
@@ -359,11 +411,16 @@ const labels = {
                 <article
                     v-for="r in requests.data"
                     :key="r.id"
+                    :data-coordination-request-id="r.id"
                     class="panel glass consultation-card"
                 >
                     <span class="status-badge">{{ labels[r.status] }}</span>
                     <h3>{{ r.student_name }}</h3>
                     <p>{{ dateTime(r.created_at) }}</p>
+                    <p v-if="r.requested_mentor">
+                        مربی درخواستی هنگام ثبت:
+                        {{ r.requested_mentor.display_name }}
+                    </p>
                     <p class="preserve-lines">{{ r.topic }}</p>
                     <p class="preserve-lines">
                         زمان‌های مناسب: {{ r.availability }}

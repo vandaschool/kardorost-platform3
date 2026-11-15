@@ -330,6 +330,9 @@ CODE;
 
     protected function tearDown(): void
     {
+        if (Schema::hasColumn('consultation_requests', 'requested_coach_id')) {
+            DB::table('consultation_requests')->update(['requested_coach_id' => null, 'requested_mentor' => null]);
+        }
         if (Schema::hasTable('contact_leads')) {
             DB::table('contact_lead_events')->delete();
             DB::table('contact_leads')->delete();
@@ -2533,5 +2536,94 @@ CODE;
     public function test_waiting_scheduled_content_rechecks_concurrent_author_deactivation(): void
     {
         $this->scheduledContentAfterAccountChange(false);
+    }
+
+    private function mentorCoordinationFixture(): array
+    {
+        [$profile, $admin] = $this->coachProfileFixture();
+        app(CoachProfiles::class)->review($admin, $profile, 2, 'publish', null);
+        $student = User::factory()->create();
+        $student->roles()->attach(Role::where('key', 'student')->value('id'));
+
+        return [$profile->fresh(), $admin, $student];
+    }
+
+    public function test_concurrent_selected_mentor_requests_create_only_one_pending_request(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Mentor coordination races require PostgreSQL.');
+        }
+        [$profile, $admin, $student] = $this->mentorCoordinationFixture();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();try{app(\App\Services\ConsultationService::class)->request(\App\Models\User::findOrFail((int)$argv[1]),'Private coordination topic','Tomorrow afternoon',null,$argv[2]);echo 'CREATED';}catch(\Illuminate\Validation\ValidationException){echo 'DUPLICATE';}
+CODE;
+        $this->assertSame(['CREATED', 'DUPLICATE'], $this->parallelFinance($code, [[$student->id, $profile->slug], [$student->id, $profile->slug]]));
+        $this->assertSame(1, ConsultationRequest::count());
+        $this->assertSame($profile->user_id, ConsultationRequest::sole()->requested_coach_id);
+        $this->assertSame(0, Consultation::count());
+    }
+
+    private function coordinationAfterConcurrentChange(bool $withdrawProfile): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Mentor coordination access races require PostgreSQL.');
+        }
+        [$profile, $admin, $student] = $this->mentorCoordinationFixture();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$student=\App\Models\User::findOrFail((int)$argv[1]);echo "READY\n";flush();try{app(\App\Services\ConsultationService::class)->request($student,'Private coordination topic','Tomorrow afternoon',null,$argv[2]);echo 'CREATED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}catch(\Illuminate\Database\Eloquent\ModelNotFoundException){echo '404';}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $student->id, $profile->slug], base_path(), null, null, 20);
+        DB::transaction(function () use ($student, $profile, $process, $withdrawProfile) {
+            User::whereIn('id', [$student->id, $profile->user_id])->orderBy('id')->lockForUpdate()->get();
+            $process->start();
+            $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'READY')));
+            if ($withdrawProfile) {
+                app(CoachProfiles::class)->withdraw($profile->owner, $profile, $profile->revision, null);
+            } else {
+                $student->roles()->detach();
+            }
+        });
+        $process->wait();
+        $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+        $this->assertSame("READY\n".($withdrawProfile ? '404' : '403'), $process->getOutput());
+        $this->assertSame(0, ConsultationRequest::count());
+    }
+
+    public function test_waiting_coordination_rechecks_concurrent_profile_withdrawal(): void
+    {
+        $this->coordinationAfterConcurrentChange(true);
+    }
+
+    public function test_waiting_coordination_rechecks_current_student_role(): void
+    {
+        $this->coordinationAfterConcurrentChange(false);
+    }
+
+    public function test_waiting_admin_booking_rechecks_role_after_the_first_authorization_check(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Booking authorization races require PostgreSQL.');
+        }
+        [$profile, $admin, $student] = $this->mentorCoordinationFixture();
+        $request = app(ConsultationService::class)->request($student, 'Private topic', 'Tomorrow afternoon', null, $profile->slug);
+        $slot = ConsultationSlot::factory()->create(['coach_id' => $profile->user_id]);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$request=\App\Models\ConsultationRequest::findOrFail((int)$argv[1]);$admin=\App\Models\User::findOrFail((int)$argv[2]);$slot=\App\Models\ConsultationSlot::findOrFail((int)$argv[3]);
+\Illuminate\Support\Facades\DB::listen(function($query){if(str_contains($query->sql,'roles') && in_array('admin',$query->bindings,true)){echo "CHECKED\n";flush();}});
+try{app(\App\Services\ConsultationService::class)->book($request->student,$slot,$request->topic,$request,$admin,1);echo 'BOOKED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $request->id, (string) $admin->id, (string) $slot->id], base_path(), null, null, 20);
+        DB::transaction(function () use ($admin, $process) {
+            User::whereKey($admin->id)->lockForUpdate()->firstOrFail();
+            $process->start();
+            $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'CHECKED')));
+            $admin->roles()->detach();
+        });
+        $process->wait();
+        $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+        $this->assertStringEndsWith('403', $process->getOutput());
+        $this->assertSame(0, Consultation::count());
+        $this->assertFalse($slot->fresh()->booked);
+        $this->assertSame('pending', $request->fresh()->status);
     }
 }

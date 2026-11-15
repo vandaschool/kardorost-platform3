@@ -67,7 +67,9 @@ class ConsultationService
         abort_unless($actor->id === $student->id || $actor->hasRole('admin'), 403);
 
         return DB::transaction(function () use ($student, $slot, $topic, $request, $actor, $version, $grantId) {
-            $this->people([$student->id, $slot->coach_id]);
+            $this->people([$student->id, $slot->coach_id, $actor->id]);
+            $actor = User::findOrFail($actor->id);
+            abort_unless($actor->is_active && ($actor->id === $student->id || $actor->hasRole('admin')), 403);
             if ($request) {
                 $request = ConsultationRequest::whereKey($request->id)->lockForUpdate()->firstOrFail();
                 if ($request->student_id !== $student->id || $request->status !== 'pending' || $request->version !== $version) {
@@ -76,6 +78,9 @@ class ConsultationService
                 $grantId = $request->consultation_grant_id;
             }
             $slot = ConsultationSlot::whereKey($slot->id)->lockForUpdate()->firstOrFail();
+            if ($request?->requested_coach_id && $request->requested_coach_id !== $slot->coach_id) {
+                $this->fail('دانشجو این درخواست را برای مربی مشخصی ثبت کرده است؛ زمان همان مربی را انتخاب کنید.');
+            }
             app(ConsultationBilling::class)->expireLockedSlot($slot);
             $coach = $slot->coach;
             $student->refresh();
@@ -107,19 +112,31 @@ class ConsultationService
         }, 3);
     }
 
-    public function request(User $student, string $topic, string $availability, ?int $grantId = null): ConsultationRequest
+    public function request(User $student, string $topic, string $availability, ?int $grantId = null, ?string $mentorSlug = null): ConsultationRequest
     {
         abort_unless($student->hasRole('student'), 403);
 
-        return DB::transaction(function () use ($student, $topic, $availability, $grantId) {
-            $this->people([$student->id]);
+        $profile = $mentorSlug ? app(CoachProfiles::class)->visible()->where('slug', $mentorSlug)->firstOrFail() : null;
+
+        return DB::transaction(function () use ($student, $topic, $availability, $grantId, $profile) {
+            $this->people(array_filter([$student->id, $profile?->user_id]));
+            $student = User::findOrFail($student->id);
+            abort_unless($student->is_active && $student->phone_verified_at && $student->hasRole('student'), 403);
+            $profile = $profile ? app(CoachProfiles::class)->visible()->whereKey($profile->id)->firstOrFail() : null;
+            if ($profile?->user_id === $student->id) {
+                $this->fail('درخواست مشاوره با خودتان مجاز نیست.');
+            }
             if (ConsultationRequest::where('student_id', $student->id)->where('status', 'pending')->exists()) {
                 $this->fail('یک درخواست باز دارید؛ نتیجه همان درخواست را پیگیری کنید.');
             }
             if ($grantId) {
-                app(ConsultationPackages::class)->forRequest($student, $grantId);
+                $grant = app(ConsultationPackages::class)->forRequest($student, $grantId);
+                if ($profile && $grant->coach_id !== $profile->user_id) {
+                    $this->fail('سهمیه انتخاب‌شده متعلق به مربی درخواستی نیست.');
+                }
             }
-            $item = ConsultationRequest::create(['consultation_grant_id' => $grantId, 'student_id' => $student->id, 'topic' => $topic, 'availability' => $availability]);
+            $mentor = $profile ? ['slug' => $profile->slug, 'display_name' => $profile->currentPublication->definition['display_name'], 'publication_id' => $profile->current_publication_id] : null;
+            $item = ConsultationRequest::create(['requested_coach_id' => $profile?->user_id, 'requested_mentor' => $mentor, 'consultation_grant_id' => $grantId, 'student_id' => $student->id, 'topic' => $topic, 'availability' => $availability]);
             $this->audit($student, 'consultation.requested', 'consultation_request', $item->id);
 
             return $item;

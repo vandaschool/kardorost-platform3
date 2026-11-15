@@ -16,6 +16,7 @@ use App\Services\MediaUrl;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -26,21 +27,39 @@ class ConsultationController extends Controller
         $u = $r->user();
         $mode = $r->query('view', $u->hasRole('student') ? 'student' : ($u->hasRole('coach') ? 'coach' : 'admin'));
         abort_unless(in_array($mode, ['student', 'coach', 'admin'], true) && $u->hasRole($mode), 403);
-        $filter = $r->validate(['mentor' => 'nullable|uuid']);
+        $filter = $r->validate(['mentor' => 'nullable|uuid', 'coordination_request' => 'nullable|integer|min:1']);
         $mentor = $mode === 'student' && ! empty($filter['mentor']) ? app(CoachProfiles::class)->visible()->where('slug', $filter['mentor'])->firstOrFail() : null;
-        $mentorFilter = $mentor ? ['slug' => $mentor->slug, 'display_name' => $mentor->currentPublication->definition['display_name']] : null;
+        $mentorFilter = $mentor ? ['slug' => $mentor->slug, 'display_name' => $mentor->currentPublication->definition['display_name'], 'coach_id' => $mentor->user_id] : null;
+        $coordination = $mode === 'admin' && ! empty($filter['coordination_request']) ? ConsultationRequest::with('grant:id,coach_id,session_minutes,title')->findOrFail($filter['coordination_request']) : null;
+        $coordinationFilter = $coordination ? ['id' => $coordination->id, 'requested_coach_name' => $coordination->requested_mentor['display_name'] ?? null] : null;
         Consultation::where('status', 'pending_payment')->where('expires_at', '<=', now())->when($mode === 'student', fn ($q) => $q->where('student_id', $u->id))->when($mode === 'coach', fn ($q) => $q->whereHas('slot', fn ($s) => $s->where('coach_id', $u->id)))->select('consultation_slot_id')->distinct()->get()->each(fn ($c) => app(ConsultationBilling::class)->expire($c->consultation_slot_id));
-        $slots = ConsultationSlot::with('coach:id,name,is_active')->when($mentor, fn ($query) => $query->where('coach_id', $mentor->user_id))->when($mode === 'student', fn ($q) => $q->where('published', true)->where(fn ($q) => $q->where('booked', false)->orWhere(fn ($q) => $q->whereHas('consultations', fn ($c) => $c->where('status', 'pending_payment')->where('expires_at', '<=', now()))->whereDoesntHave('consultations', fn ($c) => $c->where('status', 'confirmed')->orWhere(fn ($c) => $c->where('status', 'pending_payment')->where('expires_at', '>', now())))))->where('starts_at', '>', now())->whereHas('coach', fn ($c) => $c->where('is_active', true)->whereHas('roles', fn ($role) => $role->where('key', 'coach'))))->when($mode === 'coach', fn ($q) => $q->where('coach_id', $u->id))->orderBy('starts_at')->paginate(12, ['*'], 'slots_page')->withQueryString();
+        $slots = ConsultationSlot::with('coach:id,name,is_active')->when($coordination, function ($query) use ($coordination) {
+            $query->where('published', true)->where('booked', false)->where('starts_at', '>', now())->whereHas('coach', fn ($coach) => $coach->where('is_active', true)->whereHas('roles', fn ($role) => $role->where('key', 'coach')));
+            if ($coordination->status !== 'pending') {
+                $query->whereRaw('1 = 0');
+            }
+            if ($coordination->requested_coach_id) {
+                $query->where('coach_id', $coordination->requested_coach_id);
+            }
+            if ($coordination->grant) {
+                $query->where('coach_id', $coordination->grant->coach_id)->where('price', '>', 0);
+                if (DB::connection()->getDriverName() === 'pgsql') {
+                    $query->whereRaw('EXTRACT(EPOCH FROM (ends_at - starts_at)) = ?', [$coordination->grant->session_minutes * 60]);
+                } else {
+                    $query->whereRaw("CAST(strftime('%s', ends_at) AS INTEGER) - CAST(strftime('%s', starts_at) AS INTEGER) = ?", [$coordination->grant->session_minutes * 60]);
+                }
+            }
+        })->when($mentor, fn ($query) => $query->where('coach_id', $mentor->user_id))->when($mode === 'student', fn ($q) => $q->where('published', true)->where(fn ($q) => $q->where('booked', false)->orWhere(fn ($q) => $q->whereHas('consultations', fn ($c) => $c->where('status', 'pending_payment')->where('expires_at', '<=', now()))->whereDoesntHave('consultations', fn ($c) => $c->where('status', 'confirmed')->orWhere(fn ($c) => $c->where('status', 'pending_payment')->where('expires_at', '>', now())))))->where('starts_at', '>', now())->whereHas('coach', fn ($c) => $c->where('is_active', true)->whereHas('roles', fn ($role) => $role->where('key', 'coach'))))->when($mode === 'coach', fn ($q) => $q->where('coach_id', $u->id))->orderBy('starts_at')->paginate(12, ['*'], 'slots_page')->withQueryString();
         $grants = $mode === 'student' ? ConsultationGrant::where('student_id', $u->id)->where('active', true)->where('valid_until', '>=', now()->toDateString())->with('coach:id,name', 'courseBenefit', 'packagePurchase')->withCount(['uses as spent_count' => fn ($query) => $query->whereNull('released_at')])->get()->filter(fn ($grant) => $grant->remaining() > 0)->values() : collect();
         $slots->through(fn ($s) => [...$s->only('id', 'coach_id', 'starts_at', 'ends_at', 'provider', 'published', 'booked', 'price'), 'coach_name' => $mentorFilter['display_name'] ?? $s->coach->name, 'meeting_url' => $mode === 'student' ? null : $s->meeting_url, 'grant_ids' => $grants->filter(fn ($grant) => app(ConsultationPackages::class)->matches($grant, $s))->pluck('id')->values()]);
         $items = Consultation::with(['slot.coach:id,name', 'student:id,name', 'grant:id,title'])->when($mode === 'student', fn ($q) => $q->where('student_id', $u->id))->when($mode === 'coach', fn ($q) => $q->whereHas('slot', fn ($s) => $s->where('coach_id', $u->id)))->orderByDesc('id')->paginate(12, ['*'], 'bookings_page')->withQueryString();
         $items->through(fn ($c) => [...$c->only('id', 'status', 'version', 'topic', 'shared_summary', 'cancellation_reason', 'amount', 'expires_at', 'refund_status'), 'package_title' => $c->grant?->title, 'listed_amount' => $c->listed_amount ?? $c->amount, 'student_name' => $c->student->name, 'coach_name' => $c->slot->coach->name, 'starts_at' => $c->slot->starts_at, 'ends_at' => $c->slot->ends_at, 'can_join' => $c->status === 'confirmed' && $c->slot->meeting_url && $c->slot->starts_at->subMinutes(15)->lte(now()) && $c->slot->ends_at->gt(now()), 'can_pay' => $mode === 'student' && $c->status === 'pending_payment' && $c->expires_at?->gt(now()) && ! Payment::where('consultation_id', $c->id)->where('status', 'review_required')->exists(), 'can_cancel' => in_array($c->status, ['confirmed', 'pending_payment'], true) && $c->slot->starts_at->gt(now()), 'can_finish' => $mode !== 'student' && $c->status === 'confirmed' && $c->slot->ends_at->lte(now())]);
-        $requests = $mode === 'coach' ? null : ConsultationRequest::with('student:id,name', 'grant:id,title,coach_id,session_minutes')->when($mode === 'student', fn ($q) => $q->where('student_id', $u->id))->orderByDesc('id')->paginate(12, ['*'], 'requests_page')->withQueryString();
+        $requests = $mode === 'coach' ? null : ConsultationRequest::when($coordination, fn ($query) => $query->whereKey($coordination->id))->with('student:id,name', 'grant:id,title,coach_id,session_minutes')->when($mode === 'student', fn ($q) => $q->where('student_id', $u->id))->orderByDesc('id')->paginate(12, ['*'], 'requests_page', $coordination ? 1 : null)->withQueryString();
         if ($requests) {
-            $requests->through(fn ($c) => [...$c->only('id', 'topic', 'availability', 'status', 'version', 'resolution', 'consultation_id', 'created_at', 'consultation_grant_id'), 'package_title' => $c->grant?->title, 'package_coach_id' => $c->grant?->coach_id, 'package_minutes' => $c->grant?->session_minutes, 'student_name' => $c->student->name]);
+            $requests->through(fn ($c) => [...$c->only('id', 'topic', 'availability', 'status', 'version', 'resolution', 'consultation_id', 'created_at', 'consultation_grant_id', 'requested_coach_id'), 'requested_mentor' => $c->requested_mentor ? array_intersect_key($c->requested_mentor, array_flip(['slug', 'display_name'])) : null, 'package_title' => $c->grant?->title, 'package_coach_id' => $c->grant?->coach_id, 'package_minutes' => $c->grant?->session_minutes, 'student_name' => $c->student->name]);
         }
 
-        return Inertia::render('Consultations', ['role' => $mode, 'mentor_filter' => $mentorFilter, 'grants' => $grants->map(fn ($grant) => app(ConsultationGrantController::class)->data($grant)), 'slots' => $slots, 'bookings' => $items, 'requests' => $requests, 'gateway_enabled' => (bool) config('platform.zibal.enabled') && (bool) config('platform.zibal.merchant'), 'coaches' => $mode === 'admin' ? User::where('is_active', true)->whereHas('roles', fn ($q) => $q->where('key', 'coach'))->get(['id', 'name']) : []]);
+        return Inertia::render('Consultations', ['role' => $mode, 'coordination_filter' => $coordinationFilter, 'mentor_filter' => $mentorFilter, 'grants' => $grants->map(fn ($grant) => app(ConsultationGrantController::class)->data($grant)), 'slots' => $slots, 'bookings' => $items, 'requests' => $requests, 'gateway_enabled' => (bool) config('platform.zibal.enabled') && (bool) config('platform.zibal.merchant'), 'coaches' => $mode === 'admin' ? User::where('is_active', true)->whereHas('roles', fn ($q) => $q->where('key', 'coach'))->get(['id', 'name']) : []]);
     }
 
     public function slot(Request $r, ConsultationService $service, MediaUrl $media): RedirectResponse
@@ -71,8 +90,8 @@ class ConsultationController extends Controller
 
     public function request(Request $r, ConsultationService $service): RedirectResponse
     {
-        $d = $r->validate(['topic' => 'required|string|min:3|max:3000', 'availability' => 'required|string|min:3|max:1500', 'grant_id' => 'nullable|integer|min:1']);
-        $service->request($r->user(), $d['topic'], $d['availability'], isset($d['grant_id']) ? (int) $d['grant_id'] : null);
+        $d = $r->validate(['topic' => 'required|string|min:3|max:3000', 'availability' => 'required|string|min:3|max:1500', 'grant_id' => 'nullable|integer|min:1', 'mentor' => 'nullable|uuid']);
+        $service->request($r->user(), $d['topic'], $d['availability'], isset($d['grant_id']) ? (int) $d['grant_id'] : null, $d['mentor'] ?? null);
 
         return back()->with('success', 'درخواست هماهنگی ثبت شد؛ نتیجه در همین صفحه اعلام می‌شود.');
     }
