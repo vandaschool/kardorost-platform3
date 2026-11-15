@@ -30,6 +30,16 @@ class ContentPage extends Model
         return $this->hasOne(ContentPublication::class)->latestOfMany('number');
     }
 
+    public function schedules(): HasMany
+    {
+        return $this->hasMany(ContentSchedule::class);
+    }
+
+    public function pendingSchedule(): HasOne
+    {
+        return $this->hasOne(ContentSchedule::class)->ofMany(['id' => 'max'], fn ($query) => $query->where('status', 'pending'));
+    }
+
     public function publicPath(): string
     {
         return match ($this->kind) {

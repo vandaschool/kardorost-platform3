@@ -25,6 +25,7 @@ use App\Models\ContactLead;
 use App\Models\ContactLeadEvent;
 use App\Models\ContentPage;
 use App\Models\ContentPublication;
+use App\Models\ContentSchedule;
 use App\Models\Course;
 use App\Models\CourseCertificate;
 use App\Models\CourseDiscussion;
@@ -361,6 +362,9 @@ CODE;
             DB::table('resume_checks')->delete();
             DB::table('resume_versions')->delete();
             DB::table('career_resumes')->delete();
+        }
+        if (Schema::hasTable('content_schedules')) {
+            DB::table('content_schedules')->delete();
         }
         if (Schema::hasTable('content_publications')) {
             DB::table('content_publications')->delete();
@@ -2444,5 +2448,90 @@ CODE;
         $this->assertSame(1, ContactLeadEvent::count());
         $this->assertSame(1, AuditEvent::where('action', 'contact_lead.follow_up')->count());
         $this->assertEquals($original, $lead->fresh()->only('name', 'phone', 'message', 'consented_at'));
+    }
+
+    public function test_two_due_content_processes_publish_only_one_approved_snapshot(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Scheduled publication races require PostgreSQL.');
+        }
+        $schedule = ContentSchedule::factory()->create(['scheduled_for' => now()->subMinute()]);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();echo app(\App\Services\ContentPublishing::class)->processSchedule(\App\Models\ContentSchedule::findOrFail((int)$argv[1]));
+CODE;
+        $this->assertSame(['already_handled', 'published'], $this->parallelFinance($code, [[$schedule->id], [$schedule->id]]));
+        $this->assertSame(1, ContentPublication::count());
+        $this->assertSame('published', $schedule->fresh()->status);
+        $this->assertSame($schedule->definition, ContentPublication::sole()->definition);
+        $this->assertSame(3, $schedule->page->fresh()->revision);
+    }
+
+    private function concurrentScheduledContentChange(string $change): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Scheduled publication change races require PostgreSQL.');
+        }
+        $schedule = ContentSchedule::factory()->create(['scheduled_for' => now()->subMinute()]);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$schedule=\App\Models\ContentSchedule::findOrFail((int)$argv[1]);$service=app(\App\Services\ContentPublishing::class);
+if($argv[2]==='process'){echo $service->processSchedule($schedule);}else{try{if($argv[2]==='edit'){$service->draft($schedule->author,$schedule->page,2,[...$schedule->page->draft,'title'=>'Concurrent changed draft']);}else{$service->cancelSchedule($schedule->author,$schedule->page,2,$schedule);}echo 'changed';}catch(\Illuminate\Validation\ValidationException){echo 'stale';}}
+CODE;
+        $results = $this->parallelFinance($code, [[$schedule->id, 'process'], [$schedule->id, $change]]);
+        $this->assertContains($results, [['already_handled', 'changed'], ['published', 'stale']]);
+        $schedule->refresh();
+        $this->assertSame($schedule->status === 'published' ? 1 : 0, ContentPublication::count());
+        $this->assertSame(3, $schedule->page->revision);
+        if ($schedule->status === 'published') {
+            $this->assertSame($schedule->definition, ContentPublication::sole()->definition);
+        } else {
+            $this->assertSame('cancelled', $schedule->status);
+        }
+    }
+
+    public function test_due_content_publication_and_draft_edit_cannot_overwrite_the_same_revision(): void
+    {
+        $this->concurrentScheduledContentChange('edit');
+    }
+
+    public function test_due_content_publication_and_cancellation_cannot_both_finish(): void
+    {
+        $this->concurrentScheduledContentChange('cancel');
+    }
+
+    private function scheduledContentAfterAccountChange(bool $revoke): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Scheduled publication authorization races require PostgreSQL.');
+        }
+        $schedule = ContentSchedule::factory()->create(['scheduled_for' => now()->subMinute()]);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$schedule=\App\Models\ContentSchedule::findOrFail((int)$argv[1]);echo "READY\n";flush();echo app(\App\Services\ContentPublishing::class)->processSchedule($schedule);
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $schedule->id], base_path(), null, null, 20);
+        DB::transaction(function () use ($schedule, $process, $revoke) {
+            $author = User::whereKey($schedule->created_by)->lockForUpdate()->firstOrFail();
+            $process->start();
+            $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'READY')));
+            if ($revoke) {
+                $author->roles()->detach();
+            } else {
+                $author->forceFill(['is_active' => false])->save();
+            }
+        });
+        $process->wait();
+        $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+        $this->assertSame("READY\nblocked", $process->getOutput());
+        $this->assertSame('author_ineligible', $schedule->fresh()->reason);
+        $this->assertSame(0, ContentPublication::count());
+    }
+
+    public function test_waiting_scheduled_content_rechecks_concurrent_admin_role_revocation(): void
+    {
+        $this->scheduledContentAfterAccountChange(true);
+    }
+
+    public function test_waiting_scheduled_content_rechecks_concurrent_author_deactivation(): void
+    {
+        $this->scheduledContentAfterAccountChange(false);
     }
 }

@@ -2,6 +2,7 @@
 import { Head, Link, useForm } from "@inertiajs/vue3";
 import Shell from "../Layouts/Shell.vue";
 import Pagination from "../Components/Pagination.vue";
+import { dateTime } from "../dates";
 const props = defineProps({ pages: Object });
 const form = useForm({
     kind: "article",
@@ -116,6 +117,9 @@ function create() {
                     {{
                         page.available ? "نمایش عمومی فعال" : "نمایش عمومی بسته"
                     }}
+                </p>
+                <p v-if="page.scheduled_for">
+                    انتشار برنامه‌ریزی‌شده: {{ dateTime(page.scheduled_for) }}
                 </p>
                 <bdi>{{ page.public_path }}</bdi>
                 <div class="action-row">
