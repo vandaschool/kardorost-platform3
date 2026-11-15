@@ -19,6 +19,7 @@ use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\LearningController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OperationalReportController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\OrganizationInvitationController;
 use App\Http\Controllers\OrganizationInvoiceController;
@@ -191,6 +192,8 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/organization/members/{member}', [OrganizationController::class, 'report']);
     });
     Route::middleware('panel.role:admin')->group(function () {
+        Route::get('/admin/reports', [OperationalReportController::class, 'index'])->name('admin.reports');
+        Route::get('/admin/reports/export', [OperationalReportController::class, 'export'])->middleware('throttle:10,1')->name('admin.reports.export');
         Route::get('/admin/communications', [CommunicationController::class, 'index'])->name('admin.communications');
         Route::post('/admin/communications/{delivery}/query', [CommunicationController::class, 'retry'])->middleware('throttle:20,1');
         Route::get('/admin/content', [ContentController::class, 'index'])->name('admin.content');
