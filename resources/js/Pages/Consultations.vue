@@ -1,5 +1,6 @@
 <script setup>
 import { Head, Link, useForm, usePage } from "@inertiajs/vue3";
+import { computed, nextTick, watch } from "vue";
 import Shell from "../Layouts/Shell.vue";
 import Pagination from "../Components/Pagination.vue";
 import JalaliDateInput from "../Components/JalaliDateInput.vue";
@@ -18,6 +19,25 @@ const props = defineProps({
     gateway_enabled: Boolean,
 });
 const page = usePage();
+const focusedBooking = computed(() => {
+    const value = new URL(page.url, "http://localhost").searchParams.get(
+        "focus",
+    );
+    return value && /^[1-9][0-9]*$/.test(value) ? value : null;
+});
+watch(
+    focusedBooking,
+    async (id) => {
+        if (!id) return;
+        await nextTick();
+        requestAnimationFrame(() => {
+            document
+                .getElementById("consultation-" + id)
+                ?.scrollIntoView({ block: "center" });
+        });
+    },
+    { immediate: true, flush: "post" },
+);
 const request = useForm({ topic: "", availability: "", grant_id: "" });
 const slot = useForm({
     coach_id: props.role === "coach" ? page.props.auth.user.id : "",
@@ -225,8 +245,12 @@ const labels = {
                 <article
                     v-for="b in bookings.data"
                     :data-booking-id="b.id"
+                    :id="'consultation-' + b.id"
                     :key="b.id"
                     class="panel glass consultation-card"
+                    :class="{
+                        'reminder-focused': String(b.id) === focusedBooking,
+                    }"
                 >
                     <span class="status-badge">{{ labels[b.status] }}</span>
                     <h3>{{ b.coach_name }} · {{ b.student_name }}</h3>
@@ -319,3 +343,11 @@ const labels = {
         </section>
     </Shell>
 </template>
+
+<style scoped>
+.reminder-focused {
+    outline: 2px solid var(--teal);
+    outline-offset: 4px;
+    scroll-margin-block: 6rem;
+}
+</style>

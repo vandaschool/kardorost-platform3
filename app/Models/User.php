@@ -13,13 +13,13 @@ class User extends Authenticatable
 
     protected $fillable = ['name', 'phone', 'email', 'password', 'phone_verified_at'];
 
-    protected $attributes = ['is_active' => true];
+    protected $attributes = ['is_active' => true, 'sms_reminders_enabled' => true];
 
     protected $hidden = ['password', 'remember_token'];
 
     protected function casts(): array
     {
-        return ['password' => 'hashed', 'phone_verified_at' => 'datetime', 'is_active' => 'boolean'];
+        return ['password' => 'hashed', 'phone_verified_at' => 'datetime', 'is_active' => 'boolean', 'sms_reminders_enabled' => 'boolean'];
     }
 
     public function roles(): BelongsToMany

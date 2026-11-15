@@ -94,9 +94,10 @@ const menus = computed(() => {
                 ],
             ]),
             item("محتوای سایت", "FileText", "/admin/content"),
-            group("مدیریت دسترسی", "ShieldCheck", [
+            group("مدیریت و عملیات", "ShieldCheck", [
                 ["کاربران", "Users", "/admin/users"],
                 ["سابقه فعالیت", "History", "/admin/activity"],
+                ["پیامک و یادآوری‌ها", "Bell", "/admin/communications"],
             ]),
         ];
     if (props.role === "org_admin")

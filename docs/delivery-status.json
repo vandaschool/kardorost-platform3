@@ -1,5 +1,5 @@
 {
-  "phase": "private-career-resumes-and-grouped-panel-navigation",
+  "phase": "event-reminders-and-account-bound-sms-delivery",
   "completed": [
     "phone-verification",
     "password-login",
@@ -199,17 +199,27 @@
     "five-section-student-navigation",
     "grouped-role-specific-panel-navigation",
     "fixed-support-and-keyboard-menu-closing",
-    "membership-withdrawal-after-role-change"
+    "membership-withdrawal-after-role-change",
+    "eligible-one-time-event-reminders",
+    "personal-sms-reminder-preference",
+    "optional-single-attempt-event-sms",
+    "reminder-class-tab-and-paginated-consultation-focus",
+    "sender-account-bound-rest-delivery-tracking",
+    "durable-leased-delivery-query-history",
+    "delivery-backoff-expiry-and-interrupted-query-recovery",
+    "admin-query-without-sms-resubmission",
+    "scoped-organization-invitation-delivery-status",
+    "provider-reference-origin-collision-quarantine"
   ],
   "tests": {
     "postgresql": {
-      "passed": 581,
-      "assertions": 4641
+      "passed": 624,
+      "assertions": 4914
     },
     "sqlite": {
-      "passed": 503,
-      "skipped": 78,
-      "assertions": 4202
+      "passed": 542,
+      "skipped": 82,
+      "assertions": 4454
     },
     "javascript": {
       "passed": 6
@@ -340,7 +350,12 @@
     "five-section-student-and-grouped-admin-navigation",
     "fixed-support-and-escape-mobile-menu",
     "career-admin-phone-filter-and-mobile-390",
-    "support-and-organization-browser-regression-after-navigation"
+    "support-and-organization-browser-regression-after-navigation",
+    "student-class-and-page-two-consultation-reminder-links",
+    "personal-sms-preference-and-coach-isolation",
+    "synthetic-organization-handset-receipt-status",
+    "admin-readonly-delivery-query-worker-without-provider-access",
+    "communications-mobile-390"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -372,7 +387,7 @@
   "organization_cross_invoice_credit_transfer_complete": false,
   "organization_uncaptured_reference_conflict_resolution_complete": false,
   "organization_invitations_complete": true,
-  "organization_invitation_sms_delivery_complete": false,
+  "organization_invitation_sms_delivery_complete": true,
   "organization_invitation_csv_scope": "utf8_single_phone_column_up_to_100_rows",
   "organization_membership_exit_workflow_complete": true,
   "sms_provider": "melipayamak",
@@ -381,7 +396,7 @@
     "console"
   ],
   "organization_invitation_sms_submission_complete": true,
-  "sms_delivery_receipts_complete": false,
+  "sms_delivery_receipts_complete": true,
   "sms_submission_policy": "one_provider_attempt_per_invitation_revision_no_automatic_ambiguous_retries",
   "consultation_package_purchase_complete": true,
   "automatic_course_consultation_benefits_complete": true,
@@ -417,13 +432,11 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase24_sms_delivery_and_notification_reminders_next",
+    "current_work": "phase24_verified_pending_pr_merge_then_continue_organization_contract_installments",
     "next_groups": [
-      "remaining_purchase_cancellation_refunds",
-      "organization_lifecycle",
-      "public_site_and_cms",
-      "career_resume_and_assessment_extensions",
-      "notifications_and_delivery_reports",
+      "organization_contract_installments_and_lifecycle",
+      "remaining_purchase_cancellation_refunds_awaiting_policy",
+      "career_and_assessment_extensions",
       "reporting_and_gamification",
       "deployment_and_end_to_end_acceptance"
     ],
@@ -465,5 +478,11 @@
   "resume_public_sharing_complete": false,
   "linkedin_assistance_complete": false,
   "career_path_recommendations_complete": false,
-  "panel_navigation_grouped": true
+  "panel_navigation_grouped": true,
+  "sms_delivery_receipts_scope": "documented_rest_getdeliveries2_account_bound_mock_verified_only",
+  "sms_console_delivery_receipts_complete": false,
+  "sms_delivery_live_verified": false,
+  "event_in_app_reminders_complete": true,
+  "event_sms_reminders_complete": true,
+  "event_sms_reminders_scope": "eligible_confirmed_consultation_and_published_live_class_optional_two_argument_pattern"
 }

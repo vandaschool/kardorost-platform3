@@ -14,6 +14,14 @@ const labels = {
     declined: "ردشده توسط فرد",
     revoked: "لغوشده توسط سازمان",
 };
+const deliveryLabels = {
+    pending: "منتظر گزارش تحویل",
+    polling: "در حال استعلام",
+    delivered: "رسیده به گوشی",
+    undelivered: "تحویل انجام نشده",
+    unknown: "نتیجه تحویل نامشخص",
+    unavailable: "گزارش تحویل در دسترس نیست",
+};
 const smsLabels = {
     queued: "در صف ارسال",
     processing: "در حال ارسال",
@@ -56,7 +64,19 @@ function act(action) {
             class="invitation-sms-status"
             role="status"
         >
-            <p>پیامک: {{ smsLabels[invitation.sms.status] }}</p>
+            <p>
+                پیامک:
+                {{
+                    invitation.sms.status === "accepted" &&
+                    invitation.sms.delivery?.status === "delivered"
+                        ? "پذیرفته‌شده توسط سرویس"
+                        : smsLabels[invitation.sms.status]
+                }}
+            </p>
+            <p v-if="invitation.sms.delivery">
+                گزارش تحویل:
+                {{ deliveryLabels[invitation.sms.delivery.status] }}
+            </p>
             <p v-if="invitation.sms.provider_reference" class="muted">
                 شناسه پیگیری پیامک:
                 <bdi>{{ invitation.sms.provider_reference }}</bdi>

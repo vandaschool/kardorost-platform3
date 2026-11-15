@@ -26,6 +26,7 @@ use App\Models\DiscussionPost;
 use App\Models\DiscussionPostRevision;
 use App\Models\Enrollment;
 use App\Models\EnrollmentConsultationBenefit;
+use App\Models\EventReminder;
 use App\Models\Installment;
 use App\Models\InvitationSms;
 use App\Models\LessonProgress;
@@ -44,6 +45,8 @@ use App\Models\RefundEvent;
 use App\Models\ResumeCheck;
 use App\Models\ResumeVersion;
 use App\Models\Role;
+use App\Models\SmsDelivery;
+use App\Models\SmsDeliveryAttempt;
 use App\Models\Submission;
 use App\Models\SupportTicket;
 use App\Models\SurveyPublication;
@@ -308,6 +311,12 @@ CODE;
 
     protected function tearDown(): void
     {
+        if (Schema::hasTable('sms_deliveries')) {
+            DB::table('event_reminders')->delete();
+            DB::table('invitation_sms')->update(['sms_delivery_id' => null]);
+            DB::table('sms_delivery_attempts')->delete();
+            DB::table('sms_deliveries')->delete();
+        }
         if (Schema::hasTable('career_resumes')) {
             DB::table('resume_checks')->delete();
             DB::table('resume_versions')->delete();
@@ -1892,6 +1901,70 @@ CODE;
         $this->assertContains('STALE', $result);
         $this->assertSame(in_array('ARCHIVED', $result, true), $resume->fresh()->archived);
         $this->assertSame(in_array('CREATED', $result, true) ? 1 : 0, ResumeVersion::count());
-        $this->assertSame(2,$resume->fresh()->revision);
+        $this->assertSame(2, $resume->fresh()->revision);
+    }
+
+    public function test_concurrent_delivery_workers_perform_one_authenticated_status_query(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Communication concurrency requires PostgreSQL.');
+        }
+        config(['platform.sms.driver' => 'melipayamak', 'platform.sms.melipayamak.mode' => 'rest', 'platform.sms.melipayamak.username' => 'race-fixture-sender', 'platform.sms.melipayamak.api_key' => 'race-fixture-key']);
+        $delivery = SmsDelivery::factory()->create();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+config(['platform.sms.driver'=>'melipayamak','platform.sms.melipayamak.mode'=>'rest','platform.sms.melipayamak.username'=>'race-fixture-sender','platform.sms.melipayamak.api_key'=>'race-fixture-key','platform.sms.melipayamak.delivery_enabled'=>true]);
+\Illuminate\Support\Facades\Http::preventStrayRequests();\Illuminate\Support\Facades\Http::fake(['https://rest.payamak-panel.com/api/SendSMS/GetDeliveries2'=>function(){usleep(150000);return \Illuminate\Support\Facades\Http::response(['RetStatus'=>1,'Value'=>'1']);}]);
+app(\App\Services\SmsDeliveryService::class)->poll((int)$argv[1],app(\App\Services\MelipayamakClient::class));echo 'CHECKED';
+CODE;
+        $this->assertSame(['CHECKED', 'CHECKED'], $this->parallelFinance($code, [[$delivery->id], [$delivery->id]]));
+        $this->assertSame(1, SmsDeliveryAttempt::count());
+        $this->assertSame('delivered', $delivery->fresh()->status);
+        $this->assertSame(1, $delivery->fresh()->attempts);
+    }
+
+    public function test_concurrent_reminder_generators_create_one_notification_per_occurrence(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Communication concurrency requires PostgreSQL.');
+        }
+        $consultation = Consultation::factory()->create(['consultation_slot_id' => ConsultationSlot::factory()->state(['starts_at' => now()->addMinutes(30), 'ends_at' => now()->addMinutes(90)])]);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();config(['platform.reminders.enabled'=>true,'platform.reminders.lead_minutes'=>60,'platform.sms.melipayamak.reminders_enabled'=>false]);
+echo app(\App\Services\EventReminders::class)->prepare('consultation',(int)$argv[1],(int)$argv[2])?'CREATED':'EXISTING';
+CODE;
+        $this->assertSame(['CREATED', 'EXISTING'], $this->parallelFinance($code, [[$consultation->id, $consultation->student_id], [$consultation->id, $consultation->student_id]]));
+        $this->assertSame(1, EventReminder::count());
+        $this->assertSame(1, $consultation->student->notifications()->count());
+    }
+
+    public function test_concurrent_reminder_workers_attempt_one_sms_submission(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Communication concurrency requires PostgreSQL.');
+        }
+        $reminder = EventReminder::factory()->create();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();config(['platform.reminders.enabled'=>true,'platform.reminders.lead_minutes'=>60,'platform.sms.driver'=>'melipayamak','platform.sms.melipayamak.mode'=>'rest','platform.sms.melipayamak.username'=>'race-fixture-sender','platform.sms.melipayamak.api_key'=>'race-fixture-key','platform.sms.melipayamak.reminder_body_id'=>123,'platform.sms.melipayamak.reminders_enabled'=>true]);
+\Illuminate\Support\Facades\Http::preventStrayRequests();\Illuminate\Support\Facades\Http::fake(['https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber'=>function() use($argv){\App\Models\AuditEvent::create(['action'=>'fixture.sms_http_attempt','subject_type'=>'event_reminder','subject_id'=>(int)$argv[1]]);usleep(150000);return \Illuminate\Support\Facades\Http::response(['RetStatus'=>1,'Value'=>'12345678901234567']);}]);
+app(\App\Services\ReminderSmsService::class)->send((int)$argv[1],app(\App\Services\MelipayamakClient::class),app(\App\Services\EventReminders::class));echo 'DONE';
+CODE;
+        $this->assertSame(['DONE', 'DONE'], $this->parallelFinance($code, [[$reminder->id], [$reminder->id]]));
+        $this->assertSame(1, AuditEvent::where('action', 'fixture.sms_http_attempt')->count());
+        $this->assertSame('accepted', $reminder->fresh()->sms_status);
+        $this->assertSame(1, SmsDelivery::count());
+    }
+
+    public function test_duplicate_provider_reference_registration_cannot_bind_two_message_origins(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Communication concurrency requires PostgreSQL.');
+        }
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+try{app(\App\Services\SmsDeliveryService::class)->register('invitation',(int)$argv[1],'12345678901234567',['mode'=>'rest','fingerprint'=>hash('sha256','same-test-sender')]);echo 'REGISTERED';}catch(\App\Exceptions\SmsFailure){echo 'CONFLICT';}
+CODE;
+        $this->assertSame(['CONFLICT', 'REGISTERED'], $this->parallelFinance($code, [[1], [2]]));
+        $this->assertSame(1, SmsDelivery::count());
     }
 }
