@@ -12,11 +12,11 @@ class CourseCertificate extends Model
 
     protected $guarded = [];
 
-    protected $attributes = ['status' => 'issued', 'revision' => 1];
+    protected $attributes = ['status' => 'issued', 'revision' => 1, 'public_enabled' => false];
 
     protected function casts(): array
     {
-        return ['definition' => 'array', 'evidence' => 'array', 'revision' => 'integer', 'issued_at' => 'datetime', 'revoked_at' => 'datetime'];
+        return ['public_enabled' => 'boolean', 'public_consent_at' => 'datetime', 'public_withdrawn_at' => 'datetime', 'definition' => 'array', 'evidence' => 'array', 'revision' => 'integer', 'issued_at' => 'datetime', 'revoked_at' => 'datetime'];
     }
 
     public function enrollment(): BelongsTo

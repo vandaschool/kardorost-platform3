@@ -1,11 +1,14 @@
 <script setup>
 import { computed, watch } from "vue";
 import { Head, Link, useForm, usePage } from "@inertiajs/vue3";
+import CertificateVisibilityForm from "../Components/CertificateVisibilityForm.vue";
 import Shell from "../Layouts/Shell.vue";
 import { dateTime } from "../dates";
 const props = defineProps({
     admin: Boolean,
     can_request: Boolean,
+    can_manage_visibility: Boolean,
+    visibility_events: Array,
     enrollment: Object,
     course_title: String,
     cohort_title: String,
@@ -98,6 +101,24 @@ const labels = {
             <a :href="certificate.verification_url" class="btn primary"
                 >مشاهده، استعلام و چاپ گواهی</a
             >
+        </section>
+        <CertificateVisibilityForm
+            v-if="certificate && can_manage_visibility"
+            :certificate="certificate"
+        />
+        <section
+            v-if="certificate && visibility_events.length"
+            class="panel glass consultation-card consultation-section"
+        >
+            <h2>آخرین تغییرهای نمایش عمومی</h2>
+            <p v-for="(event, index) in visibility_events" :key="index">
+                {{
+                    event.enabled
+                        ? "نمایش عمومی با رضایت تازه فعال شد"
+                        : "نمایش عمومی بسته شد"
+                }}
+                · {{ dateTime(event.created_at) }}
+            </p>
         </section>
         <section
             v-if="!certificate && definition"

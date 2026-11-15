@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Assignment;
 use App\Models\CertificatePolicy;
 use App\Models\CertificateRequest;
+use App\Models\CertificateVisibilityEvent;
 use App\Models\Cohort;
 use App\Models\CourseCertificate;
 use App\Models\Enrollment;
@@ -20,7 +21,7 @@ class CertificateController extends Controller
 {
     private function certificateData(?CourseCertificate $certificate, Certification $service, bool $admin = false): ?array
     {
-        return $certificate ? [...$service->publicData($certificate), 'id' => $certificate->id, 'revision' => $certificate->revision, 'verification_url' => route('certificates.verify', $certificate->verification_token), ...($admin ? ['revocation_reason' => $certificate->revocation_reason] : [])] : null;
+        return $certificate ? [...$service->publicData($certificate), 'id' => $certificate->id, 'revision' => $certificate->revision, 'public_enabled' => $certificate->public_enabled, 'public_consent_at' => $certificate->public_consent_at, 'public_withdrawn_at' => $certificate->public_withdrawn_at, 'verification_url' => route('certificates.verify', $certificate->verification_token), ...($admin ? ['revocation_reason' => $certificate->revocation_reason] : [])] : null;
     }
 
     public function index(Request $request, Certification $service): Response
@@ -36,11 +37,12 @@ class CertificateController extends Controller
         abort_unless($admin || $enrollment->user_id === $request->user()->id, 403);
         $policy = CertificatePolicy::where('cohort_id', $enrollment->cohort_id)->first();
         $requests = CertificateRequest::where('enrollment_id', $enrollment->id)->latest('id')->get();
+        $issued = CourseCertificate::where('enrollment_id', $enrollment->id)->first();
         $definition = $requests->firstWhere('status', 'pending')?->definition ?? ($policy?->enabled ? $policy->definition : null);
 
         return Inertia::render('EnrollmentCertificate', ['admin' => $admin, 'enrollment' => $enrollment->only('id', 'status'), 'course_title' => $enrollment->course->title, 'cohort_title' => $enrollment->cohort->title, 'recipient_name' => $enrollment->user->name,
-            'can_request' => ! $admin && $request->user()->hasRole('student') && $enrollment->status === 'active', 'policy' => $policy?->enabled ? ['definition' => $policy->definition, 'revision' => $policy->revision] : null, 'definition' => $definition, 'evidence' => $definition ? $service->evidence($enrollment, $definition) : null,
-            'requests' => $requests->map(fn ($row) => [...$row->only('id', 'revision', 'status', 'recipient_name', 'created_at', 'review_note', 'reviewed_at', 'withdrawn_at'), 'can_withdraw' => $row->status === 'pending' && $enrollment->user_id === $request->user()->id]), 'certificate' => $this->certificateData(CourseCertificate::where('enrollment_id', $enrollment->id)->first(), $service, $admin)]);
+            'can_manage_visibility' => $issued && $enrollment->user_id === $request->user()->id, 'visibility_events' => $issued ? CertificateVisibilityEvent::where('course_certificate_id', $issued->id)->latest('id')->limit(20)->get(['enabled', 'revision', 'consented_at', 'created_at']) : [], 'can_request' => ! $admin && $request->user()->hasRole('student') && $enrollment->status === 'active', 'policy' => $policy?->enabled ? ['definition' => $policy->definition, 'revision' => $policy->revision] : null, 'definition' => $definition, 'evidence' => $definition ? $service->evidence($enrollment, $definition) : null,
+            'requests' => $requests->map(fn ($row) => [...$row->only('id', 'revision', 'status', 'recipient_name', 'created_at', 'review_note', 'reviewed_at', 'withdrawn_at'), 'can_withdraw' => $row->status === 'pending' && $enrollment->user_id === $request->user()->id]), 'certificate' => $this->certificateData($issued, $service, $admin)]);
     }
 
     public function withdraw(Request $request, CertificateRequest $application, Certification $service): RedirectResponse
@@ -103,11 +105,23 @@ class CertificateController extends Controller
         return back()->with('success', 'گواهی باطل شد و نتیجه استعلام به‌روز شد.');
     }
 
+    public function visibility(Request $request, CourseCertificate $certificate, Certification $service): RedirectResponse
+    {
+        $data = $request->validate(['revision' => 'required|integer|min:1', 'enabled' => 'required|boolean', 'public_consent' => 'exclude_unless:enabled,true|required|accepted']);
+        $service->visibility($request->user(), $certificate, $data['revision'], (bool) $data['enabled'], (bool) ($data['public_consent'] ?? false));
+
+        return back()->with('success', $data['enabled'] ? 'نمایش عمومی با رضایت تازه فعال شد.' : 'نمایش عمومی بسته شد؛ نسخه خصوصی در حساب شما باقی است.');
+    }
+
     public function verify(Request $request, string $token, Certification $service): \Symfony\Component\HttpFoundation\Response
     {
         abort_unless(preg_match('/^[A-Za-z0-9]{48}$/D', $token), 404);
         $certificate = CourseCertificate::where('verification_token', $token)->firstOrFail();
 
-        return Inertia::render('CertificateVerification', ['certificate' => $service->publicData($certificate), 'verification_url' => route('certificates.verify', $token)])->toResponse($request)->withHeaders(['Cache-Control' => 'private, no-store', 'X-Robots-Tag' => 'noindex, noarchive', 'Referrer-Policy' => 'no-referrer']);
+        $viewer = $request->user()?->fresh();
+        $public = $certificate->public_enabled && $certificate->public_consent_at !== null;
+        abort_unless($public || ($viewer?->is_active && ($viewer->id === $certificate->enrollment->user_id || $viewer->hasRole('admin'))), 404);
+
+        return Inertia::render('CertificateVerification', ['public_enabled' => $public, 'certificate' => $service->publicData($certificate), 'verification_url' => route('certificates.verify', $token)])->toResponse($request)->withHeaders(['Cache-Control' => 'private, no-store', 'X-Robots-Tag' => 'noindex, noarchive', 'Referrer-Policy' => 'no-referrer']);
     }
 }
