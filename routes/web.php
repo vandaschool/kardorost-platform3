@@ -25,6 +25,7 @@ use App\Http\Controllers\PanelController;
 use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\RefundController;
 use App\Http\Controllers\SubmissionController;
+use App\Http\Controllers\SurveyController;
 use App\Http\Controllers\TeachingController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -79,6 +80,9 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::post('/refunds/{refund}/review', [RefundController::class, 'review'])->middleware('panel.role:admin');
     Route::post('/refunds/{refund}/complete', [RefundController::class, 'complete'])->middleware(['panel.role:admin', 'throttle:10,1']);
     Route::get('/assessment-attempts/{attempt}/report', [AssessmentController::class, 'report'])->name('assessments.report');
+    Route::get('/survey-responses/{response}', [SurveyController::class, 'response'])->name('surveys.response');
+    Route::get('/survey-publications/{publication}/report', [SurveyController::class, 'report'])->name('surveys.report');
+    Route::get('/cohorts/{cohort}/survey-reports', [SurveyController::class, 'teaching'])->name('surveys.teaching');
     Route::get('/discussions', [DiscussionController::class, 'hub'])->name('discussions');
     Route::get('/cohorts/{cohort}/discussions', [DiscussionController::class, 'index'])->name('discussions.index');
     Route::post('/cohorts/{cohort}/discussions', [DiscussionController::class, 'create'])->middleware('throttle:15,1');
@@ -100,6 +104,10 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::patch('/account', [PanelController::class, 'updateProfile']);
     Route::patch('/account/password', [PanelController::class, 'changePassword'])->middleware('throttle:5,1');
     Route::middleware('panel.role:student')->group(function () {
+        Route::get('/surveys', [SurveyController::class, 'index'])->name('surveys');
+        Route::post('/survey-publications/{publication}/start', [SurveyController::class, 'start'])->middleware('throttle:15,1');
+        Route::post('/survey-responses/{response}/save', [SurveyController::class, 'save'])->middleware('throttle:60,1')->name('surveys.save');
+        Route::post('/survey-responses/{response}/submit', [SurveyController::class, 'save'])->middleware('throttle:15,1')->name('surveys.submit');
         Route::get('/certificates', [CertificateController::class, 'index'])->name('certificates');
         Route::post('/certificates/enrollments/{enrollment}/request', [CertificateController::class, 'apply'])->middleware('throttle:10,1');
         Route::get('/consultation-packages', [ConsultationProductController::class, 'index'])->name('consultation-packages');
@@ -149,6 +157,13 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/organization/members/{member}', [OrganizationController::class, 'report']);
     });
     Route::middleware('panel.role:admin')->group(function () {
+        Route::get('/admin/surveys', [SurveyController::class, 'admin'])->name('admin.surveys');
+        Route::post('/admin/surveys', [SurveyController::class, 'create']);
+        Route::get('/admin/surveys/{survey}', [SurveyController::class, 'edit'])->name('admin.surveys.edit');
+        Route::patch('/admin/surveys/{survey}/draft', [SurveyController::class, 'draft']);
+        Route::post('/admin/surveys/{survey}/publish', [SurveyController::class, 'publish']);
+        Route::post('/admin/surveys/{survey}/availability', [SurveyController::class, 'availability']);
+        Route::post('/admin/survey-publications/{publication}/receiving', [SurveyController::class, 'receiving']);
         Route::get('/admin/certificates', [CertificateController::class, 'admin'])->name('admin.certificates');
         Route::get('/admin/certificate-policies', [CertificateController::class, 'policies'])->name('admin.certificate-policies');
         Route::patch('/admin/cohorts/{cohort}/certificate-policy', [CertificateController::class, 'configure']);

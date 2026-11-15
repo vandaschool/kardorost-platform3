@@ -18,6 +18,7 @@ use App\Models\ConsultationSlot;
 use App\Models\Course;
 use App\Models\CourseCertificate;
 use App\Models\CourseDiscussion;
+use App\Models\CourseSurvey;
 use App\Models\DiscussionPost;
 use App\Models\DiscussionPostRevision;
 use App\Models\Enrollment;
@@ -39,6 +40,8 @@ use App\Models\Refund;
 use App\Models\RefundEvent;
 use App\Models\Role;
 use App\Models\Submission;
+use App\Models\SurveyPublication;
+use App\Models\SurveyResponse;
 use App\Models\User;
 use App\Services\AssessmentService;
 use App\Services\BillingService;
@@ -296,6 +299,9 @@ CODE;
 
     protected function tearDown(): void
     {
+        if (Schema::hasTable('survey_responses')) {
+            DB::table('survey_responses')->delete();
+        }
         if (Schema::hasTable('course_discussions')) {
             DB::table('course_discussions')->update(['accepted_post_id' => null]);
             DB::table('discussion_post_revisions')->delete();
@@ -1518,5 +1524,73 @@ CODE;
         $this->assertContains('LOCKED', $result);
         $this->assertTrue($discussion->fresh()->locked);
         $this->assertSame(in_array('POSTED', $result, true) ? 2 : 1, DiscussionPost::count());
+    }
+
+    public function test_concurrent_survey_start_returns_one_enrollment_response(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Survey lifecycle races require PostgreSQL.');
+        }
+        $response = SurveyResponse::factory()->create();
+        $publication = $response->publication;
+        $student = $response->enrollment->user;
+        $response->delete();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo app(\App\Services\CourseSurveys::class)->start(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\SurveyPublication::findOrFail((int)$argv[2]))->id;
+CODE;
+        $result = $this->parallelFinance($code, [[$student->id, $publication->id], [$student->id, $publication->id]]);
+        $this->assertSame($result[0], $result[1]);
+        $this->assertSame(1, SurveyResponse::count());
+    }
+
+    public function test_competing_survey_draft_saves_cannot_overwrite_newer_response(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Survey lifecycle races require PostgreSQL.');
+        }
+        $response = SurveyResponse::factory()->create();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$response=\App\Models\SurveyResponse::findOrFail((int)$argv[1]);
+try{app(\App\Services\CourseSurveys::class)->save($response->enrollment->user,$response,1,['quality'=>(int)$argv[2]],false);echo 'SAVED';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['SAVED', 'STALE'], $this->parallelFinance($code, [[$response->id, 1], [$response->id, 5]]));
+        $this->assertSame(2, $response->fresh()->revision);
+        $this->assertContains($response->fresh()->answers['quality'], [1, 5]);
+    }
+
+    public function test_competing_survey_publications_keep_one_immutable_version(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Survey lifecycle races require PostgreSQL.');
+        }
+        $survey = CourseSurvey::factory()->create();
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+try{app(\App\Services\CourseSurveys::class)->publish(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\CourseSurvey::findOrFail((int)$argv[2]),1,null,null);echo 'PUBLISHED';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['PUBLISHED', 'STALE'], $this->parallelFinance($code, [[$admin->id, $survey->id], [$admin->id, $survey->id]]));
+        $this->assertSame(1, SurveyPublication::count());
+        $this->assertSame(1, $survey->fresh()->current_version);
+    }
+
+    public function test_survey_submission_racing_closure_has_one_consistent_outcome(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Survey lifecycle races require PostgreSQL.');
+        }
+        $response = SurveyResponse::factory()->create();
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$response=\App\Models\SurveyResponse::findOrFail((int)$argv[1]);$service=app(\App\Services\CourseSurveys::class);
+if($argv[2]==='close'){$service->receiving(\App\Models\User::findOrFail((int)$argv[3]),$response->publication,1,false);echo 'CLOSED';}else{try{$service->save($response->enrollment->user,$response,1,['quality'=>4],true);echo 'SUBMITTED';}catch(\Illuminate\Validation\ValidationException){echo 'BLOCKED';}}
+CODE;
+        $result = $this->parallelFinance($code, [[$response->id, 'close', $admin->id], [$response->id, 'submit', $admin->id]]);
+        $this->assertContains('CLOSED', $result);
+        $this->assertFalse($response->publication->fresh()->accepting);
+        $this->assertSame(in_array('SUBMITTED', $result, true) ? 'submitted' : 'in_progress', $response->fresh()->status);
     }
 }
