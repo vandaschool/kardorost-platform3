@@ -1,5 +1,5 @@
 {
-  "phase": "immutable-consented-scheduled-public-content",
+  "phase": "mentor-bound-private-consultation-coordination",
   "completed": [
     "phone-verification",
     "password-login",
@@ -301,17 +301,25 @@
     "due-content-current-admin-revision-hash-rechecks",
     "account-page-schedule-serialized-publication-lifecycle",
     "idempotent-actual-time-scheduled-content-publications",
-    "safe-bounded-per-minute-scheduled-content-command"
+    "safe-bounded-per-minute-scheduled-content-command",
+    "student-selected-public-mentor-coordination-request",
+    "encrypted-historical-requested-mentor-snapshot",
+    "server-enforced-requested-coach-booking-identity",
+    "selected-mentor-compatible-consultation-grant-only",
+    "admin-request-focused-compatible-slot-pagination",
+    "selected-request-visible-independent-of-general-pagination",
+    "current-locked-admin-booking-authorization-recheck",
+    "concurrent-selected-mentor-request-exclusion"
   ],
   "tests": {
     "postgresql": {
-      "passed": 835,
-      "assertions": 6641
+      "passed": 857,
+      "assertions": 6800
     },
     "sqlite": {
-      "passed": 723,
-      "skipped": 112,
-      "assertions": 6010
+      "passed": 741,
+      "skipped": 116,
+      "assertions": 6149
     },
     "javascript": {
       "passed": 6
@@ -509,7 +517,14 @@
     "content-schedule-explicit-cancel-and-draft-edit-cancellation-history",
     "unsaved-content-edit-does-not-replace-approved-scheduled-text",
     "actual-wall-clock-due-local-scheduler-publication",
-    "scheduled-content-escaped-text-and-editor-public-320-1440-layouts"
+    "scheduled-content-escaped-text-and-editor-public-320-1440-layouts",
+    "selected-mentor-coordination-and-compatible-package-dropdown",
+    "request-alone-does-not-grant-coach-topic-access",
+    "admin-one-request-compatible-slot-context",
+    "wrong-coach-booking-api-rejection",
+    "coordination-package-consumed-only-at-actual-confirmation",
+    "second-free-mentor-coordination-and-admin-slot-page-two",
+    "mentor-coordination-peer-isolation-and-320-1440-layouts"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -586,7 +601,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase36_verified_ready_for_merge_then_mentor_bound_consultation_coordination",
+    "current_work": "phase37_verified_ready_for_merge_then_deployment_preparation",
     "next_groups": [
       "organization_contract_installments_and_lifecycle",
       "remaining_purchase_cancellation_refunds_awaiting_policy",
@@ -672,12 +687,13 @@
   "contact_leads_auto_create_accounts_or_organizations": false,
   "contact_leads_automated_outbound_messages_complete": false,
   "public_coach_specific_availability_scope": "opaque_current_visible_profile_filter_authenticated_student_direct_slots_only_existing_booking_guards",
-  "mentor_specific_coordination_requests_complete": false,
+  "mentor_specific_coordination_requests_complete": true,
   "public_anonymous_calendar_complete": false,
   "operational_readiness_checks_complete": true,
   "operational_readiness_scope": "configuration_and_local_runtime_only_no_live_provider_or_domain_restore_deployment_acceptance",
   "scheduler_and_queue_heartbeat_probes_complete": true,
   "offserver_backup_complete": false,
   "backup_restore_acceptance_complete": false,
-  "public_scheduled_publishing_scope": "immutable_reviewed_home_article_page_snapshots_tehran_minute_1_minute_to_1_year_fresh_active_admin_at_actual_execution"
+  "public_scheduled_publishing_scope": "immutable_reviewed_home_article_page_snapshots_tehran_minute_1_minute_to_1_year_fresh_active_admin_at_actual_execution",
+  "mentor_specific_coordination_scope": "student_selected_current_public_profile_fixed_coach_encrypted_snapshot_optional_matching_grant_admin_human_agreed_booking"
 }

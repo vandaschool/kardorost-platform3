@@ -1,7 +1,7 @@
 <script setup>
 import { money } from "../finance";
 import { dateTime } from "../dates";
-import { useForm } from "@inertiajs/vue3";
+import { Link, useForm } from "@inertiajs/vue3";
 const props = defineProps({ item: Object, admin: Boolean, slots: Array });
 const form = useForm({ version: props.item.version, reason: "", slot_id: "" });
 function send(action) {
@@ -18,7 +18,15 @@ function send(action) {
             {{ item.package_minutes }} دقیقه. فقط از همین سهمیه و مربی سازگار
             استفاده می‌شود؛ در صورت اتمام مانده، درخواست باز می‌ماند.
         </p>
+        <Link
+            v-if="admin"
+            :href="`/consultations?view=admin&coordination_request=${item.id}`"
+            class="text-link"
+            :data-coordination-slots="item.id"
+            >مشاهده زمان‌های سازگار این درخواست</Link
+        >
         <form
+            data-coordination-schedule
             v-if="admin"
             @submit.prevent="send('schedule')"
             class="stack-form"
@@ -26,6 +34,7 @@ function send(action) {
             <label
                 >زمان توافق‌شده با دانشجو<select
                     v-model="form.slot_id"
+                    name="coordination_slot_id"
                     required
                 >
                     <option value="" disabled>زمان را انتخاب کنید</option>
@@ -33,6 +42,8 @@ function send(action) {
                         v-for="slot in slots.filter(
                             (s) =>
                                 s.published &&
+                                (!item.requested_coach_id ||
+                                    s.coach_id === item.requested_coach_id) &&
                                 (!item.consultation_grant_id ||
                                     (s.coach_id === item.package_coach_id &&
                                         s.price > 0 &&

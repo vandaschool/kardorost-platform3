@@ -18,7 +18,7 @@ class ConsultationRequest extends Model
 
     protected function casts(): array
     {
-        return ['version' => 'integer', 'resolved_at' => 'datetime'];
+        return ['requested_coach_id' => 'integer', 'requested_mentor' => 'encrypted:array', 'version' => 'integer', 'resolved_at' => 'datetime'];
     }
 
     public function student(): BelongsTo

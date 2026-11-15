@@ -93,7 +93,7 @@ class MentorAvailabilityTest extends TestCase
         ConsultationSlot::factory()->create(['coach_id' => $profile->user_id, 'published' => false]);
         ConsultationSlot::factory()->create(['coach_id' => $profile->user_id, 'starts_at' => now()->subHour(), 'ends_at' => now()]);
         ConsultationSlot::factory()->create(['coach_id' => $profile->user_id, 'booked' => true]);
-        $this->actingAs($this->student)->get($this->url($profile))->assertOk()->assertInertia(fn (Assert $p) => $p->where('role', 'student')->where('mentor_filter', ['slug' => $profile->slug, 'display_name' => $profile->currentPublication->definition['display_name']])->has('slots.data', 1)->where('slots.data.0.id', $slot->id)->where('slots.data.0.coach_name', $profile->currentPublication->definition['display_name'])->where('slots.data.0.meeting_url', null)->missing('mentor_filter.phone')->missing('mentor_filter.draft'));
+        $this->actingAs($this->student)->get($this->url($profile))->assertOk()->assertInertia(fn (Assert $p) => $p->where('role', 'student')->where('mentor_filter', ['slug' => $profile->slug, 'display_name' => $profile->currentPublication->definition['display_name'], 'coach_id' => $profile->user_id])->has('slots.data', 1)->where('slots.data.0.id', $slot->id)->where('slots.data.0.coach_name', $profile->currentPublication->definition['display_name'])->where('slots.data.0.meeting_url', null)->missing('mentor_filter.phone')->missing('mentor_filter.draft'));
         Http::assertNothingSent();
     }
 
