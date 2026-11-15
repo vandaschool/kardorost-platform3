@@ -23,6 +23,7 @@ use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\LearningController;
 use App\Http\Controllers\LearningRewardController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OperationalReadinessController;
 use App\Http\Controllers\OperationalReportController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\OrganizationInvitationController;
@@ -207,6 +208,7 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/organization/members/{member}', [OrganizationController::class, 'report']);
     });
     Route::middleware('panel.role:admin')->group(function () {
+        Route::get('/admin/readiness', OperationalReadinessController::class)->name('admin.readiness');
         Route::get('/admin/contact-leads', [ContactLeadController::class, 'admin'])->name('admin.contact-leads');
         Route::get('/admin/contact-leads/{lead}', [ContactLeadController::class, 'admin'])->whereNumber('lead')->name('admin.contact-leads.show');
         Route::post('/admin/contact-leads/{lead}/follow-up', [ContactLeadController::class, 'followUp'])->whereNumber('lead');

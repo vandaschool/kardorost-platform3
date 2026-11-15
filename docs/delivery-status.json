@@ -1,5 +1,5 @@
 {
-  "phase": "public-mentor-specific-direct-consultation-availability",
+  "phase": "private-operational-configuration-and-runtime-readiness",
   "completed": [
     "phone-verification",
     "password-login",
@@ -283,17 +283,26 @@
     "current-visible-mentor-only-direct-slot-filter",
     "mentor-slot-filter-preserved-through-pagination-and-booking",
     "own-booking-and-coordination-history-independent-of-mentor-filter",
-    "closed-or-unknown-mentor-filter-404-no-fallback"
+    "closed-or-unknown-mentor-filter-404-no-fallback",
+    "safe-readonly-full-admin-operational-readiness-report",
+    "safe-json-readiness-command-nonzero-on-blockers",
+    "production-runtime-session-storage-build-and-database-checks",
+    "private-root-public-ancestor-and-symlink-exposure-checks",
+    "required-and-enabled-provider-configuration-checks-without-network",
+    "scheduled-local-heartbeat-probes",
+    "separate-actual-default-and-sms-worker-heartbeats",
+    "stale-expired-future-invalid-heartbeat-rejection",
+    "ready-queue-delay-inspection"
   ],
   "tests": {
     "postgresql": {
-      "passed": 796,
-      "assertions": 6341
+      "passed": 812,
+      "assertions": 6479
     },
     "sqlite": {
-      "passed": 690,
-      "skipped": 106,
-      "assertions": 5746
+      "passed": 705,
+      "skipped": 107,
+      "assertions": 5877
     },
     "javascript": {
       "passed": 6
@@ -480,7 +489,12 @@
     "mentor-only-slots-second-page-and-real-booking",
     "selected-mentor-does-not-hide-own-booking-history",
     "mentor-empty-state-no-other-coach-fallback-and-clear-filter",
-    "mentor-filter-student-only-ui-and-320-1440-layouts"
+    "mentor-filter-student-only-ui-and-320-1440-layouts",
+    "admin-operational-readiness-safe-failure-states",
+    "actual-local-schedule-run-heartbeat-enqueue",
+    "actual-local-default-and-sms-worker-heartbeat-execution",
+    "enqueue-does-not-imply-worker-or-live-provider-acceptance",
+    "readiness-three-role-isolation-and-320-1440-layouts"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -557,7 +571,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase34_verified_ready_for_merge_then_production_configuration_readiness",
+    "current_work": "phase35_verified_ready_for_merge_then_scheduled_public_content",
     "next_groups": [
       "organization_contract_installments_and_lifecycle",
       "remaining_purchase_cancellation_refunds_awaiting_policy",
@@ -644,5 +658,10 @@
   "contact_leads_automated_outbound_messages_complete": false,
   "public_coach_specific_availability_scope": "opaque_current_visible_profile_filter_authenticated_student_direct_slots_only_existing_booking_guards",
   "mentor_specific_coordination_requests_complete": false,
-  "public_anonymous_calendar_complete": false
+  "public_anonymous_calendar_complete": false,
+  "operational_readiness_checks_complete": true,
+  "operational_readiness_scope": "configuration_and_local_runtime_only_no_live_provider_or_domain_restore_deployment_acceptance",
+  "scheduler_and_queue_heartbeat_probes_complete": true,
+  "offserver_backup_complete": false,
+  "backup_restore_acceptance_complete": false
 }
