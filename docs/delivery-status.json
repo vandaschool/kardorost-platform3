@@ -1,5 +1,5 @@
 {
-  "phase": "public-site-and-versioned-content",
+  "phase": "private-career-resumes-and-grouped-panel-navigation",
   "completed": [
     "phone-verification",
     "password-login",
@@ -188,17 +188,28 @@
     "server-rendered-canonical-and-open-graph",
     "published-only-streamed-xml-sitemap",
     "responsive-public-menu-and-theme",
-    "course-entry-resume-after-password-login"
+    "course-entry-resume-after-password-login",
+    "encrypted-private-structured-resume-drafts",
+    "immutable-persian-english-resume-snapshots",
+    "private-browser-print-resume-pdf",
+    "archived-resume-history-preservation",
+    "version-bound-encrypted-structure-keyword-reviews",
+    "documented-exact-job-keyword-comparison",
+    "owner-full-admin-resume-access",
+    "five-section-student-navigation",
+    "grouped-role-specific-panel-navigation",
+    "fixed-support-and-keyboard-menu-closing",
+    "membership-withdrawal-after-role-change"
   ],
   "tests": {
     "postgresql": {
-      "passed": 553,
-      "assertions": 4378
+      "passed": 581,
+      "assertions": 4641
     },
     "sqlite": {
-      "passed": 479,
-      "skipped": 74,
-      "assertions": 3960
+      "passed": 503,
+      "skipped": 78,
+      "assertions": 4202
     },
     "javascript": {
       "passed": 6
@@ -318,7 +329,18 @@
     "cms-draft-does-not-overwrite-public-copy",
     "cms-second-publication-and-restoration",
     "public-escaped-html-and-jalali-date",
-    "public-menu-and-320-390-768-1440-layouts"
+    "public-menu-and-320-390-768-1440-layouts",
+    "private-structured-resume-editor",
+    "immutable-persian-and-english-resume-snapshots",
+    "resume-job-keyword-review",
+    "resume-archive-and-restore",
+    "one-page-a4-fa-en-resume-pdf",
+    "three-page-resume-content-preservation",
+    "english-resume-pdf-text-extraction",
+    "five-section-student-and-grouped-admin-navigation",
+    "fixed-support-and-escape-mobile-menu",
+    "career-admin-phone-filter-and-mobile-390",
+    "support-and-organization-browser-regression-after-navigation"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -395,7 +417,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase23_career_resume_tools_and_simpler_panel_navigation_next",
+    "current_work": "phase24_sms_delivery_and_notification_reminders_next",
     "next_groups": [
       "remaining_purchase_cancellation_refunds",
       "organization_lifecycle",
@@ -429,5 +451,19 @@
   "public_media_library_complete": false,
   "public_rich_text_editor_complete": false,
   "public_scheduled_publishing_complete": false,
-  "public_anonymous_contact_leads_complete": false
+  "public_anonymous_contact_leads_complete": false,
+  "career_resume_builder_complete": true,
+  "career_resume_text_review_complete": true,
+  "career_resume_review_method": "structure_keyword_overlap_v1",
+  "career_resume_print_scope": "private_fa_en_snapshots_browser_print_to_pdf_no_server_file",
+  "career_resume_access_scope": "owner_and_full_admin_only",
+  "career_resume_limit_per_user": 20,
+  "resume_official_ats_score_provided": false,
+  "resume_uploaded_file_analysis_complete": false,
+  "resume_ai_generation_complete": false,
+  "resume_translation_complete": false,
+  "resume_public_sharing_complete": false,
+  "linkedin_assistance_complete": false,
+  "career_path_recommendations_complete": false,
+  "panel_navigation_grouped": true
 }

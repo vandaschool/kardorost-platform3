@@ -211,7 +211,7 @@ class OrganizationMembership
             $actor = $actor->fresh();
             abort_unless($actor->is_active && $actor->phone_verified_at, 403);
             if ($action === 'leave') {
-                abort_unless($actor->id === $member->id && $actor->hasRole('student'), 403);
+                abort_unless($actor->id === $member->id, 403);
             } elseif (! $actor->hasRole('admin')) {
                 $this->manager($actor, $organization);
                 abort_if($action === 'revoke_manager', 403);

@@ -7,6 +7,7 @@ use App\Models\AssessmentAttempt;
 use App\Models\AssessmentVersion;
 use App\Models\Assignment;
 use App\Models\AuditEvent;
+use App\Models\CareerResume;
 use App\Models\CertificateRequest;
 use App\Models\Cohort;
 use App\Models\Consultation;
@@ -40,6 +41,8 @@ use App\Models\PaymentReceipt;
 use App\Models\ReceiptClaim;
 use App\Models\Refund;
 use App\Models\RefundEvent;
+use App\Models\ResumeCheck;
+use App\Models\ResumeVersion;
 use App\Models\Role;
 use App\Models\Submission;
 use App\Models\SupportTicket;
@@ -305,6 +308,11 @@ CODE;
 
     protected function tearDown(): void
     {
+        if (Schema::hasTable('career_resumes')) {
+            DB::table('resume_checks')->delete();
+            DB::table('resume_versions')->delete();
+            DB::table('career_resumes')->delete();
+        }
         if (Schema::hasTable('content_publications')) {
             DB::table('content_publications')->delete();
             DB::table('content_pages')->delete();
@@ -1821,6 +1829,69 @@ try{app(\App\Services\ContentPublishing::class)->create(\App\Models\User::findOr
 CODE;
         $this->assertSame(['CREATED', 'DUPLICATE'], $this->parallelFinance($code, [[$admin->id], [$admin->id]]));
         $this->assertSame(1, ContentPage::count());
-        $this->assertSame(1,AuditEvent::where('action','content.created')->count());
+        $this->assertSame(1, AuditEvent::where('action', 'content.created')->count());
+    }
+
+    public function test_competing_resume_saves_cannot_overwrite_newer_private_data(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Career resume concurrency requires PostgreSQL.');
+        }
+        $resume = CareerResume::factory()->create();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$resume=\App\Models\CareerResume::findOrFail((int)$argv[1]);
+try{app(\App\Services\ResumeBuilder::class)->save($resume->owner,$resume,1,$resume->title,[...$resume->draft,'headline'=>$argv[2]]);echo 'SAVED';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['SAVED', 'STALE'], $this->parallelFinance($code, [[$resume->id, 'First role'], [$resume->id, 'Second role']]));
+        $this->assertSame(2, $resume->fresh()->revision);
+        $this->assertContains($resume->fresh()->draft['headline'], ['First role', 'Second role']);
+    }
+
+    public function test_simultaneous_resume_snapshot_requests_create_one_numbered_version(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Career resume concurrency requires PostgreSQL.');
+        }
+        $resume = CareerResume::factory()->create();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$resume=\App\Models\CareerResume::findOrFail((int)$argv[1]);
+try{app(\App\Services\ResumeBuilder::class)->snapshot($resume->owner,$resume,1);echo 'CREATED';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['CREATED', 'STALE'], $this->parallelFinance($code, [[$resume->id], [$resume->id]]));
+        $this->assertSame(1, ResumeVersion::count());
+        $this->assertSame(1, $resume->fresh()->current_version);
+    }
+
+    public function test_duplicate_resume_reviews_share_one_encrypted_analysis_and_audit(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Career resume concurrency requires PostgreSQL.');
+        }
+        $version = ResumeVersion::factory()->create();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$version=\App\Models\ResumeVersion::findOrFail((int)$argv[1]);
+echo app(\App\Services\ResumeTextReview::class)->check($version->resume->owner,$version,'Laravel SQL employer')->id;
+CODE;
+        $result = $this->parallelFinance($code, [[$version->id], [$version->id]]);
+        $this->assertSame($result[0], $result[1]);
+        $this->assertSame(1, ResumeCheck::count());
+        $this->assertSame(1, AuditEvent::where('action', 'resume.text_reviewed')->count());
+    }
+
+    public function test_resume_archiving_racing_snapshot_has_one_consistent_winning_revision(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Career resume concurrency requires PostgreSQL.');
+        }
+        $resume = CareerResume::factory()->create();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$resume=\App\Models\CareerResume::findOrFail((int)$argv[1]);$service=app(\App\Services\ResumeBuilder::class);
+try{if($argv[2]==='archive'){$service->archive($resume->owner,$resume,1,true);echo 'ARCHIVED';}else{$service->snapshot($resume->owner,$resume,1);echo 'CREATED';}}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $result = $this->parallelFinance($code, [[$resume->id, 'archive'], [$resume->id, 'snapshot']]);
+        $this->assertContains('STALE', $result);
+        $this->assertSame(in_array('ARCHIVED', $result, true), $resume->fresh()->archived);
+        $this->assertSame(in_array('CREATED', $result, true) ? 1 : 0, ResumeVersion::count());
+        $this->assertSame(2,$resume->fresh()->revision);
     }
 }
