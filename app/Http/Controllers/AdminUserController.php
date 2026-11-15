@@ -20,6 +20,7 @@ class AdminUserController extends Controller
             throw ValidationException::withMessages(['roles' => 'نمی‌توانید دسترسی مدیریت یا فعالیت حساب خودتان را حذف کنید.']);
         }
         DB::transaction(function () use ($user, $data, $request) {
+            $user = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
             $user->roles()->sync(Role::whereIn('key', $data['roles'])->pluck('id'));
             $user->forceFill(['is_active' => $data['is_active']])->save();
             if (! $data['is_active']) {

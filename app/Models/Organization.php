@@ -14,6 +14,6 @@ class Organization extends Model
 
     public function members(): BelongsToMany
     {
-        return $this->belongsToMany(User::class)->withPivot('kind')->withTimestamps();
+        return $this->belongsToMany(User::class)->using(OrganizationMember::class)->withPivot('kind', 'membership_key')->withTimestamps();
     }
 }

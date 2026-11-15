@@ -1672,4 +1672,71 @@ CODE;
         $this->assertSame(2, $ticket->fresh()->revision);
         $this->assertSame(1, TicketEvent::count());
     }
+
+    public function test_simultaneous_membership_exit_records_one_departure(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Membership lifecycle concurrency requires PostgreSQL.');
+        }
+        $organization = Organization::factory()->create();
+        $student = User::factory()->create();
+        $student->roles()->attach(Role::where('key', 'student')->value('id'));
+        $organization->members()->attach($student->id, ['kind' => 'member']);
+        $key = $organization->members()->firstOrFail()->pivot->membership_key;
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$user=\App\Models\User::findOrFail((int)$argv[1]);
+try{app(\App\Services\OrganizationMembership::class)->endMembership($user,\App\Models\Organization::findOrFail((int)$argv[2]),$user,$argv[3],'Exit consent','leave');echo 'LEFT';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['LEFT', 'STALE'], $this->parallelFinance($code, [[$student->id, $organization->id, $key], [$student->id, $organization->id, $key]]));
+        $this->assertSame(0, $organization->members()->count());
+        $this->assertSame(1, AuditEvent::where('action', 'organization_membership.leave')->count());
+    }
+
+    public function test_competing_manager_revocations_preserve_one_current_usable_manager(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Membership lifecycle concurrency requires PostgreSQL.');
+        }
+        $organization = Organization::factory()->create();
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $managers = User::factory()->count(2)->create();
+        foreach ($managers as $manager) {
+            $manager->roles()->attach(Role::where('key', 'org_admin')->value('id'));
+            $organization->members()->attach($manager->id, ['kind' => 'manager']);
+        }
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+try{app(\App\Services\OrganizationMembership::class)->endMembership(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\Organization::findOrFail((int)$argv[2]),\App\Models\User::findOrFail((int)$argv[3]),$argv[4],'Replace manager','revoke_manager');echo 'REVOKED';}catch(\Illuminate\Validation\ValidationException){echo 'BLOCKED';}
+CODE;
+        $args = $organization->members()->get()->map(fn ($manager) => [$admin->id, $organization->id, $manager->id, $manager->pivot->membership_key])->all();
+        $this->assertSame(['BLOCKED', 'REVOKED'], $this->parallelFinance($code, $args));
+        $this->assertSame(1, $organization->members()->wherePivot('kind', 'manager')->count());
+        $this->assertSame(1, AuditEvent::where('action', 'organization_membership.revoke_manager')->count());
+    }
+
+    public function test_group_enrollment_racing_departure_never_restores_membership_or_loses_ledger(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Membership lifecycle concurrency requires PostgreSQL.');
+        }
+        $license = OrganizationLicense::factory()->create();
+        $organization = $license->organization;
+        $manager = User::factory()->create();
+        $manager->roles()->attach(Role::where('key', 'org_admin')->value('id'));
+        $student = User::factory()->create();
+        $student->roles()->attach(Role::where('key', 'student')->value('id'));
+        $organization->members()->attach($manager->id, ['kind' => 'manager']);
+        $organization->members()->attach($student->id, ['kind' => 'member']);
+        $key = $organization->members()->where('users.id', $student->id)->firstOrFail()->pivot->membership_key;
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$license=\App\Models\OrganizationLicense::findOrFail((int)$argv[1]);$student=\App\Models\User::findOrFail((int)$argv[2]);
+if($argv[3]==='leave'){app(\App\Services\OrganizationMembership::class)->endMembership($student,$license->organization,$student,$argv[5],'Leave organization','leave');echo 'LEFT';}else{try{app(\App\Services\OrganizationEnrollment::class)->enroll(\App\Models\User::findOrFail((int)$argv[4]),$license->organization,$license,1,[$student->id]);echo 'ENROLLED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException|\Illuminate\Validation\ValidationException){echo 'BLOCKED';}}
+CODE;
+        $result = $this->parallelFinance($code, [[$license->id, $student->id, 'leave', $manager->id, $key], [$license->id, $student->id, 'enroll', $manager->id, $key]]);
+        $this->assertContains('LEFT', $result);
+        $this->assertFalse($organization->members()->where('users.id', $student->id)->exists());
+        $this->assertSame(in_array('ENROLLED', $result, true) ? 1 : 0, OrganizationSeat::count());
+        $this->assertSame(OrganizationSeat::count(), Enrollment::where('user_id', $student->id)->where('status', 'active')->count());
+    }
 }

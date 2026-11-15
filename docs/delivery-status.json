@@ -1,5 +1,5 @@
 {
-  "phase": "private-support-and-educational-communication",
+  "phase": "organization-membership-and-manager-lifecycle",
   "completed": [
     "phone-verification",
     "password-login",
@@ -167,17 +167,27 @@
     "versioned-ticket-resolution-and-assignment",
     "idempotent-support-message-submission",
     "support-upload-rollback-cleanup",
-    "legacy-and-object-pagination-compatibility"
+    "legacy-and-object-pagination-compatibility",
+    "student-organization-membership-departure",
+    "selected-manager-member-removal",
+    "membership-generation-stale-form-protection",
+    "departed-invitation-replay-invalidation",
+    "fresh-consent-for-organization-rejoining",
+    "admin-multiple-organization-managers",
+    "last-usable-manager-revocation-guard",
+    "scoped-membership-change-history",
+    "preserved-learning-and-seat-ledger-after-departure",
+    "verified-manager-on-organization-creation"
   ],
   "tests": {
     "postgresql": {
-      "passed": 509,
-      "assertions": 4066
+      "passed": 531,
+      "assertions": 4214
     },
     "sqlite": {
-      "passed": 442,
-      "skipped": 67,
-      "assertions": 3685
+      "passed": 461,
+      "skipped": 70,
+      "assertions": 3817
     },
     "javascript": {
       "passed": 6
@@ -285,7 +295,13 @@
     "admin-note-student-isolation",
     "support-resolve-and-reopen",
     "support-mobile-390",
-    "legacy-paginator-next-page"
+    "legacy-paginator-next-page",
+    "student-organization-exit",
+    "renewed-invitation-and-fresh-consent",
+    "organization-manager-member-removal",
+    "admin-member-to-manager-promotion",
+    "last-manager-revocation-guard",
+    "organization-membership-mobile-390"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -319,7 +335,7 @@
   "organization_invitations_complete": true,
   "organization_invitation_sms_delivery_complete": false,
   "organization_invitation_csv_scope": "utf8_single_phone_column_up_to_100_rows",
-  "organization_membership_exit_workflow_complete": false,
+  "organization_membership_exit_workflow_complete": true,
   "sms_provider": "melipayamak",
   "sms_connection_modes": [
     "rest",
@@ -362,7 +378,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase21_organization_membership_lifecycle_next",
+    "current_work": "phase22_public_site_and_cms_next",
     "next_groups": [
       "remaining_purchase_cancellation_refunds",
       "organization_lifecycle",
@@ -385,5 +401,8 @@
   "arbitrary_direct_messages_complete": false,
   "pending_business_decisions": [
     "active_course_and_consumed_package_cancellation_refund_amount_policy_asked_owner"
-  ]
+  ],
+  "organization_manager_lifecycle_complete": true,
+  "organization_departure_cancels_enrollment": false,
+  "organization_membership_history_scope": "latest_50_own_or_admin_selected_organization_changes"
 }

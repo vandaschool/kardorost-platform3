@@ -2,6 +2,7 @@
 import { Head, Link, router } from "@inertiajs/vue3";
 import Shell from "../Layouts/Shell.vue";
 import Empty from "../Components/Empty.vue";
+import MembershipEnd from "../Components/MembershipEnd.vue";
 import Icon from "../Components/Icon.vue";
 defineProps({ organization: Object, organizations: Array, members: Array });
 const fa = (n) => new Intl.NumberFormat("fa-IR").format(n);
@@ -17,15 +18,21 @@ const fa = (n) => new Intl.NumberFormat("fa-IR").format(n);
                 </p>
             </div>
             <select
-                v-if="organizations.length > 1"
+                v-if="
+                    organizations.length > 1 ||
+                    (!organization && organizations.length)
+                "
                 aria-label="انتخاب سازمان"
-                :value="organization?.id"
+                :value="organization?.id || ''"
                 @change="
                     router.post('/organization/switch', {
                         organization_id: $event.target.value,
                     })
                 "
             >
+                <option v-if="!organization" disabled value="">
+                    انتخاب سازمان
+                </option>
                 <option v-for="o in organizations" :key="o.id" :value="o.id">
                     {{ o.name }}
                 </option>
@@ -86,18 +93,26 @@ const fa = (n) => new Intl.NumberFormat("fa-IR").format(n);
                     ><Icon name="UserPlus" :size="17" />دعوت تکی یا گروهی
                     اعضا</Link
                 >
-                <Link
-                    v-for="m in members"
-                    :key="m.id"
-                    :href="'/organization/members/' + m.id"
-                    class="simple-row"
-                    ><span class="avatar">{{ m.name.slice(0, 1) }}</span>
-                    <div class="grow">
-                        <strong>{{ m.name }}</strong
-                        ><small dir="ltr">{{ m.phone }}</small>
-                    </div>
-                    <span class="text-link"
-                        >گزارش فردی<Icon name="ChevronLeft" :size="17" /></span
-                ></Link></section></template
+                <article v-for="m in members" :key="m.id" :data-member="m.id">
+                    <Link
+                        :href="'/organization/members/' + m.id"
+                        class="simple-row"
+                        ><span class="avatar">{{ m.name.slice(0, 1) }}</span>
+                        <div class="grow">
+                            <strong>{{ m.name }}</strong
+                            ><small dir="ltr">{{ m.phone }}</small>
+                        </div>
+                        <span class="text-link"
+                            >گزارش فردی<Icon
+                                name="ChevronLeft"
+                                :size="17" /></span
+                    ></Link>
+                    <MembershipEnd
+                        v-if="m.pivot.kind === 'member'"
+                        :url="'/organization/members/' + m.id + '/remove'"
+                        :membership-key="m.pivot.membership_key"
+                        label="پایان عضویت"
+                    />
+                </article></section></template
     ></Shell>
 </template>

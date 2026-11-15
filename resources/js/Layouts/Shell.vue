@@ -43,6 +43,7 @@ const menus = computed(() =>
               ["مشاوره همراه دوره", "MessagesSquare", "/admin/course-benefits"],
               ["کاربران", "Users", "/admin/users"],
               ["سازمان‌ها", "Building2", "/admin/organizations"],
+              ["مدیران سازمان", "Users", "/admin/organization-managers"],
               ["سهمیه سازمان‌ها", "Users", "/admin/organization-licenses"],
               [
                   "صورتحساب سازمان‌ها",

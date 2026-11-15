@@ -6,10 +6,12 @@ use App\Models\AuditEvent;
 use App\Models\Organization;
 use App\Models\OrganizationInvitation;
 use App\Models\OrganizationInvitationImport;
+use App\Models\Role;
 use App\Models\User;
 use App\Notifications\OrganizationInvited;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class OrganizationMembership
@@ -198,6 +200,67 @@ class OrganizationMembership
             AuditEvent::create(['actor_id' => $actor->id, 'action' => 'organization_import.committed', 'subject_type' => 'organization_invitation_import', 'subject_id' => $import->id, 'metadata' => ['organization_id' => $organization->id, ...$result]]);
 
             return $result;
+        }, 3);
+    }
+
+    public function endMembership(User $actor, Organization $organization, User $member, string $membershipKey, string $reason, string $action): void
+    {
+        abort_unless(in_array($action, ['leave', 'remove', 'revoke_manager'], true), 422);
+        DB::transaction(function () use ($actor, $organization, $member, $membershipKey, $reason, $action) {
+            $organization = Organization::whereKey($organization->id)->lockForUpdate()->firstOrFail();
+            $actor = $actor->fresh();
+            abort_unless($actor->is_active && $actor->phone_verified_at, 403);
+            if ($action === 'leave') {
+                abort_unless($actor->id === $member->id && $actor->hasRole('student'), 403);
+            } elseif (! $actor->hasRole('admin')) {
+                $this->manager($actor, $organization);
+                abort_if($action === 'revoke_manager', 403);
+            }
+            $current = $organization->members()->where('users.id', $member->id)->first();
+            if (! $current || $current->pivot->membership_key !== strtolower($membershipKey)) {
+                $this->fail('عضویت تغییر کرده یا پایان یافته است؛ صفحه را تازه کنید.');
+            }
+            if ($current->pivot->kind === 'manager') {
+                abort_unless($action === 'revoke_manager' && $actor->hasRole('admin'), 403);
+                $usable = $organization->members()->wherePivot('kind', 'manager')->where('users.id', '!=', $member->id)->where('is_active', true)->whereNotNull('phone_verified_at')->whereHas('roles', fn ($query) => $query->where('key', 'org_admin'))->exists();
+                if (! $usable) {
+                    $this->fail('ابتدا مدیر فعال دیگری برای سازمان تعیین کنید.');
+                }
+            } else {
+                abort_if($action === 'revoke_manager', 422);
+            }
+            $organization->members()->detach($member->id);
+            OrganizationInvitation::where('organization_id', $organization->id)->where('status', 'accepted')->where('responded_by', $member->id)->get()->each(fn ($invitation) => $invitation->update(['status' => 'membership_ended', 'revision' => $invitation->revision + 1]));
+            AuditEvent::create(['actor_id' => $actor->id, 'action' => 'organization_membership.'.$action, 'subject_type' => 'user', 'subject_id' => $member->id, 'metadata' => ['organization_id' => $organization->id, 'organization_name' => $organization->name, 'member_id' => $member->id, 'member_name' => $member->name, 'membership_key' => $membershipKey, 'reason' => $reason]]);
+        }, 3);
+    }
+
+    public function assignManager(User $actor, Organization $organization, string $phone, ?string $expectedKey): void
+    {
+        $phone = Phone::normalize($phone);
+        DB::transaction(function () use ($actor, $organization, $phone, $expectedKey) {
+            $organization = Organization::whereKey($organization->id)->lockForUpdate()->firstOrFail();
+            $actor = $actor->fresh();
+            abort_unless($actor->is_active && $actor->hasRole('admin'), 403);
+            $member = User::where('phone', $phone)->lockForUpdate()->first();
+            if (! $member || ! $member->is_active || ! $member->phone_verified_at) {
+                $this->fail('مدیر باید حساب فعال با شماره تأییدشده داشته باشد.');
+            }
+            $existing = $organization->members()->where('users.id', $member->id)->first();
+            if ($existing?->pivot->kind === 'manager') {
+                return;
+            }
+            if (($existing?->pivot->membership_key ?? null) !== ($expectedKey ? strtolower($expectedKey) : null)) {
+                $this->fail('عضویت تغییر کرده است؛ برای ارتقا، فرد را از فهرست اعضای فعلی انتخاب کنید.');
+            }
+            $key = (string) Str::uuid();
+            if ($existing) {
+                $organization->members()->updateExistingPivot($member->id, ['kind' => 'manager', 'membership_key' => $key]);
+            } else {
+                $organization->members()->attach($member->id, ['kind' => 'manager', 'membership_key' => $key]);
+            }
+            $member->roles()->syncWithoutDetaching([Role::where('key', 'org_admin')->value('id')]);
+            AuditEvent::create(['actor_id' => $actor->id, 'action' => 'organization_membership.manager_assigned', 'subject_type' => 'user', 'subject_id' => $member->id, 'metadata' => ['organization_id' => $organization->id, 'organization_name' => $organization->name, 'member_id' => $member->id, 'member_name' => $member->name, 'membership_key' => $key, 'reason' => 'تعیین مدیر توسط ادمین']]);
         }, 3);
     }
 }
