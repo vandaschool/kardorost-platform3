@@ -1,5 +1,5 @@
 {
-  "phase": "consented-anonymous-contact-leads-private-admin-follow-up",
+  "phase": "public-mentor-specific-direct-consultation-availability",
   "completed": [
     "phone-verification",
     "password-login",
@@ -277,17 +277,23 @@
     "private-full-admin-contact-queue-and-detail-audit",
     "normalized-phone-contact-fingerprint-filter",
     "versioned-manual-contact-follow-up-history",
-    "concurrent-contact-follow-up-conflict-protection"
+    "concurrent-contact-follow-up-conflict-protection",
+    "public-mentor-specific-consultation-entry-link",
+    "mentor-filter-preserved-through-password-login-and-verified-registration",
+    "current-visible-mentor-only-direct-slot-filter",
+    "mentor-slot-filter-preserved-through-pagination-and-booking",
+    "own-booking-and-coordination-history-independent-of-mentor-filter",
+    "closed-or-unknown-mentor-filter-404-no-fallback"
   ],
   "tests": {
     "postgresql": {
-      "passed": 784,
-      "assertions": 6171
+      "passed": 796,
+      "assertions": 6341
     },
     "sqlite": {
-      "passed": 678,
+      "passed": 690,
       "skipped": 106,
-      "assertions": 5576
+      "assertions": 5746
     },
     "javascript": {
       "passed": 6
@@ -469,7 +475,12 @@
     "private-admin-contact-follow-up-history-close-and-reopen",
     "contact-exact-normalized-phone-filter",
     "contact-text-escaping-and-three-role-isolation",
-    "public-and-admin-contact-layouts-320-390-768-1440"
+    "public-and-admin-contact-layouts-320-390-768-1440",
+    "public-mentor-profile-password-login-intended-filter",
+    "mentor-only-slots-second-page-and-real-booking",
+    "selected-mentor-does-not-hide-own-booking-history",
+    "mentor-empty-state-no-other-coach-fallback-and-clear-filter",
+    "mentor-filter-student-only-ui-and-320-1440-layouts"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -546,7 +557,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase33_contact_leads_verified_ready_for_merge_then_mentor_specific_availability",
+    "current_work": "phase34_verified_ready_for_merge_then_production_configuration_readiness",
     "next_groups": [
       "organization_contract_installments_and_lifecycle",
       "remaining_purchase_cancellation_refunds_awaiting_policy",
@@ -626,9 +637,12 @@
   "public_coach_photos_complete": false,
   "coach_uploaded_credentials_complete": false,
   "public_coach_specialty_search_complete": false,
-  "public_coach_specific_availability_link_complete": false,
+  "public_coach_specific_availability_link_complete": true,
   "coach_official_credentials_automatically_verified": false,
   "public_anonymous_contact_leads_scope": "unverified_contact_phone_explicit_follow_up_consent_encrypted_pii_idempotent_form_private_admin_manual_follow_up",
   "contact_leads_auto_create_accounts_or_organizations": false,
-  "contact_leads_automated_outbound_messages_complete": false
+  "contact_leads_automated_outbound_messages_complete": false,
+  "public_coach_specific_availability_scope": "opaque_current_visible_profile_filter_authenticated_student_direct_slots_only_existing_booking_guards",
+  "mentor_specific_coordination_requests_complete": false,
+  "public_anonymous_calendar_complete": false
 }

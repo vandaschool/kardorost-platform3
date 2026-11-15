@@ -11,6 +11,7 @@ import { money, dateOnly } from "../finance";
 import { dateTime } from "../dates";
 const props = defineProps({
     role: String,
+    mentor_filter: { type: Object, default: null },
     grants: { type: Array, default: () => [] },
     slots: Object,
     bookings: Object,
@@ -81,7 +82,10 @@ const labels = {
             class="text-link"
             >مانده و شرایط سهمیه‌های مشاوره</Link
         >
-        <div v-if="role === 'student'" class="panel glass consultation-card">
+        <div
+            v-if="role === 'student' && !mentor_filter"
+            class="panel glass consultation-card"
+        >
             <h2>برای انتخاب زمان کمک می‌خواهید؟</h2>
             <p class="muted">
                 موضوع و زمان‌های مناسب خود را بنویسید؛ ادمین پس از هماهنگی، جلسه
@@ -134,7 +138,10 @@ const labels = {
                 </button>
             </form>
         </div>
-        <details v-else class="panel glass consultation-card">
+        <details
+            v-else-if="role !== 'student'"
+            class="panel glass consultation-card"
+        >
             <summary>تعریف زمان مشاوره</summary>
             <form
                 @submit.prevent="
@@ -219,8 +226,40 @@ const labels = {
                         : "زمان‌های مشاوره"
                 }}
             </h2>
-            <p v-if="!slots.data.length" class="muted">
-                زمانی برای نمایش وجود ندارد.
+            <div
+                v-if="mentor_filter"
+                class="panel glass consultation-card"
+                data-mentor-filter
+            >
+                <h3>زمان‌های {{ mentor_filter.display_name }}</h3>
+                <p class="muted">
+                    در این فهرست فقط زمان‌های آزاد این مربی برای رزرو مستقیم
+                    نمایش داده می‌شوند.
+                </p>
+                <div class="action-row">
+                    <a
+                        :href="`/mentors/${mentor_filter.slug}`"
+                        class="text-link"
+                        >پروفایل مربی</a
+                    >
+                    <Link
+                        href="/consultations"
+                        class="btn secondary"
+                        data-clear-mentor
+                        >همه مربیان و درخواست هماهنگی</Link
+                    >
+                </div>
+            </div>
+            <p
+                v-if="!slots.data.length"
+                class="muted"
+                data-empty-consultation-slots
+            >
+                {{
+                    mentor_filter
+                        ? "این مربی در حال حاضر زمان آزادی برای رزرو مستقیم ندارد."
+                        : "زمانی برای نمایش وجود ندارد."
+                }}
             </p>
             <div class="consultation-grid">
                 <ConsultationSlotCard
