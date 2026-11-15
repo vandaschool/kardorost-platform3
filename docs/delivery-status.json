@@ -1,5 +1,5 @@
 {
-  "phase": "reviewed-role-targeted-internal-announcements",
+  "phase": "current-lesson-access-and-progress-concurrency",
   "completed": [
     "phone-verification",
     "password-login",
@@ -231,17 +231,22 @@
     "current-recipient-role-activity-verification",
     "chained-one-hundred-recipient-delivery-batches",
     "pending-announcement-stop-and-failure-resumption",
-    "admin-announcement-delivery-history"
+    "admin-announcement-delivery-history",
+    "transactional-current-lesson-progress-access-checks",
+    "fresh-enrollment-account-role-and-publication-validation",
+    "shared-parent-read-lock-compatible-progress-writes",
+    "current-video-duration-progress-clamping",
+    "concurrent-idempotent-lesson-completion"
   ],
   "tests": {
     "postgresql": {
-      "passed": 675,
-      "assertions": 5384
+      "passed": 692,
+      "assertions": 5448
     },
     "sqlite": {
-      "passed": 589,
-      "skipped": 86,
-      "assertions": 4901
+      "passed": 598,
+      "skipped": 94,
+      "assertions": 4932
     },
     "javascript": {
       "passed": 6
@@ -391,7 +396,10 @@
     "multi-role-one-announcement-per-account",
     "announcement-plain-text-escaping-and-nonrecipient-isolation",
     "stopped-announcement-outbox-worker-no-delivery",
-    "announcement-mobile-390"
+    "announcement-mobile-390",
+    "small-204-lesson-autosave-and-current-duration-clamping",
+    "explicit-lesson-completion-next-lesson-and-reload",
+    "repeated-completion-single-count-and-progress-mobile-390"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -468,7 +476,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase27_verified_pending_pr_merge_then_continue_current_lesson_access_and_progress_concurrency",
+    "current_work": "phase28_verified_pending_pr_merge_then_continue_configurable_private_learning_rewards",
     "next_groups": [
       "organization_contract_installments_and_lifecycle",
       "remaining_purchase_cancellation_refunds_awaiting_policy",
@@ -534,5 +542,6 @@
   "bulk_internal_announcements_scope": "reviewed_role_based_active_verified_account_snapshot_no_sms_or_email",
   "organization_or_cohort_targeted_announcements_complete": false,
   "scheduled_announcements_complete": false,
-  "bulk_sms_complete": false
+  "bulk_sms_complete": false,
+  "lesson_completion_evidence": "student_self_report_not_verified_video_watch_or_skill"
 }

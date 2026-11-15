@@ -22,6 +22,7 @@ use App\Models\ContentPublication;
 use App\Models\Course;
 use App\Models\CourseCertificate;
 use App\Models\CourseDiscussion;
+use App\Models\CourseSection;
 use App\Models\CourseSurvey;
 use App\Models\DiscussionPost;
 use App\Models\DiscussionPostRevision;
@@ -30,6 +31,7 @@ use App\Models\EnrollmentConsultationBenefit;
 use App\Models\EventReminder;
 use App\Models\Installment;
 use App\Models\InvitationSms;
+use App\Models\Lesson;
 use App\Models\LessonProgress;
 use App\Models\Organization;
 use App\Models\OrganizationInvitation;
@@ -2063,5 +2065,113 @@ CODE;
         $this->assertSame(1, $student->notifications()->count());
         $this->assertSame(1, $announcement->recipients()->where('status', 'delivered')->count());
         $this->assertSame('completed', $announcement->fresh()->status);
+    }
+
+    private function progressAfterConcurrentChange(callable $change, string $expected = 'DENIED'): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Lesson access races require PostgreSQL row locks.');
+        }
+        $student = User::factory()->create();
+        $student->roles()->attach(Role::where('key', 'student')->value('id'));
+        $enrollment = Enrollment::factory()->create(['user_id' => $student->id]);
+        $section = CourseSection::factory()->create(['course_id' => $enrollment->course_id]);
+        $lesson = Lesson::factory()->create(['course_section_id' => $section->id, 'duration_seconds' => 300]);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$user=\App\Models\User::findOrFail((int)$argv[1]);$enrollment=\App\Models\Enrollment::findOrFail((int)$argv[2]);$lesson=\App\Models\Lesson::with('section')->findOrFail((int)$argv[3]);
+echo "READY\n";flush();
+try { $progress=app(\App\Services\LessonProgressRecorder::class)->record($user,$enrollment,$lesson,['complete'=>true,'position_seconds'=>290]);echo 'SAVED:'.$progress->position_seconds; }
+catch(\Symfony\Component\HttpKernel\Exception\HttpException $exception) { echo $exception->getStatusCode()===403?'DENIED':'UNEXPECTED'; }
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $student->id, (string) $enrollment->id, (string) $lesson->id], base_path(), null, null, 20);
+        DB::transaction(function () use ($process, $change, $student, $enrollment, $lesson) {
+            Course::whereKey($enrollment->course_id)->lockForUpdate()->firstOrFail();
+            $process->start();
+            $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'READY')), 'Worker did not preload its models.');
+            $change($student, $enrollment, $lesson);
+        });
+        $process->wait();
+        $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+        $this->assertSame("READY\n".$expected, $process->getOutput());
+        if ($expected === 'DENIED') {
+            $this->assertSame(0, LessonProgress::count());
+        }
+    }
+
+    public function test_waiting_progress_cannot_complete_a_concurrently_unpublished_lesson(): void
+    {
+        $this->progressAfterConcurrentChange(fn ($user, $enrollment, $lesson) => $lesson->update(['is_published' => false]));
+    }
+
+    public function test_waiting_progress_cannot_complete_a_lesson_concurrently_rescheduled_to_future(): void
+    {
+        $this->progressAfterConcurrentChange(fn ($user, $enrollment, $lesson) => $lesson->update(['available_at' => now()->addHour()]));
+    }
+
+    public function test_waiting_progress_cannot_write_after_enrollment_cancellation(): void
+    {
+        $this->progressAfterConcurrentChange(fn ($user, $enrollment, $lesson) => $enrollment->update(['status' => 'cancelled']));
+    }
+
+    public function test_waiting_progress_cannot_write_after_account_deactivation(): void
+    {
+        $this->progressAfterConcurrentChange(fn ($user, $enrollment, $lesson) => $user->forceFill(['is_active' => false])->save());
+    }
+
+    public function test_waiting_progress_cannot_write_after_student_role_revocation(): void
+    {
+        $this->progressAfterConcurrentChange(fn ($user, $enrollment, $lesson) => $user->roles()->detach());
+    }
+
+    public function test_waiting_progress_uses_the_current_video_duration_after_instructor_edit(): void
+    {
+        $this->progressAfterConcurrentChange(fn ($user, $enrollment, $lesson) => $lesson->update(['duration_seconds' => 120]), 'SAVED:120');
+        $this->assertSame(120, LessonProgress::sole()->position_seconds);
+        $this->assertNotNull(LessonProgress::sole()->completed_at);
+    }
+
+    public function test_progress_can_save_while_another_reader_holds_the_course_shared_lock(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Shared lesson read locks require PostgreSQL.');
+        }
+        $student = User::factory()->create();
+        $student->roles()->attach(Role::where('key', 'student')->value('id'));
+        $enrollment = Enrollment::factory()->create(['user_id' => $student->id]);
+        $section = CourseSection::factory()->create(['course_id' => $enrollment->course_id]);
+        $lesson = Lesson::factory()->create(['course_section_id' => $section->id]);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+app(\App\Services\LessonProgressRecorder::class)->record(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\Enrollment::findOrFail((int)$argv[2]),\App\Models\Lesson::findOrFail((int)$argv[3]),['complete'=>true]);echo 'SAVED';
+CODE;
+        DB::transaction(function () use ($code, $student, $enrollment, $lesson) {
+            Course::whereKey($enrollment->course_id)->sharedLock()->firstOrFail();
+            $process = new Process([PHP_BINARY, '-r', $code, (string) $student->id, (string) $enrollment->id, (string) $lesson->id], base_path(), null, null, 10);
+            $process->run();
+            $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+            $this->assertSame('SAVED', $process->getOutput());
+        });
+        $this->assertSame(1, LessonProgress::count());
+    }
+
+    public function test_two_progress_completion_writes_keep_one_record_and_completion(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Concurrent completion requires PostgreSQL.');
+        }
+        $student = User::factory()->create();
+        $student->roles()->attach(Role::where('key', 'student')->value('id'));
+        $enrollment = Enrollment::factory()->create(['user_id' => $student->id]);
+        $section = CourseSection::factory()->create(['course_id' => $enrollment->course_id]);
+        $lesson = Lesson::factory()->create(['course_section_id' => $section->id]);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+app(\App\Services\LessonProgressRecorder::class)->record(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\Enrollment::findOrFail((int)$argv[2]),\App\Models\Lesson::findOrFail((int)$argv[3]),['complete'=>true]);echo 'SAVED';
+CODE;
+        $arguments = [$student->id, $enrollment->id, $lesson->id];
+        $this->assertSame(['SAVED', 'SAVED'], $this->parallelFinance($code, [$arguments, $arguments]));
+        $this->assertSame(1, LessonProgress::count());
+        $this->assertNotNull(LessonProgress::sole()->completed_at);
     }
 }
