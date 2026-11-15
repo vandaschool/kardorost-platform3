@@ -9,6 +9,7 @@ use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\ConsultationGrantController;
 use App\Http\Controllers\ConsultationPaymentController;
 use App\Http\Controllers\ConsultationProductController;
+use App\Http\Controllers\ContentController;
 use App\Http\Controllers\CourseBenefitController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\DiscussionController;
@@ -23,6 +24,7 @@ use App\Http\Controllers\OrganizationLicenseController;
 use App\Http\Controllers\OrganizationMembershipController;
 use App\Http\Controllers\PackagePurchaseController;
 use App\Http\Controllers\PanelController;
+use App\Http\Controllers\PublicSiteController;
 use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\RefundController;
 use App\Http\Controllers\SubmissionController;
@@ -33,7 +35,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/verify/certificates/{token}', [CertificateController::class, 'verify'])->middleware('throttle:60,1')->name('certificates.verify');
-Route::get('/', fn () => redirect()->route(auth()->check() ? 'panel' : 'login'))->name('home');
+Route::get('/', [PublicSiteController::class, 'home'])->name('home');
+Route::get('/catalog', [PublicSiteController::class, 'catalog'])->name('public.catalog');
+Route::get('/catalog/{slug}', [PublicSiteController::class, 'course'])->name('public.course');
+Route::get('/journal', [PublicSiteController::class, 'journal'])->name('public.journal');
+Route::get('/journal/{slug}', [PublicSiteController::class, 'article'])->name('public.article');
+Route::get('/pages/{slug}', [PublicSiteController::class, 'page'])->name('public.page');
+Route::get('/sitemap.xml', [PublicSiteController::class, 'sitemap']);
+Route::get('/robots.txt', [PublicSiteController::class, 'robots']);
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'show'])->name('login');
     Route::get('/register', fn (Request $r, AuthController $c) => $c->show($r, 'register'))->name('register');
@@ -168,6 +177,12 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/organization/members/{member}', [OrganizationController::class, 'report']);
     });
     Route::middleware('panel.role:admin')->group(function () {
+        Route::get('/admin/content', [ContentController::class, 'index'])->name('admin.content');
+        Route::post('/admin/content', [ContentController::class, 'create']);
+        Route::get('/admin/content/{page}', [ContentController::class, 'edit'])->name('admin.content.edit');
+        Route::patch('/admin/content/{page}/draft', [ContentController::class, 'draft']);
+        Route::post('/admin/content/{page}/publish', [ContentController::class, 'publish']);
+        Route::post('/admin/content/{page}/availability', [ContentController::class, 'availability']);
         Route::get('/admin/organization-managers', [OrganizationMembershipController::class, 'admin'])->name('admin.organization-managers');
         Route::post('/admin/organizations/{organization}/managers', [OrganizationMembershipController::class, 'assign']);
         Route::post('/admin/organizations/{organization}/members/{member}/remove', [OrganizationMembershipController::class, 'adminRemove']);

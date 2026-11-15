@@ -1,0 +1,1 @@
+<article class="public-card glass"><span class="public-tag gold">مجله کاردرست</span><h3><a href="{{ $article->publicPath() }}">{{ $article->currentPublication->definition['title'] }}</a></h3><p>{{ $article->currentPublication->definition['excerpt'] }}</p><a href="{{ $article->publicPath() }}" class="text-link">خواندن یادداشت ←</a></article>
