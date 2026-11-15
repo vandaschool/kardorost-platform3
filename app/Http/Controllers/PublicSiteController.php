@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ContentPage;
 use App\Models\Course;
+use App\Services\CoachProfiles;
 use App\Services\CohortCapacity;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -49,6 +50,21 @@ class PublicSiteController extends Controller
         return $this->render('course', $course->title, mb_substr($course->description, 0, 160), compact('course', 'cohorts'));
     }
 
+    public function mentors(CoachProfiles $service): Response
+    {
+        $profiles = $service->visible()->orderByDesc('public_published_at')->orderByDesc('id')->paginate(12);
+
+        return $this->render('mentors', 'مربیان کاردرست', 'پروفایل‌های منتشرشده مربیان کاردرست و زمینه‌های فعالیت معرفی‌شده آن‌ها.', compact('profiles'));
+    }
+
+    public function mentor(string $slug, CoachProfiles $service): Response
+    {
+        $profile = $service->visible()->where('slug', $slug)->firstOrFail();
+        $definition = $profile->currentPublication->definition;
+
+        return $this->render('mentor', $definition['display_name'], mb_substr($definition['headline'], 0, 160), compact('profile', 'definition'));
+    }
+
     public function journal(Request $request): Response
     {
         $data = $request->validate(['q' => 'nullable|string|max:100']);
@@ -78,7 +94,10 @@ class PublicSiteController extends Controller
 
     public function sitemap(): Response
     {
-        $paths = ['/', '/catalog', '/journal'];
+        $paths = ['/', '/catalog', '/journal', '/mentors'];
+        foreach (app(CoachProfiles::class)->visible()->without('currentPublication')->orderBy('id')->cursor(['id', 'slug']) as $profile) {
+            $paths[] = '/mentors/'.$profile->slug;
+        }
         foreach ($this->visible()->without('currentPublication')->orderBy('id')->cursor(['id', 'kind', 'slug']) as $page) {
             $paths[] = $page->publicPath();
         }

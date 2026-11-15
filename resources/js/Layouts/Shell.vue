@@ -65,6 +65,7 @@ const menus = computed(() => {
                 ["کارتابل رزومه‌ها", "FileText", "/career/resumes?view=admin"],
             ]),
             group("مشاوره", "MessagesSquare", [
+                ["پروفایل مربیان", "UserRound", "/admin/coach-profiles"],
                 [
                     "جلسات و درخواست‌ها",
                     "CalendarDays",
@@ -146,7 +147,10 @@ const menus = computed(() => {
             ]),
             item("جلسات مشاوره", "CalendarDays", "/consultations?view=coach"),
             item("رزومه شخصی", "FileText", "/career/resumes"),
-            group("حساب من", "UserRound", accountItems),
+            group("حساب من", "UserRound", [
+                ["پروفایل حرفه‌ای مربی", "UserRound", "/coach/profile"],
+                ...accountItems,
+            ]),
         ];
     return [
         item("خانه", "House", "/student"),
