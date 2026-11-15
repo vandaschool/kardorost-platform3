@@ -27,8 +27,23 @@ await new Promise((resolve) =>
 let id = 0;
 const pending = new Map();
 const exceptions = [];
+const activeRequests = new Set();
 socket.addEventListener("message", (event) => {
     const m = JSON.parse(event.data);
+    if (
+        m.method === "Network.requestWillBeSent" &&
+        ["XHR", "Fetch"].includes(m.params.type)
+    )
+        activeRequests.add(m.params.requestId);
+    if (["Network.loadingFinished", "Network.loadingFailed"].includes(m.method))
+        activeRequests.delete(m.params.requestId);
+    if (m.method === "Runtime.consoleAPICalled" && m.params.type === "error")
+        exceptions.push(
+            "console: " +
+                m.params.args
+                    .map((a) => a.description || a.value || "")
+                    .join(" "),
+        );
     if (m.method === "Runtime.exceptionThrown")
         exceptions.push(m.params.exceptionDetails.text);
     if (m.id) {
@@ -47,6 +62,7 @@ function send(method, params = {}) {
 }
 await send("Runtime.enable");
 await send("Page.enable");
+await send("Network.enable");
 async function evaluate(expression) {
     const r = await send("Runtime.evaluate", {
         expression,
@@ -84,10 +100,23 @@ async function submit(selector) {
         `document.querySelector(${JSON.stringify(selector)}).requestSubmit()`,
     );
 }
+async function networkIdle() {
+    let stable = 0;
+    for (let index = 0; index < 100; index++) {
+        stable = activeRequests.size === 0 ? stable + 1 : 0;
+        if (stable >= 3) return;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    throw new Error(
+        "Previous navigation did not finish before switching fixture accounts",
+    );
+}
 async function login(role) {
+    await networkIdle();
     await send("Network.clearBrowserCookies");
     await send("Page.navigate", { url: base + "/login" });
     await until(`!!document.querySelector('input[name=password]')`);
+    await networkIdle();
     await fill(
         "[name=phone]",
         process.env["BROWSER_" + role.toUpperCase() + "_PHONE"],
@@ -105,8 +134,8 @@ assert(
 try {
     await login("admin");
     await goto("/admin/organization-invoices");
-    await until(`!!document.querySelector('details')`);
-    await evaluate(`document.querySelector('details').open=true`);
+    await until(`!!document.querySelector('main details')`);
+    await evaluate(`document.querySelector('main details').open=true`);
     await evaluate(
         `(()=>{const el=document.querySelector('select[name=organization_id]');el.value=el.querySelector('option:not([value=""])').value;el.dispatchEvent(new Event('change',{bubbles:true}));})()`,
     );
@@ -136,14 +165,14 @@ try {
     }
     await submit("details form");
     await until(
-        `location.pathname.includes('/admin/organization-invoices/') && !!document.querySelector('main input[type=checkbox]')`,
+        `location.pathname.includes('/admin/organization-invoices/') && !!document.querySelector('input[name=invoice_issue_reviewed]')`,
     );
     const invoiceId = await evaluate(`location.pathname.split('/').at(-1)`);
     await evaluate(
-        `document.querySelector('main input[type=checkbox]').click()`,
+        `document.querySelector('input[name=invoice_issue_reviewed]').click()`,
     );
     await evaluate(
-        `document.querySelector('main input[type=checkbox]').form.requestSubmit()`,
+        `document.querySelector('input[name=invoice_issue_reviewed]').form.requestSubmit()`,
     );
     await until(
         `!document.querySelector('[name=invoice_title]') && document.body.innerText.includes('صادرشده')`,
@@ -152,7 +181,7 @@ try {
         await login("organization");
         await goto("/organization/invoices/" + invoiceId);
         await until(`!!document.querySelector('details form')`);
-        await evaluate(`document.querySelector('details').open=true`);
+        await evaluate(`document.querySelector('main details').open=true`);
         await fill("[name=payment_amount]", String(amount));
         await fill("[name=transfer_reference]", "BROWSER987654" + index);
         const date = Object.fromEntries(

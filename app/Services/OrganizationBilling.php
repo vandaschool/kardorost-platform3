@@ -68,7 +68,7 @@ class OrganizationBilling
             $this->fail('جمع صورتحساب از سقف قابل ثبت بیشتر است.');
         }
 
-        return ['title' => $data['title'], 'contract_reference' => $data['contract_reference'], 'due_date' => $data['due_date'], 'organization_license_id' => $data['organization_license_id'] ?? null, 'lines' => $lines, 'amount' => $amount];
+        return ['title' => $data['title'], 'contract_reference' => $data['contract_reference'], 'due_date' => $data['due_date'], 'organization_license_id' => $data['organization_license_id'] ?? null, 'lines' => $lines, 'amount' => $amount, 'payment_schedule' => app(OrganizationPaymentSchedule::class)->normalize($input['installments'] ?? null, $amount, $data['due_date'])];
     }
 
     public function draft(User $actor, Organization $organization, array $input, ?OrganizationInvoice $invoice = null, ?int $revision = null): OrganizationInvoice
@@ -114,7 +114,7 @@ class OrganizationBilling
             if (! preg_match('/^(?:IR[0-9]{24}|[0-9]{8,30})$/D', $destination) || ! $holder) {
                 $this->fail('حساب مقصد و نام صاحب حساب باید پیش از صدور روی سرور تنظیم شوند.');
             }
-            $invoice->update(['status' => 'issued', 'number' => 'ORG-'.str_pad((string) $invoice->id, 8, '0', STR_PAD_LEFT), 'destination' => $destination, 'holder' => $holder, 'issued_at' => now(), 'revision' => $invoice->revision + 1]);
+            $invoice->update(['payment_schedule' => app(OrganizationPaymentSchedule::class)->definition($invoice), 'status' => 'issued', 'number' => 'ORG-'.str_pad((string) $invoice->id, 8, '0', STR_PAD_LEFT), 'destination' => $destination, 'holder' => $holder, 'issued_at' => now(), 'revision' => $invoice->revision + 1]);
             $this->audit($actor, 'organization_invoice.issued', 'organization_invoice', $invoice->id);
             $this->notify($invoice, 'صورتحساب سازمان صادر شد');
         }, 3);

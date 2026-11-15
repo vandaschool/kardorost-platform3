@@ -1,5 +1,5 @@
 {
-  "phase": "event-reminders-and-account-bound-sms-delivery",
+  "phase": "dated-organization-contract-installments",
   "completed": [
     "phone-verification",
     "password-login",
@@ -209,17 +209,23 @@
     "delivery-backoff-expiry-and-interrupted-query-recovery",
     "admin-query-without-sms-resubmission",
     "scoped-organization-invitation-delivery-status",
-    "provider-reference-origin-collision-quarantine"
+    "provider-reference-origin-collision-quarantine",
+    "versioned-organization-contract-payment-schedules",
+    "issue-frozen-oldest-due-first-schedule-method",
+    "verified-ledger-derived-installment-balances",
+    "tehran-local-corporate-overdue-and-today-amounts",
+    "legacy-single-date-corporate-invoice-compatibility",
+    "concurrent-contract-schedule-issue-and-settlement-guards"
   ],
   "tests": {
     "postgresql": {
-      "passed": 624,
-      "assertions": 4914
+      "passed": 641,
+      "assertions": 5056
     },
     "sqlite": {
-      "passed": 542,
-      "skipped": 82,
-      "assertions": 4454
+      "passed": 557,
+      "skipped": 84,
+      "assertions": 4584
     },
     "javascript": {
       "passed": 6
@@ -355,7 +361,12 @@
     "personal-sms-preference-and-coach-isolation",
     "synthetic-organization-handset-receipt-status",
     "admin-readonly-delivery-query-worker-without-provider-access",
-    "communications-mobile-390"
+    "communications-mobile-390",
+    "corporate-three-installment-draft-and-successive-edit",
+    "issue-frozen-corporate-schedule",
+    "reviewed-partial-deposits-cover-oldest-installments",
+    "scheduled-corporate-invoice-mobile-390",
+    "legacy-single-date-corporate-invoice-regression"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -380,7 +391,7 @@
   "organization_formal_tax_invoicing_complete": false,
   "organization_automatic_license_purchase_complete": false,
   "organization_excess_fund_resolution_complete": true,
-  "organization_dated_installment_schedules_complete": false,
+  "organization_dated_installment_schedules_complete": true,
   "organization_excess_fund_resolution_scope": "full_manual_refund_of_captured_unallocated_funds",
   "organization_unallocated_refunds_complete": true,
   "organization_allocated_fund_refunds_complete": false,
@@ -432,7 +443,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase24_verified_pending_pr_merge_then_continue_organization_contract_installments",
+    "current_work": "phase25_verified_pending_pr_merge_then_continue_admin_operational_reports",
     "next_groups": [
       "organization_contract_installments_and_lifecycle",
       "remaining_purchase_cancellation_refunds_awaiting_policy",
@@ -484,5 +495,8 @@
   "sms_delivery_live_verified": false,
   "event_in_app_reminders_complete": true,
   "event_sms_reminders_complete": true,
-  "event_sms_reminders_scope": "eligible_confirmed_consultation_and_published_live_class_optional_two_argument_pattern"
+  "event_sms_reminders_scope": "eligible_confirmed_consultation_and_published_live_class_optional_two_argument_pattern",
+  "organization_installment_schedule_limit": 24,
+  "organization_installment_coverage_method": "oldest_due_first_v1_existing_verified_invoice_allocations",
+  "organization_contract_overdue_penalties_complete": false
 }

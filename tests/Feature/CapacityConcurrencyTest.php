@@ -34,6 +34,7 @@ use App\Models\Organization;
 use App\Models\OrganizationInvitation;
 use App\Models\OrganizationInvoice;
 use App\Models\OrganizationLicense;
+use App\Models\OrganizationPaymentAllocation;
 use App\Models\OrganizationSeat;
 use App\Models\PackagePurchase;
 use App\Models\Payment;
@@ -67,6 +68,7 @@ use App\Services\EnrollmentService;
 use App\Services\OrganizationBilling;
 use App\Services\OrganizationEnrollment;
 use App\Services\OrganizationMembership;
+use App\Services\OrganizationPaymentSchedule;
 use App\Services\PackageBilling;
 use App\Services\ReceiptService;
 use App\Services\RefundService;
@@ -378,6 +380,7 @@ CODE;
             ReceiptClaim::whereIn('payment_receipt_id', $receipts)->delete();
             PaymentReceipt::whereIn('id', $receipts)->delete();
             OrganizationInvoice::whereNotNull('settled_payment_id')->update(['settled_payment_id' => null]);
+            OrganizationInvoice::whereNotNull('payment_schedule')->update(['payment_schedule' => null]);
             Payment::whereIn('id', $ids)->delete();
         }
         if (Schema::hasColumn('payments', 'consultation_id')) {
@@ -739,6 +742,54 @@ CODE;
         app(OrganizationBilling::class)->issue($a, $i, 1);
 
         return app(OrganizationBilling::class)->attempt($m, $i->fresh());
+    }
+
+    public function test_concurrent_contract_schedule_edit_and_issue_respect_the_same_revision(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Contract schedule races require PostgreSQL.');
+        }
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $invoice = OrganizationInvoice::factory()->create();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+config(['platform.finance.transfer_destination'=>'6037991234567890','platform.finance.transfer_holder'=>'Fixture holder']);
+$actor=\App\Models\User::findOrFail((int)$argv[1]);$invoice=\App\Models\OrganizationInvoice::findOrFail((int)$argv[2]);
+try {
+ if($argv[3]==='issue') { app(\App\Services\OrganizationBilling::class)->issue($actor,$invoice,1); }
+ else { app(\App\Services\OrganizationBilling::class)->draft($actor,$invoice->organization,['title'=>'Schedule race','contract_reference'=>'RACE','due_date'=>$invoice->due_date->toDateString(),'lines'=>[['title'=>'Service','quantity'=>1,'unit_price'=>100000]],'installments'=>[['due_date'=>$invoice->due_date->copy()->subDay()->toDateString(),'amount'=>40000],['due_date'=>$invoice->due_date->toDateString(),'amount'=>60000]]],$invoice,1); }
+ echo 'CHANGED';
+} catch(\Illuminate\Validation\ValidationException) { echo 'STALE'; }
+CODE;
+        $this->assertSame(['CHANGED', 'STALE'], $this->parallelFinance($code, [[$admin->id, $invoice->id, 'edit'], [$admin->id, $invoice->id, 'issue']]));
+        $invoice->refresh();
+        $this->assertSame(2, $invoice->revision);
+        $this->assertCount($invoice->status === 'issued' ? 1 : 2, $invoice->payment_schedule['items']);
+    }
+
+    public function test_concurrent_partial_contract_payments_project_one_consistent_installment_balance(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Contract schedule races require PostgreSQL.');
+        }
+        $first = $this->organizationInvoiceCharge();
+        $first->update(['amount' => 400000]);
+        $invoice = $first->organizationInvoice;
+        $definition = app(OrganizationPaymentSchedule::class)->normalize([['due_date' => $invoice->due_date->copy()->subDay()->toDateString(), 'amount' => 40000], ['due_date' => $invoice->due_date->toDateString(), 'amount' => 60000]], $invoice->amount, $invoice->due_date->toDateString());
+        $invoice->update(['payment_schedule' => $definition]);
+        $second = Payment::create([...$first->only('organization_invoice_id', 'user_id', 'method'), 'amount' => 600000, 'status' => 'pending']);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo app(\App\Services\OrganizationBilling::class)->capture(\App\Models\Payment::findOrFail((int)$argv[1]),$argv[2])?'PAID':'REVIEW';
+CODE;
+        $this->assertSame(['PAID', 'PAID'], $this->parallelFinance($code, [[$first->id, 'SCHEDULE-RACE-FIRST'], [$second->id, 'SCHEDULE-RACE-SECOND']]));
+        $invoice->refresh();
+        $summary = app(OrganizationPaymentSchedule::class)->summary($invoice, $invoice->paidAmount());
+        $this->assertSame(['paid', 'paid'], array_column($summary['items'], 'status'));
+        $this->assertSame([400000, 600000], array_column($summary['items'], 'paid_amount'));
+        $this->assertSame(1000000, $invoice->paidAmount());
+        $this->assertSame(2, OrganizationPaymentAllocation::count());
     }
 
     public function test_two_verified_organization_charges_settle_one_invoice_once(): void

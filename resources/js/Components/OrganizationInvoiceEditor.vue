@@ -8,6 +8,18 @@ const props = defineProps({
     organizations: Array,
     licenses: Array,
 });
+const installmentMode = ref(
+    (props.invoice?.payment_schedule?.items.length || 0) > 1,
+);
+const scheduleRows = ref(
+    props.invoice?.payment_schedule?.items.map((row) => ({
+        due_date: row.due_date,
+        amount: row.amount / 10,
+    })) || [
+        { due_date: "", amount: "" },
+        { due_date: "", amount: "" },
+    ],
+);
 const form = useForm({
     organization_id: props.invoice?.organization_id || "",
     revision: props.invoice?.revision || 1,
@@ -16,6 +28,7 @@ const form = useForm({
         contract_reference: props.invoice?.contract_reference || "",
         due_date: props.invoice?.due_date || "",
         organization_license_id: props.invoice?.organization_license_id || null,
+        installments: installmentMode.value ? scheduleRows.value : null,
         lines: props.invoice
             ? props.invoice.lines.map((l) => ({
                   ...l,
@@ -24,6 +37,21 @@ const form = useForm({
             : [{ title: "", quantity: 1, unit_price: "" }],
     },
 });
+watch(
+    [installmentMode, scheduleRows],
+    () => {
+        form.definition.installments = installmentMode.value
+            ? scheduleRows.value
+            : null;
+    },
+    { deep: true },
+);
+const scheduleTotal = computed(() =>
+    scheduleRows.value.reduce(
+        (sum, row) => sum + Number(row.amount || 0) * 10,
+        0,
+    ),
+);
 const emit = defineEmits(["dirty"]);
 const saved = ref(JSON.stringify(form.definition));
 watch(
@@ -83,7 +111,7 @@ function submit() {
                 maxlength="200" /></label
         ><JalaliDateInput
             v-model="form.definition.due_date"
-            label="سررسید صورتحساب"
+            label="سررسید نهایی صورتحساب"
             required
         /><label v-if="invoice"
             >ارتباط با سهمیه (اختیاری)<select
@@ -145,6 +173,69 @@ function submit() {
         >
             افزودن ردیف</button
         ><strong>جمع صورتحساب: {{ money(total) }}</strong>
+        <label
+            ><input
+                type="checkbox"
+                name="installment_mode"
+                v-model="installmentMode"
+            />سررسیدهای اقساط قرارداد</label
+        >
+        <section
+            v-if="installmentMode"
+            class="stack-form"
+            data-testid="installment-editor"
+        >
+            <p class="muted">
+                مبالغ را به تومان و تاریخ‌ها را به ترتیب وارد کنید. جمع اقساط
+                باید با صورتحساب برابر و تاریخ آخر با سررسید نهایی یکسان باشد.
+            </p>
+            <fieldset
+                v-for="(row, index) in scheduleRows"
+                :key="index"
+                class="assessment-editor-item"
+            >
+                <legend>قسط {{ index + 1 }}</legend>
+                <JalaliDateInput
+                    v-model="row.due_date"
+                    :label="`سررسید قسط ${index + 1}`"
+                    required
+                />
+                <label
+                    >مبلغ قسط (تومان)<input
+                        type="number"
+                        :name="`installment_amount_${index}`"
+                        v-model="row.amount"
+                        min="1"
+                        max="100000000000"
+                        step="1"
+                        required
+                /></label>
+                <button
+                    v-if="scheduleRows.length > 1"
+                    type="button"
+                    class="text-link"
+                    @click="scheduleRows.splice(index, 1)"
+                >
+                    حذف قسط
+                </button>
+            </fieldset>
+            <button
+                type="button"
+                class="btn secondary"
+                :disabled="scheduleRows.length >= 24"
+                @click="scheduleRows.push({ due_date: '', amount: '' })"
+            >
+                افزودن قسط
+            </button>
+            <strong>جمع اقساط: {{ money(scheduleTotal) }}</strong>
+            <p v-if="scheduleTotal !== total" role="status">
+                جمع اقساط با جمع صورتحساب برابر نیست.
+            </p>
+            <p class="muted">
+                پس از صدور، برنامه ثابت می‌شود. پرداخت تأییدشده ابتدا مانده قسط
+                قدیمی‌تر را پوشش می‌دهد؛ پرداخت زودتر یا تسویه کامل مجاز است.
+            </p>
+        </section>
         <p class="muted">
             این سند، صورتحساب داخلی قرارداد است. پرداخت یا صدور آن به‌تنهایی
             سهمیه آموزشی را تغییر نمی‌دهد.
