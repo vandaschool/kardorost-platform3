@@ -2,12 +2,16 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ExampleTest extends TestCase
 {
-    public function test_root_redirects_to_login(): void
+    use RefreshDatabase;
+
+    public function test_public_home_renders_without_an_account(): void
     {
-        $this->get('/')->assertRedirect('/login');
+        $this->withoutVite();
+        $this->get('/')->assertOk()->assertSee('کاردرست');
     }
 }

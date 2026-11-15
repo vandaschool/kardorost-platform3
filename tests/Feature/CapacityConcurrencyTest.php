@@ -15,6 +15,8 @@ use App\Models\ConsultationGrantUse;
 use App\Models\ConsultationProduct;
 use App\Models\ConsultationRequest;
 use App\Models\ConsultationSlot;
+use App\Models\ContentPage;
+use App\Models\ContentPublication;
 use App\Models\Course;
 use App\Models\CourseCertificate;
 use App\Models\CourseDiscussion;
@@ -52,6 +54,7 @@ use App\Services\Certification;
 use App\Services\CohortCapacity;
 use App\Services\ConsultationBilling;
 use App\Services\ConsultationService;
+use App\Services\ContentPublishing;
 use App\Services\CourseConsultationBenefits;
 use App\Services\CourseDiscussions;
 use App\Services\EnrollmentService;
@@ -302,6 +305,10 @@ CODE;
 
     protected function tearDown(): void
     {
+        if (Schema::hasTable('content_publications')) {
+            DB::table('content_publications')->delete();
+            DB::table('content_pages')->delete();
+        }
         if (Schema::hasTable('support_tickets')) {
             DB::table('ticket_events')->delete();
             DB::table('ticket_messages')->delete();
@@ -1738,5 +1745,82 @@ CODE;
         $this->assertFalse($organization->members()->where('users.id', $student->id)->exists());
         $this->assertSame(in_array('ENROLLED', $result, true) ? 1 : 0, OrganizationSeat::count());
         $this->assertSame(OrganizationSeat::count(), Enrollment::where('user_id', $student->id)->where('status', 'active')->count());
+    }
+
+    private function contentAdmin(): User
+    {
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+
+        return $admin;
+    }
+
+    public function test_concurrent_content_publication_creates_one_immutable_snapshot(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Content publication concurrency requires PostgreSQL.');
+        }
+        $admin = $this->contentAdmin();
+        $page = ContentPage::factory()->create();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+try{app(\App\Services\ContentPublishing::class)->publish(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\ContentPage::findOrFail((int)$argv[2]),1);echo 'PUBLISHED';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['PUBLISHED', 'STALE'], $this->parallelFinance($code, [[$admin->id, $page->id], [$admin->id, $page->id]]));
+        $this->assertSame(1, ContentPublication::count());
+        $this->assertSame(1, $page->fresh()->current_version);
+    }
+
+    public function test_competing_content_drafts_cannot_overwrite_a_newer_revision(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Content publication concurrency requires PostgreSQL.');
+        }
+        $admin = $this->contentAdmin();
+        $page = ContentPage::factory()->create();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$page=\App\Models\ContentPage::findOrFail((int)$argv[2]);
+try{app(\App\Services\ContentPublishing::class)->draft(\App\Models\User::findOrFail((int)$argv[1]),$page,1,[...$page->draft,'title'=>$argv[3]]);echo 'SAVED';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['SAVED', 'STALE'], $this->parallelFinance($code, [[$admin->id, $page->id, 'First draft'], [$admin->id, $page->id, 'Second draft']]));
+        $this->assertSame(2, $page->fresh()->revision);
+        $this->assertContains($page->fresh()->draft['title'], ['First draft', 'Second draft']);
+    }
+
+    public function test_publication_racing_withdrawal_has_one_explicit_winning_revision(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Content publication concurrency requires PostgreSQL.');
+        }
+        $admin = $this->contentAdmin();
+        $page = ContentPage::factory()->create();
+        $publishing = app(ContentPublishing::class);
+        $publishing->publish($admin, $page, 1);
+        $publishing->draft($admin, $page, 2, [...$page->draft, 'title' => 'New public version']);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$page=\App\Models\ContentPage::findOrFail((int)$argv[2]);$admin=\App\Models\User::findOrFail((int)$argv[1]);$service=app(\App\Services\ContentPublishing::class);
+try{if($argv[3]==='publish'){$service->publish($admin,$page,3);echo 'PUBLISHED';}else{$service->availability($admin,$page,3,false);echo 'WITHDRAWN';}}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $result = $this->parallelFinance($code, [[$admin->id, $page->id, 'publish'], [$admin->id, $page->id, 'withdraw']]);
+        $this->assertContains('STALE', $result);
+        $published = in_array('PUBLISHED', $result, true);
+        $this->assertSame($published, $page->fresh()->available);
+        $this->assertSame($published ? 2 : 1, $page->publications()->count());
+        $this->assertSame(4, $page->fresh()->revision);
+    }
+
+    public function test_simultaneous_content_creation_uses_one_slug_without_partial_audits(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Content publication concurrency requires PostgreSQL.');
+        }
+        $admin = $this->contentAdmin();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+try{app(\App\Services\ContentPublishing::class)->create(\App\Models\User::findOrFail((int)$argv[1]),'article','unique-public-article',['title'=>'Article','excerpt'=>'Summary','body'=>'Public content']);echo 'CREATED';}catch(\Illuminate\Validation\ValidationException){echo 'DUPLICATE';}
+CODE;
+        $this->assertSame(['CREATED', 'DUPLICATE'], $this->parallelFinance($code, [[$admin->id], [$admin->id]]));
+        $this->assertSame(1, ContentPage::count());
+        $this->assertSame(1,AuditEvent::where('action','content.created')->count());
     }
 }

@@ -42,7 +42,7 @@ class AuthController extends Controller
         RateLimiter::clear($key);
         $request->session()->regenerate();
 
-        return redirect()->route('panel');
+        return redirect()->intended(route('panel'));
     }
 
     public function send(Request $request, OtpService $otp): RedirectResponse
@@ -109,7 +109,7 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('panel');
+        return redirect()->intended(route('panel'));
     }
 
     public function restart(Request $request): RedirectResponse

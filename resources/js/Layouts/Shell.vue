@@ -25,6 +25,7 @@ const menus = computed(() =>
     props.role === "admin"
         ? [
               ["پشتیبانی", "MessagesSquare", "/support?view=admin"],
+              ["محتوای سایت", "FileText", "/admin/content"],
               ["خانه مدیریت", "LayoutDashboard", "/admin"],
               ["خودشناسی", "Fingerprint", "/admin/assessments"],
               ["دوره‌ها", "BookOpen", "/admin/courses"],

@@ -1,5 +1,5 @@
 {
-  "phase": "organization-membership-and-manager-lifecycle",
+  "phase": "public-site-and-versioned-content",
   "completed": [
     "phone-verification",
     "password-login",
@@ -177,17 +177,28 @@
     "last-usable-manager-revocation-guard",
     "scoped-membership-change-history",
     "preserved-learning-and-seat-ledger-after-departure",
-    "verified-manager-on-organization-creation"
+    "verified-manager-on-organization-creation",
+    "server-rendered-persian-public-home",
+    "published-course-and-cohort-public-catalog",
+    "real-public-shared-seat-capacity",
+    "public-journal-and-standalone-pages",
+    "private-content-drafts-and-immutable-publications",
+    "versioned-content-withdrawal-and-restoration",
+    "public-content-html-escaping",
+    "server-rendered-canonical-and-open-graph",
+    "published-only-streamed-xml-sitemap",
+    "responsive-public-menu-and-theme",
+    "course-entry-resume-after-password-login"
   ],
   "tests": {
     "postgresql": {
-      "passed": 531,
-      "assertions": 4214
+      "passed": 553,
+      "assertions": 4378
     },
     "sqlite": {
-      "passed": 461,
-      "skipped": 70,
-      "assertions": 3817
+      "passed": 479,
+      "skipped": 74,
+      "assertions": 3960
     },
     "javascript": {
       "passed": 6
@@ -301,7 +312,13 @@
     "organization-manager-member-removal",
     "admin-member-to-manager-promotion",
     "last-manager-revocation-guard",
-    "organization-membership-mobile-390"
+    "organization-membership-mobile-390",
+    "public-server-rendered-home-and-catalog",
+    "cms-private-draft-and-first-publication",
+    "cms-draft-does-not-overwrite-public-copy",
+    "cms-second-publication-and-restoration",
+    "public-escaped-html-and-jalali-date",
+    "public-menu-and-320-390-768-1440-layouts"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -378,7 +395,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase22_public_site_and_cms_next",
+    "current_work": "phase23_career_resume_tools_and_simpler_panel_navigation_next",
     "next_groups": [
       "remaining_purchase_cancellation_refunds",
       "organization_lifecycle",
@@ -404,5 +421,13 @@
   ],
   "organization_manager_lifecycle_complete": true,
   "organization_departure_cancels_enrollment": false,
-  "organization_membership_history_scope": "latest_50_own_or_admin_selected_organization_changes"
+  "organization_membership_history_scope": "latest_50_own_or_admin_selected_organization_changes",
+  "public_site_complete": true,
+  "public_cms_complete": true,
+  "public_cms_scope": "plain_text_versioned_home_copy_articles_standalone_pages_with_explicit_publication",
+  "public_coach_profiles_complete": false,
+  "public_media_library_complete": false,
+  "public_rich_text_editor_complete": false,
+  "public_scheduled_publishing_complete": false,
+  "public_anonymous_contact_leads_complete": false
 }
