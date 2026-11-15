@@ -1,5 +1,5 @@
 {
-  "phase": "admin-operational-reports-and-filtered-exports",
+  "phase": "reviewed-role-targeted-internal-announcements",
   "completed": [
     "phone-verification",
     "password-login",
@@ -223,17 +223,25 @@
     "created-account-and-current-enrollment-status-report",
     "paginated-report-source-records",
     "audited-private-full-filter-report-csv",
-    "report-csv-formula-and-private-data-protection"
+    "report-csv-formula-and-private-data-protection",
+    "encrypted-internal-announcement-drafts",
+    "reviewed-immutable-role-audience-publication",
+    "unique-publication-time-recipient-snapshots",
+    "durable-atomic-internal-notification-outbox",
+    "current-recipient-role-activity-verification",
+    "chained-one-hundred-recipient-delivery-batches",
+    "pending-announcement-stop-and-failure-resumption",
+    "admin-announcement-delivery-history"
   ],
   "tests": {
     "postgresql": {
-      "passed": 655,
-      "assertions": 5239
+      "passed": 675,
+      "assertions": 5384
     },
     "sqlite": {
-      "passed": 571,
-      "skipped": 84,
-      "assertions": 4767
+      "passed": 589,
+      "skipped": 86,
+      "assertions": 4901
     },
     "javascript": {
       "passed": 6
@@ -378,7 +386,12 @@
     "operational-report-capture-refund-net-reconciliation",
     "full-report-csv-vs-paginated-source-records",
     "report-refund-privacy-and-dataset-filters",
-    "operational-report-empty-period-and-mobile-390"
+    "operational-report-empty-period-and-mobile-390",
+    "reviewed-announcement-publication-and-real-local-queue-worker",
+    "multi-role-one-announcement-per-account",
+    "announcement-plain-text-escaping-and-nonrecipient-isolation",
+    "stopped-announcement-outbox-worker-no-delivery",
+    "announcement-mobile-390"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -455,7 +468,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase26_verified_pending_pr_merge_then_continue_bulk_internal_announcements",
+    "current_work": "phase27_verified_pending_pr_merge_then_continue_current_lesson_access_and_progress_concurrency",
     "next_groups": [
       "organization_contract_installments_and_lifecycle",
       "remaining_purchase_cancellation_refunds_awaiting_policy",
@@ -516,5 +529,10 @@
   "acquisition_analytics_complete": false,
   "retention_analytics_complete": false,
   "accounting_profit_reports_complete": false,
-  "coach_settlement_complete": false
+  "coach_settlement_complete": false,
+  "bulk_internal_announcements_complete": true,
+  "bulk_internal_announcements_scope": "reviewed_role_based_active_verified_account_snapshot_no_sms_or_email",
+  "organization_or_cohort_targeted_announcements_complete": false,
+  "scheduled_announcements_complete": false,
+  "bulk_sms_complete": false
 }

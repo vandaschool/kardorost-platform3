@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BillingPlanController;
@@ -192,6 +193,13 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/organization/members/{member}', [OrganizationController::class, 'report']);
     });
     Route::middleware('panel.role:admin')->group(function () {
+        Route::get('/admin/announcements', [AnnouncementController::class, 'index'])->name('admin.announcements');
+        Route::post('/admin/announcements', [AnnouncementController::class, 'save']);
+        Route::get('/admin/announcements/{announcement}', [AnnouncementController::class, 'show'])->name('admin.announcements.show');
+        Route::patch('/admin/announcements/{announcement}', [AnnouncementController::class, 'save']);
+        Route::post('/admin/announcements/{announcement}/publish', [AnnouncementController::class, 'publish'])->middleware('throttle:10,1');
+        Route::post('/admin/announcements/{announcement}/stop', [AnnouncementController::class, 'stop']);
+        Route::post('/admin/announcements/{announcement}/retry', [AnnouncementController::class, 'retry']);
         Route::get('/admin/reports', [OperationalReportController::class, 'index'])->name('admin.reports');
         Route::get('/admin/reports/export', [OperationalReportController::class, 'export'])->middleware('throttle:10,1')->name('admin.reports.export');
         Route::get('/admin/communications', [CommunicationController::class, 'index'])->name('admin.communications');

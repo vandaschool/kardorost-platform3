@@ -99,6 +99,7 @@ const menus = computed(() => {
                 ["کاربران", "Users", "/admin/users"],
                 ["سابقه فعالیت", "History", "/admin/activity"],
                 ["پیامک و یادآوری‌ها", "Bell", "/admin/communications"],
+                ["اعلان گروهی", "Bell", "/admin/announcements"],
             ]),
         ];
     if (props.role === "org_admin")
