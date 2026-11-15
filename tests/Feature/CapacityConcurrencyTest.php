@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Announcement;
 use App\Models\Assessment;
 use App\Models\AssessmentAttempt;
 use App\Models\AssessmentVersion;
@@ -55,6 +56,7 @@ use App\Models\SurveyResponse;
 use App\Models\TicketEvent;
 use App\Models\TicketMessage;
 use App\Models\User;
+use App\Services\Announcements;
 use App\Services\AssessmentService;
 use App\Services\BillingService;
 use App\Services\Certification;
@@ -313,6 +315,10 @@ CODE;
 
     protected function tearDown(): void
     {
+        if (Schema::hasTable('announcements')) {
+            DB::table('announcement_recipients')->delete();
+            DB::table('announcements')->delete();
+        }
         if (Schema::hasTable('sms_deliveries')) {
             DB::table('event_reminders')->delete();
             DB::table('invitation_sms')->update(['sms_delivery_id' => null]);
@@ -2017,5 +2023,45 @@ try{app(\App\Services\SmsDeliveryService::class)->register('invitation',(int)$ar
 CODE;
         $this->assertSame(['CONFLICT', 'REGISTERED'], $this->parallelFinance($code, [[1], [2]]));
         $this->assertSame(1, SmsDelivery::count());
+    }
+
+    public function test_two_announcement_publications_create_one_immutable_recipient_snapshot(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Announcement publication races require PostgreSQL.');
+        }
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $student = User::factory()->create();
+        $student->roles()->attach(Role::where('key', 'student')->value('id'));
+        $announcement = Announcement::factory()->create(['created_by' => $admin->id]);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+try { app(\App\Services\Announcements::class)->publish(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\Announcement::findOrFail((int)$argv[2]),1);echo 'PUBLISHED'; } catch(\Illuminate\Validation\ValidationException) { echo 'STALE'; }
+CODE;
+        $this->assertSame(['PUBLISHED', 'STALE'], $this->parallelFinance($code, [[$admin->id, $announcement->id], [$admin->id, $announcement->id]]));
+        $this->assertSame(1, $announcement->recipients()->count());
+        $this->assertSame(1, $announcement->fresh()->recipient_count);
+    }
+
+    public function test_two_announcement_workers_deliver_one_notification_for_each_recipient(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Announcement delivery races require PostgreSQL.');
+        }
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $student = User::factory()->create();
+        $student->roles()->attach(Role::where('key', 'student')->value('id'));
+        $announcement = Announcement::factory()->create(['created_by' => $admin->id]);
+        app(Announcements::class)->publish($admin, $announcement, 1);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo app(\App\Services\Announcements::class)->deliver((int)$argv[1]);
+CODE;
+        $this->assertSame(['0', '1'], $this->parallelFinance($code, [[$announcement->id], [$announcement->id]]));
+        $this->assertSame(1, $student->notifications()->count());
+        $this->assertSame(1, $announcement->recipients()->where('status', 'delivered')->count());
+        $this->assertSame('completed', $announcement->fresh()->status);
     }
 }

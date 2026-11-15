@@ -79,7 +79,9 @@ const form = useForm({});
                 <span class="row-icon teal"><Icon name="Bell" /></span>
                 <div class="grow">
                     <h3>{{ n.data.title }}</h3>
-                    <p class="muted caption">{{ n.data.text }}</p>
+                    <p class="muted caption preserve-lines">
+                        {{ n.data.text }}
+                    </p>
                     <p v-if="n.data.event_at" class="muted">
                         زمان رویداد: {{ dateTime(n.data.event_at) }}
                     </p>
