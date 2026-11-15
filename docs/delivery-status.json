@@ -1,5 +1,5 @@
 {
-  "phase": "owner-pending-certificate-request-withdrawal",
+  "phase": "owner-controlled-certificate-public-consent-and-private-print",
   "completed": [
     "phone-verification",
     "password-login",
@@ -251,17 +251,25 @@
     "concurrent-withdrawal-and-issuance-exclusion",
     "fresh-certificate-request-consent-after-withdrawal",
     "role-independent-owner-certificate-consent-withdrawal",
-    "admin-withdrawn-certificate-request-filter"
+    "admin-withdrawn-certificate-request-filter",
+    "owner-certificate-public-visibility-control",
+    "fresh-certificate-republication-consent",
+    "preserved-certificate-visibility-event-history",
+    "private-owner-current-admin-certificate-access",
+    "closed-certificate-anonymous-and-peer-404",
+    "certificate-privacy-shared-revision-with-revocation",
+    "legacy-certificate-consent-provenance-backfill",
+    "one-page-labeled-private-certificate-print"
   ],
   "tests": {
     "postgresql": {
-      "passed": 726,
-      "assertions": 5698
+      "passed": 742,
+      "assertions": 5838
     },
     "sqlite": {
-      "passed": 627,
-      "skipped": 99,
-      "assertions": 5148
+      "passed": 641,
+      "skipped": 101,
+      "assertions": 5275
     },
     "javascript": {
       "passed": 6
@@ -425,7 +433,12 @@
     "owner-certificate-request-withdrawal-and-timestamp",
     "fresh-public-consent-checkbox-after-withdrawal",
     "independent-new-certificate-request-with-old-history",
-    "admin-pending-withdrawn-certificate-filter-and-mobile-390"
+    "admin-pending-withdrawn-certificate-filter-and-mobile-390",
+    "certificate-public-close-reopen-close-with-anonymous-404",
+    "private-certificate-owner-and-current-admin-access",
+    "owner-only-certificate-privacy-control-and-fresh-consent",
+    "one-page-a4-private-certificate-pdf",
+    "certificate-public-visibility-mobile-390"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -485,7 +498,7 @@
   "consultation_package_installments_complete": false,
   "course_certificates_complete": true,
   "course_certificates_scope": "selected_evidence_admin_review_one_document_per_enrollment",
-  "certificate_public_verification": "student_consented_unguessable_link",
+  "certificate_public_verification": "owner_consented_revocable_unguessable_link_private_owner_admin_fallback",
   "certificate_reissue_complete": false,
   "certificate_request_withdrawal_complete": true,
   "certificate_qr_complete": false,
@@ -502,7 +515,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase30_verified_pending_pr_merge_then_continue_issued_certificate_public_visibility_consent",
+    "current_work": "phase31_verified_pending_pr_merge_then_continue_consented_reviewed_public_coach_profiles",
     "next_groups": [
       "organization_contract_installments_and_lifecycle",
       "remaining_purchase_cancellation_refunds_awaiting_policy",
@@ -577,5 +590,5 @@
   "referral_rewards_complete": false,
   "learning_rewards_assessment_or_grade_points_complete": false,
   "certificate_request_withdrawal_scope": "active_owner_pending_only_revision_checked_preserved_history_fresh_consent_for_new_request",
-  "certificate_public_visibility_control_complete": false
+  "certificate_public_visibility_control_complete": true
 }

@@ -10,6 +10,7 @@ use App\Models\Assignment;
 use App\Models\AuditEvent;
 use App\Models\CareerResume;
 use App\Models\CertificateRequest;
+use App\Models\CertificateVisibilityEvent;
 use App\Models\Cohort;
 use App\Models\Consultation;
 use App\Models\ConsultationGrant;
@@ -361,6 +362,9 @@ CODE;
             DB::table('discussion_post_revisions')->delete();
             DB::table('discussion_posts')->delete();
             DB::table('course_discussions')->delete();
+        }
+        if (Schema::hasTable('certificate_visibility_events')) {
+            DB::table('certificate_visibility_events')->delete();
         }
         if (Schema::hasTable('course_certificates')) {
             DB::table('course_certificates')->delete();
@@ -2287,5 +2291,41 @@ CODE;
         $this->assertSame(2, $request->revision);
         $this->assertSame($request->status === 'issued' ? 1 : 0, CourseCertificate::count());
         $this->assertSame($request->status === 'withdrawn', $request->withdrawn_at !== null);
+    }
+
+    public function test_two_certificate_privacy_updates_keep_one_visibility_history_event(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Certificate visibility races require PostgreSQL.');
+        }
+        [$request, $admin] = $this->certificationRequest();
+        $certificate = app(Certification::class)->review($admin, $request, 1, 'issue', 'Reviewed fixture');
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$certificate=\App\Models\CourseCertificate::findOrFail((int)$argv[1]);
+try{app(\App\Services\Certification::class)->visibility($certificate->enrollment->user,$certificate,1,false,false);echo 'CLOSED';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['CLOSED', 'STALE'], $this->parallelFinance($code, [[$certificate->id], [$certificate->id]]));
+        $this->assertFalse($certificate->fresh()->public_enabled);
+        $this->assertSame(2, $certificate->fresh()->revision);
+        $this->assertSame(1, CertificateVisibilityEvent::count());
+        $this->assertSame('issued', $certificate->fresh()->status);
+    }
+
+    public function test_certificate_public_privacy_and_revocation_respect_the_same_revision(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Certificate privacy/revocation races require PostgreSQL.');
+        }
+        [$request, $admin] = $this->certificationRequest();
+        $certificate = app(Certification::class)->review($admin, $request, 1, 'issue', 'Reviewed fixture');
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$certificate=\App\Models\CourseCertificate::findOrFail((int)$argv[1]);
+try{if($argv[2]==='close'){app(\App\Services\Certification::class)->visibility($certificate->enrollment->user,$certificate,1,false,false);}else{app(\App\Services\Certification::class)->revoke(\App\Models\User::findOrFail((int)$argv[3]),$certificate,1,'Reviewed fixture');}echo 'DONE';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['DONE', 'STALE'], $this->parallelFinance($code, [[$certificate->id, 'close', $admin->id], [$certificate->id, 'revoke', $admin->id]]));
+        $certificate->refresh();
+        $this->assertSame(2, $certificate->revision);
+        $this->assertSame($certificate->status === 'revoked', $certificate->public_enabled);
+        $this->assertSame($certificate->status === 'issued' ? 1 : 0, CertificateVisibilityEvent::count());
     }
 }

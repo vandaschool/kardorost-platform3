@@ -1,7 +1,11 @@
 <script setup>
 import { Head } from "@inertiajs/vue3";
 import { dateTime } from "../dates";
-defineProps({ certificate: Object, verification_url: String });
+defineProps({
+    certificate: Object,
+    verification_url: String,
+    public_enabled: Boolean,
+});
 function print() {
     window.print();
 }
@@ -22,6 +26,9 @@ function print() {
             :class="{ 'certificate-revoked': certificate.status === 'revoked' }"
             data-certificate-public
         >
+            <p v-if="!public_enabled" class="caption" data-certificate-private>
+                نسخه خصوصی صاحب گواهی؛ استعلام عمومی غیرفعال است.
+            </p>
             <p class="eyebrow">{{ certificate.issuer }}</p>
             <span
                 class="badge"
@@ -46,13 +53,19 @@ function print() {
             <p>
                 شناسه گواهی: <bdi>{{ certificate.serial }}</bdi>
             </p>
-            <footer>
+            <footer v-if="public_enabled">
                 <p class="caption">
                     برای بررسی وضعیت فعلی این گواهی، صفحهٔ استعلام را باز کنید.
                 </p>
                 <a :href="verification_url" class="certificate-url" dir="ltr">{{
                     verification_url
                 }}</a>
+            </footer>
+            <footer v-else>
+                <p class="caption">
+                    این سند در حساب صاحب گواهی نگهداری می‌شود. برای مشاهده
+                    عمومی، رضایت دوباره صاحب گواهی لازم است.
+                </p>
             </footer>
         </article>
     </main>

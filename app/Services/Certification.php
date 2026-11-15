@@ -7,6 +7,7 @@ use App\Models\Attendance;
 use App\Models\AuditEvent;
 use App\Models\CertificatePolicy;
 use App\Models\CertificateRequest;
+use App\Models\CertificateVisibilityEvent;
 use App\Models\Cohort;
 use App\Models\Course;
 use App\Models\CourseCertificate;
@@ -182,13 +183,34 @@ class Certification
             if (! $evidence['eligible'] || CourseCertificate::where('enrollment_id', $enrollment->id)->exists()) {
                 $this->fail('معیارهای همین درخواست برقرار نیست یا گواهی از قبل ثبت شده است.');
             }
-            $certificate = CourseCertificate::create(['enrollment_id' => $enrollment->id, 'certificate_request_id' => $request->id, 'serial' => 'KD-'.now()->format('Y').'-'.strtoupper(bin2hex(random_bytes(8))), 'verification_token' => Str::random(48),
+            $certificate = CourseCertificate::create(['public_enabled' => true, 'public_consent_at' => $request->public_consent_at, 'enrollment_id' => $enrollment->id, 'certificate_request_id' => $request->id, 'serial' => 'KD-'.now()->format('Y').'-'.strtoupper(bin2hex(random_bytes(8))), 'verification_token' => Str::random(48),
                 'definition' => ['recipient_name' => $request->recipient_name, 'course_title' => $enrollment->course->title, 'cohort_title' => $enrollment->cohort->title, 'title' => $request->definition['title'], 'issuer' => $request->definition['issuer'], 'policy' => $request->definition], 'evidence' => $evidence, 'issued_by' => $admin->id, 'issued_at' => now()]);
             $request->update(['status' => 'issued', 'reviewed_by' => $admin->id, 'reviewed_at' => now(), 'review_note' => $note, 'revision' => $request->revision + 1]);
             $this->audit('certificate.issued', 'course_certificate', $certificate->id, $admin->id);
             $enrollment->user->notify(new CertificateChanged('گواهی پایان دوره صادر شد', $enrollment->id));
 
             return $certificate;
+        }, 3);
+    }
+
+    public function visibility(User $actor, CourseCertificate $certificate, int $revision, bool $enabled, bool $consented): void
+    {
+        DB::transaction(function () use ($actor, $certificate, $revision, $enabled, $consented) {
+            $enrollment = $this->locked($certificate->enrollment);
+            $certificate = CourseCertificate::whereKey($certificate->id)->lockForUpdate()->firstOrFail();
+            $actor = User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+            abort_unless($actor->is_active && $actor->id === $enrollment->user_id, 403);
+            if ($certificate->revision !== $revision || $certificate->public_enabled === $enabled) {
+                $this->fail('وضعیت انتشار یا نسخه گواهی تغییر کرده است؛ صفحه را تازه کنید.');
+            }
+            if ($enabled && ! $consented) {
+                $this->fail('برای نمایش عمومی، تأیید دوباره نام و اطلاعات گواهی لازم است.');
+            }
+            $data = ['public_enabled' => $enabled, 'revision' => $certificate->revision + 1];
+            $data[$enabled ? 'public_consent_at' : 'public_withdrawn_at'] = now();
+            $certificate->update($data);
+            CertificateVisibilityEvent::create(['course_certificate_id' => $certificate->id, 'actor_id' => $actor->id, 'enabled' => $enabled, 'revision' => $certificate->revision, 'consented_at' => $enabled ? now() : null]);
+            $this->audit($enabled ? 'certificate.public_consent_renewed' : 'certificate.public_visibility_withdrawn', 'course_certificate', $certificate->id, $actor->id);
         }, 3);
     }
 
