@@ -31,3 +31,6 @@ Artisan::command('platform:grant-role {phone} {role}', function () {
 Schedule::command('platform:expire-consultations')->everyMinute()->withoutOverlapping();
 
 Schedule::command('platform:dispatch-invitation-sms')->everyMinute()->withoutOverlapping();
+
+Schedule::command('platform:dispatch-reminders')->everyMinute()->withoutOverlapping();
+Schedule::command('platform:poll-sms-deliveries')->everyMinute()->withoutOverlapping();

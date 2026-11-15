@@ -4,7 +4,13 @@ import Shell from "../Layouts/Shell.vue";
 import Icon from "../Components/Icon.vue";
 import Empty from "../Components/Empty.vue";
 import { dateTime } from "../dates";
-defineProps({ notifications: Object });
+const props = defineProps({
+    notifications: Object,
+    sms_reminders_enabled: Boolean,
+});
+const preferences = useForm({
+    sms_reminders_enabled: props.sms_reminders_enabled,
+});
 const page = usePage();
 const form = useForm({});
 </script>
@@ -20,6 +26,43 @@ const form = useForm({});
                     بازخورد تمرین‌ها، وضعیت رسیدها و خبرهای حساب شما.
                 </p>
             </div>
+        </section>
+        <section class="glass panel-card consultation-section">
+            <h2>ترجیح یادآوری</h2>
+            <form
+                class="stack-form"
+                @submit.prevent="
+                    preferences.patch('/notification-preferences', {
+                        preserveScroll: true,
+                    })
+                "
+            >
+                <label
+                    ><input
+                        type="checkbox"
+                        v-model="preferences.sms_reminders_enabled"
+                        name="sms_reminders_enabled"
+                    />
+                    پیامک یادآوری کلاس و مشاوره</label
+                >
+                <p class="muted">
+                    ارسال پیامک به فعال‌بودن سرویس در سامانه وابسته است. یادآوری
+                    داخلی در این صفحه قابل پیگیری است.
+                </p>
+                <p
+                    v-for="error in preferences.errors"
+                    class="field-error"
+                    role="alert"
+                >
+                    {{ error }}
+                </p>
+                <button
+                    class="btn secondary"
+                    :disabled="preferences.processing"
+                >
+                    ذخیره ترجیح
+                </button>
+            </form>
         </section>
         <section class="glass panel-card">
             <Empty
@@ -37,6 +80,9 @@ const form = useForm({});
                 <div class="grow">
                     <h3>{{ n.data.title }}</h3>
                     <p class="muted caption">{{ n.data.text }}</p>
+                    <p v-if="n.data.event_at" class="muted">
+                        زمان رویداد: {{ dateTime(n.data.event_at) }}
+                    </p>
                     <small class="muted">{{ dateTime(n.created_at) }}</small>
                     <div class="learning-actions">
                         <Link

@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BillingPlanController;
 use App\Http\Controllers\CareerController;
 use App\Http\Controllers\CertificateController;
+use App\Http\Controllers\CommunicationController;
 use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\ConsultationGrantController;
 use App\Http\Controllers\ConsultationPaymentController;
@@ -80,6 +81,8 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::post('/support/{ticket}/messages', [SupportController::class, 'reply'])->middleware('throttle:30,1');
     Route::post('/support/{ticket}/change', [SupportController::class, 'change'])->middleware('throttle:30,1');
     Route::get('/support-files/{message}', [SupportController::class, 'file'])->name('support.file');
+    Route::get('/reminders/{reminder}', [CommunicationController::class, 'open'])->name('reminders.open');
+    Route::patch('/notification-preferences', [NotificationController::class, 'preferences'])->middleware('throttle:20,1');
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications');
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'read']);
     Route::get('/submissions/{submission}/file', [SubmissionController::class, 'file'])->name('submissions.file');
@@ -188,6 +191,8 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/organization/members/{member}', [OrganizationController::class, 'report']);
     });
     Route::middleware('panel.role:admin')->group(function () {
+        Route::get('/admin/communications', [CommunicationController::class, 'index'])->name('admin.communications');
+        Route::post('/admin/communications/{delivery}/query', [CommunicationController::class, 'retry'])->middleware('throttle:20,1');
         Route::get('/admin/content', [ContentController::class, 'index'])->name('admin.content');
         Route::post('/admin/content', [ContentController::class, 'create']);
         Route::get('/admin/content/{page}', [ContentController::class, 'edit'])->name('admin.content.edit');

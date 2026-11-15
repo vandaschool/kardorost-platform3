@@ -279,6 +279,7 @@ onBeforeUnmount(() => {
             <article
                 v-for="session in sessions"
                 :key="session.id"
+                :id="'live-' + session.id"
                 class="live-session-card"
             >
                 <div class="section-heading">

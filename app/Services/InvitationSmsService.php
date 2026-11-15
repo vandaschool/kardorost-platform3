@@ -82,7 +82,8 @@ class InvitationSmsService
 
                 return null;
             }
-            $sms->update(['status' => 'processing', 'attempted_at' => now()]);
+            $account = app(MelipayamakClient::class)->account();
+            $sms->update(['status' => 'processing', 'attempted_at' => now(), 'sender_mode' => $account['mode'] ?? null, 'sender_account' => $account['fingerprint'] ?? null]);
 
             return ['phone' => $invitation->phone, 'organization' => $sms->organization_name];
         }, 3);
@@ -106,7 +107,16 @@ class InvitationSmsService
             if ($sms->status !== 'processing') {
                 return;
             }
-            $sms->update(['status' => $status, 'provider_reference' => $reference, 'failure_code' => $failureCode, 'finished_at' => now()]);
+            $deliveryId = null;
+            if ($status === 'accepted' && $sms->sender_mode && $sms->sender_account) {
+                try {
+                    $deliveryId = app(SmsDeliveryService::class)->register('invitation', $sms->id, $reference, ['mode' => $sms->sender_mode, 'fingerprint' => $sms->sender_account])->id;
+                } catch (SmsFailure $failure) {
+                    $status = 'unknown';
+                    $failureCode = $failure->failureCode;
+                }
+            }
+            $sms->update(['status' => $status, 'provider_reference' => $reference, 'failure_code' => $failureCode, 'sms_delivery_id' => $deliveryId, 'finished_at' => now()]);
             $this->audit($sms);
         }, 3);
     }
