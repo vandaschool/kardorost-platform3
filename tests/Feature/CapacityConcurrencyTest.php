@@ -11,6 +11,9 @@ use App\Models\AuditEvent;
 use App\Models\CareerResume;
 use App\Models\CertificateRequest;
 use App\Models\CertificateVisibilityEvent;
+use App\Models\CoachProfile;
+use App\Models\CoachProfilePublication;
+use App\Models\CoachProfileWithdrawal;
 use App\Models\Cohort;
 use App\Models\Consultation;
 use App\Models\ConsultationGrant;
@@ -67,6 +70,7 @@ use App\Services\Announcements;
 use App\Services\AssessmentService;
 use App\Services\BillingService;
 use App\Services\Certification;
+use App\Services\CoachProfiles;
 use App\Services\CohortCapacity;
 use App\Services\ConsultationBilling;
 use App\Services\ConsultationService;
@@ -323,6 +327,13 @@ CODE;
 
     protected function tearDown(): void
     {
+        if (Schema::hasTable('coach_profiles')) {
+            DB::table('coach_profiles')->update(['current_publication_id' => null, 'latest_submission_id' => null]);
+            DB::table('coach_profile_withdrawals')->delete();
+            DB::table('coach_profile_publications')->delete();
+            DB::table('coach_profile_submissions')->delete();
+            DB::table('coach_profiles')->delete();
+        }
         if (Schema::hasTable('learning_reward_policies')) {
             DB::table('learning_badges')->delete();
             DB::table('learning_reward_events')->delete();
@@ -2327,5 +2338,65 @@ CODE;
         $this->assertSame(2, $certificate->revision);
         $this->assertSame($certificate->status === 'revoked', $certificate->public_enabled);
         $this->assertSame($certificate->status === 'issued' ? 1 : 0, CertificateVisibilityEvent::count());
+    }
+
+    private function coachProfileFixture(): array
+    {
+        $profile = CoachProfile::factory()->create();
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        app(CoachProfiles::class)->submit($profile->owner, $profile, 1, true);
+
+        return [$profile->fresh(), $admin];
+    }
+
+    public function test_two_coach_profile_reviews_publish_one_consented_snapshot(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Coach profile publication races require PostgreSQL.');
+        }
+        [$profile, $admin] = $this->coachProfileFixture();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+try{app(\App\Services\CoachProfiles::class)->review(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\CoachProfile::findOrFail((int)$argv[2]),2,'publish',null);echo 'PUBLISHED';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['PUBLISHED', 'STALE'], $this->parallelFinance($code, [[$admin->id, $profile->id], [$admin->id, $profile->id]]));
+        $this->assertSame(1, CoachProfilePublication::count());
+        $this->assertSame(3, $profile->fresh()->revision);
+        $this->assertSame('approved', $profile->fresh()->state);
+    }
+
+    public function test_coach_profile_edit_and_publication_cannot_overwrite_the_same_revision(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Coach profile edit/review races require PostgreSQL.');
+        }
+        [$profile, $admin] = $this->coachProfileFixture();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$profile=\App\Models\CoachProfile::findOrFail((int)$argv[1]);
+try{if($argv[2]==='edit'){app(\App\Services\CoachProfiles::class)->save($profile->owner,[...$profile->draft,'headline'=>'Edited fixture headline'],2);}else{app(\App\Services\CoachProfiles::class)->review(\App\Models\User::findOrFail((int)$argv[3]),$profile,2,'publish',null);}echo 'DONE';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['DONE', 'STALE'], $this->parallelFinance($code, [[$profile->id, 'edit', $admin->id], [$profile->id, 'publish', $admin->id]]));
+        $profile->refresh();
+        $this->assertSame(3, $profile->revision);
+        $this->assertSame($profile->state === 'approved' ? 1 : 0, CoachProfilePublication::count());
+        $this->assertTrue($profile->state !== 'approved' || $profile->currentPublication->definition['headline'] !== 'Edited fixture headline');
+    }
+
+    public function test_coach_profile_consent_withdrawal_and_publication_cannot_both_finish(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Coach profile consent/publication races require PostgreSQL.');
+        }
+        [$profile, $admin] = $this->coachProfileFixture();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$profile=\App\Models\CoachProfile::findOrFail((int)$argv[1]);
+try{if($argv[2]==='withdraw'){app(\App\Services\CoachProfiles::class)->withdraw($profile->owner,$profile,2,null);}else{app(\App\Services\CoachProfiles::class)->review(\App\Models\User::findOrFail((int)$argv[3]),$profile,2,'publish',null);}echo 'DONE';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['DONE', 'STALE'], $this->parallelFinance($code, [[$profile->id, 'withdraw', $admin->id], [$profile->id, 'publish', $admin->id]]));
+        $profile->refresh();
+        $this->assertSame(3, $profile->revision);
+        $this->assertSame($profile->public_enabled ? 1 : 0, CoachProfilePublication::count());
+        $this->assertSame($profile->public_enabled ? 0 : 1, CoachProfileWithdrawal::count());
     }
 }

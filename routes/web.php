@@ -7,6 +7,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BillingPlanController;
 use App\Http\Controllers\CareerController;
 use App\Http\Controllers\CertificateController;
+use App\Http\Controllers\CoachProfileController;
 use App\Http\Controllers\CommunicationController;
 use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\ConsultationGrantController;
@@ -41,6 +42,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/verify/certificates/{token}', [CertificateController::class, 'verify'])->middleware('throttle:60,1')->name('certificates.verify');
 Route::get('/', [PublicSiteController::class, 'home'])->name('home');
+Route::get('/mentors', [PublicSiteController::class, 'mentors'])->name('public.mentors');
+Route::get('/mentors/{slug}', [PublicSiteController::class, 'mentor'])->whereUuid('slug')->name('public.mentor');
 Route::get('/catalog', [PublicSiteController::class, 'catalog'])->name('public.catalog');
 Route::get('/catalog/{slug}', [PublicSiteController::class, 'course'])->name('public.course');
 Route::get('/journal', [PublicSiteController::class, 'journal'])->name('public.journal');
@@ -86,6 +89,10 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::get('/support-files/{message}', [SupportController::class, 'file'])->name('support.file');
     Route::get('/reminders/{reminder}', [CommunicationController::class, 'open'])->name('reminders.open');
     Route::patch('/notification-preferences', [NotificationController::class, 'preferences'])->middleware('throttle:20,1');
+    Route::get('/coach/profile', [CoachProfileController::class, 'own'])->name('coach.profile');
+    Route::post('/coach/profile', [CoachProfileController::class, 'save']);
+    Route::post('/coach/profile/submit', [CoachProfileController::class, 'submit'])->middleware('throttle:10,1');
+    Route::post('/coach/profile/withdraw', [CoachProfileController::class, 'ownWithdraw']);
     Route::get('/learning-rewards', [LearningRewardController::class, 'index'])->name('learning-rewards');
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications');
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'read']);
@@ -197,6 +204,10 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/organization/members/{member}', [OrganizationController::class, 'report']);
     });
     Route::middleware('panel.role:admin')->group(function () {
+        Route::get('/admin/coach-profiles', [CoachProfileController::class, 'admin'])->name('admin.coach-profiles');
+        Route::get('/admin/coach-profiles/{profile}', [CoachProfileController::class, 'admin'])->name('admin.coach-profiles.show');
+        Route::post('/admin/coach-profiles/{profile}/review', [CoachProfileController::class, 'review']);
+        Route::post('/admin/coach-profiles/{profile}/withdraw', [CoachProfileController::class, 'withdraw']);
         Route::get('/admin/learning-reward-policies', [LearningRewardController::class, 'policies'])->name('admin.learning-reward-policies');
         Route::patch('/admin/cohorts/{cohort}/learning-rewards', [LearningRewardController::class, 'configure']);
         Route::get('/admin/learning-rewards', [LearningRewardController::class, 'index'])->name('admin.learning-rewards');

@@ -486,3 +486,10 @@
         font-size: 11px;
     }
 }
+
+.public-mentor-content {
+    overflow-wrap: anywhere;
+}
+.public-mentor-bio {
+    white-space: pre-line;
+}

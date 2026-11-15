@@ -1,5 +1,5 @@
 {
-  "phase": "owner-controlled-certificate-public-consent-and-private-print",
+  "phase": "consented-reviewed-versioned-public-coach-profiles",
   "completed": [
     "phone-verification",
     "password-login",
@@ -259,17 +259,27 @@
     "closed-certificate-anonymous-and-peer-404",
     "certificate-privacy-shared-revision-with-revocation",
     "legacy-certificate-consent-provenance-backfill",
-    "one-page-labeled-private-certificate-print"
+    "one-page-labeled-private-certificate-print",
+    "encrypted-private-coach-profile-drafts",
+    "immutable-coach-profile-consent-submissions",
+    "exact-version-admin-coach-profile-review",
+    "separate-immutable-public-coach-profile-publications",
+    "draft-edits-preserve-old-public-coach-copy",
+    "in-flight-coach-profile-edits-remain-unsaved",
+    "owner-admin-coach-publication-withdrawal-history",
+    "role-activity-verified-phone-public-coach-visibility",
+    "server-rendered-public-mentor-directory-and-profiles",
+    "published-current-coach-only-sitemap"
   ],
   "tests": {
     "postgresql": {
-      "passed": 742,
-      "assertions": 5838
+      "passed": 765,
+      "assertions": 5989
     },
     "sqlite": {
-      "passed": 641,
-      "skipped": 101,
-      "assertions": 5275
+      "passed": 661,
+      "skipped": 104,
+      "assertions": 5408
     },
     "javascript": {
       "passed": 6
@@ -438,7 +448,14 @@
     "private-certificate-owner-and-current-admin-access",
     "owner-only-certificate-privacy-control-and-fresh-consent",
     "one-page-a4-private-certificate-pdf",
-    "certificate-public-visibility-mobile-390"
+    "certificate-public-visibility-mobile-390",
+    "coach-private-draft-explicit-consent-and-admin-review",
+    "public-mentor-ssr-escaping-and-private-phone-isolation",
+    "public-profile-first-and-second-immutable-publications",
+    "coach-draft-keeps-prior-public-copy",
+    "network-delayed-save-edit-remains-dirty",
+    "owner-profile-withdrawal-sitemap-removal-and-fresh-consent",
+    "public-mentor-layouts-320-390-768-1440"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -515,7 +532,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase31_verified_pending_pr_merge_then_continue_consented_reviewed_public_coach_profiles",
+    "current_work": "phase32_verified_pending_pr_merge_then_continue_organization_contact_leads",
     "next_groups": [
       "organization_contract_installments_and_lifecycle",
       "remaining_purchase_cancellation_refunds_awaiting_policy",
@@ -543,7 +560,7 @@
   "public_site_complete": true,
   "public_cms_complete": true,
   "public_cms_scope": "plain_text_versioned_home_copy_articles_standalone_pages_with_explicit_publication",
-  "public_coach_profiles_complete": false,
+  "public_coach_profiles_complete": true,
   "public_media_library_complete": false,
   "public_rich_text_editor_complete": false,
   "public_scheduled_publishing_complete": false,
@@ -590,5 +607,11 @@
   "referral_rewards_complete": false,
   "learning_rewards_assessment_or_grade_points_complete": false,
   "certificate_request_withdrawal_scope": "active_owner_pending_only_revision_checked_preserved_history_fresh_consent_for_new_request",
-  "certificate_public_visibility_control_complete": true
+  "certificate_public_visibility_control_complete": true,
+  "public_coach_profiles_scope": "self_authored_plain_text_consented_snapshot_current_admin_review_current_active_verified_coach_role",
+  "public_coach_photos_complete": false,
+  "coach_uploaded_credentials_complete": false,
+  "public_coach_specialty_search_complete": false,
+  "public_coach_specific_availability_link_complete": false,
+  "coach_official_credentials_automatically_verified": false
 }
