@@ -7,6 +7,7 @@ use App\Models\AssessmentAttempt;
 use App\Models\AssessmentVersion;
 use App\Models\Assignment;
 use App\Models\AuditEvent;
+use App\Models\CertificateRequest;
 use App\Models\Cohort;
 use App\Models\Consultation;
 use App\Models\ConsultationGrant;
@@ -15,10 +16,12 @@ use App\Models\ConsultationProduct;
 use App\Models\ConsultationRequest;
 use App\Models\ConsultationSlot;
 use App\Models\Course;
+use App\Models\CourseCertificate;
 use App\Models\Enrollment;
 use App\Models\EnrollmentConsultationBenefit;
 use App\Models\Installment;
 use App\Models\InvitationSms;
+use App\Models\LessonProgress;
 use App\Models\Organization;
 use App\Models\OrganizationInvitation;
 use App\Models\OrganizationInvoice;
@@ -36,6 +39,7 @@ use App\Models\Submission;
 use App\Models\User;
 use App\Services\AssessmentService;
 use App\Services\BillingService;
+use App\Services\Certification;
 use App\Services\CohortCapacity;
 use App\Services\ConsultationBilling;
 use App\Services\ConsultationService;
@@ -288,6 +292,10 @@ CODE;
 
     protected function tearDown(): void
     {
+        if (Schema::hasTable('course_certificates')) {
+            DB::table('course_certificates')->delete();
+            DB::table('certificate_requests')->delete();
+        }
         if (Schema::hasTable('package_purchases')) {
             DB::table('package_purchases')->update(['settled_payment_id' => null]);
             $ids = Payment::whereNotNull('package_purchase_id')->pluck('id');
@@ -1309,5 +1317,94 @@ CODE;
         $this->assertSame(['BLOCKED', 'DONE'], $this->parallelFinance($code, [[$payment->id, 'refund', $purchase->reviewed_by], [$payment->id, 'fulfill', $purchase->reviewed_by]]));
         $this->assertSame(1, Refund::count() + ConsultationGrant::count());
         $this->assertSame(Refund::exists() ? 'review_required' : 'paid', $payment->fresh()->status);
+    }
+
+    private function certificationRequest(): array
+    {
+        $request = CertificateRequest::factory()->create();
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        foreach ($request->definition['lessons'] as $lesson) {
+            LessonProgress::create(['enrollment_id' => $request->enrollment_id, 'lesson_id' => $lesson['id'], 'completed_at' => now()]);
+        }
+
+        return [$request, $admin];
+    }
+
+    public function test_concurrent_certificate_requests_keep_one_pending_application(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Certificate lifecycle races require PostgreSQL.');
+        }
+        [$request] = $this->certificationRequest();
+        $enrollment = $request->enrollment;
+        $request->delete();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$enrollment=\App\Models\Enrollment::findOrFail((int)$argv[1]);
+echo app(\App\Services\Certification::class)->request($enrollment->user,$enrollment,1,$enrollment->user->name)->id;
+CODE;
+        $result = $this->parallelFinance($code, [[$enrollment->id], [$enrollment->id]]);
+        $this->assertSame($result[0], $result[1]);
+        $this->assertSame(1, CertificateRequest::count());
+        $this->assertSame(1, AuditEvent::where('action', 'certificate.requested')->count());
+    }
+
+    public function test_simultaneous_certificate_approvals_issue_one_document_and_token(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Certificate lifecycle races require PostgreSQL.');
+        }
+        [$request, $admin] = $this->certificationRequest();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+echo app(\App\Services\Certification::class)->review(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\CertificateRequest::findOrFail((int)$argv[2]),1,'issue','Educational evidence reviewed')->verification_token;
+CODE;
+        $result = $this->parallelFinance($code, [[$admin->id, $request->id], [$admin->id, $request->id]]);
+        $this->assertSame($result[0], $result[1]);
+        $this->assertSame(1, CourseCertificate::count());
+        $this->assertSame(1, AuditEvent::where('action', 'certificate.issued')->count());
+    }
+
+    public function test_certificate_issue_and_grade_review_share_one_enrollment_lock(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Certificate lifecycle races require PostgreSQL.');
+        }
+        [$request, $admin] = $this->certificationRequest();
+        $assignment = Assignment::factory()->create(['cohort_id' => $request->enrollment->cohort_id]);
+        $submission = Submission::factory()->create(['assignment_id' => $assignment->id, 'enrollment_id' => $request->enrollment_id, 'status' => 'reviewed', 'score' => 100, 'reviewed_at' => now()]);
+        $definition = $request->definition;
+        $definition['assignments'] = [$assignment->only('id', 'title', 'max_score')];
+        $request->update(['definition' => $definition]);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$request=\App\Models\CertificateRequest::findOrFail((int)$argv[1]);
+if($argv[2]==='issue'){try{app(\App\Services\Certification::class)->review(\App\Models\User::findOrFail((int)$argv[3]),$request,1,'issue','Reviewed educational evidence');echo 'ISSUED';}catch(\Illuminate\Validation\ValidationException){echo 'BLOCKED';}}
+else{$review=\Illuminate\Http\Request::create('/submissions/'.$argv[4].'/review','PATCH',['status'=>'reviewed','score'=>0,'feedback'=>'Regraded educational evidence','expected_review_version'=>0]);$review->setUserResolver(fn()=>\App\Models\User::findOrFail((int)$argv[3]));app(\App\Http\Controllers\SubmissionController::class)->review($review,\App\Models\Submission::findOrFail((int)$argv[4]),app(\App\Services\LearningAccess::class));echo 'CHANGED';}
+CODE;
+        $result = $this->parallelFinance($code, [[$request->id, 'issue', $admin->id, $submission->id], [$request->id, 'grade', $admin->id, $submission->id]]);
+        $this->assertContains('CHANGED', $result);
+        $this->assertSame(0, $submission->fresh()->score);
+        $this->assertSame(in_array('ISSUED', $result, true) ? 1 : 0, CourseCertificate::count());
+        if (CourseCertificate::exists()) {
+            $this->assertTrue(CourseCertificate::first()->evidence['eligible']);
+        } else {
+            $this->assertSame('pending', $request->fresh()->status);
+        }
+    }
+
+    public function test_concurrent_certificate_revocations_record_one_terminal_change(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Certificate lifecycle races require PostgreSQL.');
+        }
+        [$request, $admin] = $this->certificationRequest();
+        $certificate = app(Certification::class)->review($admin, $request, 1, 'issue', 'Evidence reviewed');
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+try{app(\App\Services\Certification::class)->revoke(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\CourseCertificate::findOrFail((int)$argv[2]),1,'Reviewed revocation');echo 'REVOKED';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['REVOKED', 'STALE'], $this->parallelFinance($code, [[$admin->id, $certificate->id], [$admin->id, $certificate->id]]));
+        $this->assertSame('revoked', $certificate->fresh()->status);
+        $this->assertSame(1, AuditEvent::where('action', 'certificate.revoked')->count());
     }
 }

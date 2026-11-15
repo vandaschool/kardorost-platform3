@@ -12,6 +12,7 @@ use App\Models\Enrollment;
 use App\Models\Lesson;
 use App\Models\LiveSession;
 use App\Models\Submission;
+use App\Services\Certification;
 use App\Services\LearningAccess;
 use App\Services\LearningProgress;
 use App\Services\MediaUrl;
@@ -42,7 +43,7 @@ class TeachingController extends Controller
         return Inertia::render('Teaching', [
             'course' => $course->only('id', 'title'), 'role' => $request->user()->hasRole('admin') ? 'admin' : 'coach', 'sections' => $sections, 'cohorts' => $cohorts, 'cohort' => $cohort,
             'sessions' => $sessions->map(fn ($s) => [...$s->toArray(), 'meeting_url' => $s->meeting_url, 'recording_url' => $s->recording_url]), 'assignments' => $assignments,
-            'members' => $enrollments->map(fn ($e) => ['enrollment_id' => $e->id, 'name' => $e->user->name, 'progress' => $progress->summary($e)]),
+            'members' => $enrollments->map(fn ($e) => ['enrollment_id' => $e->id, 'name' => $e->user->name, 'progress' => $progress->summary($e), 'certificate_status' => app(Certification::class)->status($e)]),
             'submissions' => $latest->map(fn ($s) => [...app(LearningController::class)->submissionData($s), 'assignment_id' => $s->assignment_id, 'enrollment_id' => $s->enrollment_id, 'attempt_history' => $allSubmissions->filter(fn ($old) => $old->assignment_id === $s->assignment_id && $old->enrollment_id === $s->enrollment_id && $old->version < $s->version)->map(fn ($old) => app(LearningController::class)->submissionData($old))->values()]),
             'attendances' => $sessions->isEmpty() ? [] : Attendance::whereIn('live_session_id', $sessions->pluck('id'))->get(['live_session_id', 'enrollment_id', 'status']),
         ]);
@@ -52,7 +53,11 @@ class TeachingController extends Controller
     {
         $access->manage($request->user(), $course);
         $data = $request->validate(['title' => 'required|string|max:150', 'position' => 'required|integer|min:0|max:10000']);
-        $section = $course->sections()->create($data);
+        $section = DB::transaction(function () use ($course, $data) {
+            Course::whereKey($course->id)->lockForUpdate()->firstOrFail();
+
+            return $course->sections()->create($data);
+        }, 3);
         $this->audit($request, 'section.created', 'course_section', $section->id);
 
         return back()->with('success', 'سرفصل اضافه شد.');
@@ -71,7 +76,8 @@ class TeachingController extends Controller
         if ($data['is_published'] && $data['media_kind'] === 'none' && trim($data['body'] ?? '') === '') {
             throw ValidationException::withMessages(['body' => 'درس منتشرشده باید متن یا ویدیو داشته باشد.']);
         }
-        DB::transaction(function () use ($lesson, $data, $request) {
+        DB::transaction(function () use ($lesson, $data, $request, $course) {
+            Course::whereKey($course->id)->lockForUpdate()->firstOrFail();
             if ($lesson) {
                 $lesson->update($data);
             } else {
@@ -95,7 +101,9 @@ class TeachingController extends Controller
         $data['meeting_url'] = $media->meeting($data['provider'], $data['meeting_url']);
         $data['recording_url'] = $media->media($data['recording_kind'], $data['recording_url'] ?? null, 'recording_url');
         $data['cohort_id'] = $cohort->id;
-        DB::transaction(function () use ($session, $data, $request) {
+        DB::transaction(function () use ($session, $data, $request, $course, $cohort) {
+            Course::whereKey($course->id)->lockForUpdate()->firstOrFail();
+            Cohort::whereKey($cohort->id)->lockForUpdate()->firstOrFail();
             if ($session) {
                 $session->update($data);
             } else {
@@ -123,7 +131,9 @@ class TeachingController extends Controller
         }
         $data = $this->normalizeDates($request->validate($rules), ['available_at', 'due_at', 'closes_at']);
         $data['cohort_id'] = $cohort->id;
-        DB::transaction(function () use ($assignment, $data, $request) {
+        DB::transaction(function () use ($assignment, $data, $request, $course, $cohort) {
+            Course::whereKey($course->id)->lockForUpdate()->firstOrFail();
+            Cohort::whereKey($cohort->id)->lockForUpdate()->firstOrFail();
             if ($assignment) {
                 $assignment = Assignment::whereKey($assignment->id)->lockForUpdate()->firstOrFail();
                 if ($assignment->max_score !== (int) $data['max_score'] && Submission::where('assignment_id', $assignment->id)->exists()) {
@@ -146,7 +156,11 @@ class TeachingController extends Controller
         $data = $request->validate(['enrollment_id' => 'required|integer', 'status' => 'required|in:present,absent,excused']);
         $enrollment = Enrollment::findOrFail($data['enrollment_id']);
         abort_unless($enrollment->cohort_id === $session->cohort_id && $enrollment->status === 'active', 422);
-        DB::transaction(function () use ($data, $request, $session) {
+        DB::transaction(function () use ($data, $request, $session, $course) {
+            Course::whereKey($course->id)->lockForUpdate()->firstOrFail();
+            Cohort::whereKey($session->cohort_id)->lockForUpdate()->firstOrFail();
+            $enrollment = Enrollment::whereKey($data['enrollment_id'])->lockForUpdate()->firstOrFail();
+            abort_unless($enrollment->cohort_id === $session->cohort_id && $enrollment->status === 'active', 422);
             Attendance::updateOrCreate(['live_session_id' => $session->id, 'enrollment_id' => $data['enrollment_id']], ['status' => $data['status'], 'recorded_by' => $request->user()->id]);
             $this->audit($request, 'attendance.recorded', 'live_session', $session->id, ['enrollment_id' => $data['enrollment_id'], 'status' => $data['status']]);
         });

@@ -126,6 +126,13 @@ onBeforeUnmount(() => {
                 ></progress>
             </div>
         </section>
+        <p>
+            <Link
+                :href="'/certificates/enrollments/' + enrollment.id"
+                class="text-link"
+                >معیارها و درخواست گواهی دوره</Link
+            >
+        </p>
         <nav class="learning-tabs" aria-label="بخش‌های دوره">
             <button
                 v-for="[key, label, icon] in [

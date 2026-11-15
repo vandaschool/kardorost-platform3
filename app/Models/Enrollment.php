@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Enrollment extends Model
 {
@@ -16,6 +17,11 @@ class Enrollment extends Model
     protected function casts(): array
     {
         return ['expires_at' => 'datetime', 'amount' => 'integer', 'billing_version' => 'integer'];
+    }
+
+    public function certificate(): HasOne
+    {
+        return $this->hasOne(CourseCertificate::class);
     }
 
     public function organizationLicense(): BelongsTo
