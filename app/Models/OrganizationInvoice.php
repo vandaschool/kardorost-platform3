@@ -17,7 +17,7 @@ class OrganizationInvoice extends Model
 
     protected function casts(): array
     {
-        return ['lines' => 'array', 'amount' => 'integer', 'revision' => 'integer', 'due_date' => 'date:Y-m-d', 'issued_at' => 'datetime', 'paid_at' => 'datetime', 'voided_at' => 'datetime'];
+        return ['payment_schedule' => 'array', 'lines' => 'array', 'amount' => 'integer', 'revision' => 'integer', 'due_date' => 'date:Y-m-d', 'issued_at' => 'datetime', 'paid_at' => 'datetime', 'voided_at' => 'datetime'];
     }
 
     public function organization(): BelongsTo

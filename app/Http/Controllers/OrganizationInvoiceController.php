@@ -9,6 +9,7 @@ use App\Models\OrganizationLicense;
 use App\Models\Payment;
 use App\Services\BillingService;
 use App\Services\OrganizationBilling;
+use App\Services\OrganizationPaymentSchedule;
 use App\Services\PaymentGateway;
 use App\Services\ReceiptService;
 use App\Services\RefundService;
@@ -40,8 +41,9 @@ class OrganizationInvoiceController extends Controller
     private function data(OrganizationInvoice $invoice): array
     {
         $paid = $invoice->paidAmount();
+        $schedule = app(OrganizationPaymentSchedule::class)->summary($invoice, $paid);
 
-        return [...$invoice->only('id', 'organization_id', 'organization_license_id', 'title', 'organization_name', 'contract_reference', 'lines', 'amount', 'number', 'status', 'revision', 'destination', 'holder', 'void_reason', 'issued_at', 'paid_at', 'voided_at'), 'paid_amount' => $paid, 'remaining_amount' => max(0, $invoice->amount - $paid), 'due_date' => $invoice->due_date->toDateString(), 'overdue' => $invoice->status === 'issued' && $invoice->due_date->toDateString() < now()->toDateString()];
+        return [...$invoice->only('id', 'organization_id', 'organization_license_id', 'title', 'organization_name', 'contract_reference', 'lines', 'amount', 'number', 'status', 'revision', 'destination', 'holder', 'void_reason', 'issued_at', 'paid_at', 'voided_at', 'payment_schedule'), 'schedule' => $schedule, 'paid_amount' => $paid, 'remaining_amount' => max(0, $invoice->amount - $paid), 'due_date' => $invoice->due_date->toDateString(), 'overdue' => $schedule['overdue_amount'] > 0];
     }
 
     public function admin(Request $request): Response

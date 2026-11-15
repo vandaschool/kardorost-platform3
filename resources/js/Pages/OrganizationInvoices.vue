@@ -64,8 +64,11 @@ const labels = {
                     {{ money(i.remaining_amount) }}
                 </p>
                 <p>
-                    سررسید: {{ dateOnly(i.due_date) }}
-                    <span v-if="i.overdue">· سررسید گذشته</span>
+                    سررسید نهایی: {{ dateOnly(i.due_date) }}
+                    <span v-if="i.overdue"
+                        >· بدهی سررسیدگذشته:
+                        {{ money(i.schedule.overdue_amount) }}</span
+                    >
                 </p>
                 <Link
                     :href="`${admin ? '/admin' : ''}/organization${admin ? '-invoices' : '/invoices'}/${i.id}`"

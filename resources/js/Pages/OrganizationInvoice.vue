@@ -31,6 +31,14 @@ watch(
         issue.reviewed = false;
     },
 );
+const installmentLabels = {
+    draft: "پیش‌نویس",
+    void: "باطل‌شده",
+    paid: "پرداخت‌شده",
+    overdue: "سررسید گذشته",
+    due: "سررسید امروز",
+    upcoming: "آینده",
+};
 const labels = {
     draft: "پیش‌نویس",
     issued: "صادرشده",
@@ -126,6 +134,41 @@ function receipt(p) {
                 دسترسی آموزشی را خودکار تغییر نمی‌دهد.
             </p>
         </section>
+        <section
+            class="panel glass consultation-card consultation-section"
+            data-testid="invoice-schedule"
+        >
+            <h2>برنامه پرداخت قرارداد</h2>
+            <p class="muted">
+                پرداخت‌های تأییدشده به ترتیب سررسید، مانده اقساط را پوشش
+                می‌دهند. رسید در انتظار بررسی یا مبلغ تخصیص‌نیافته از بدهی کم
+                نمی‌شود.
+            </p>
+            <p data-testid="invoice-overdue">
+                بدهی سررسیدگذشته: {{ money(invoice.schedule.overdue_amount) }}
+            </p>
+            <p>سررسید امروز: {{ money(invoice.schedule.due_today_amount) }}</p>
+            <article
+                v-for="row in invoice.schedule.items"
+                :key="row.sequence"
+                :data-installment="row.sequence"
+                class="assessment-editor-item"
+            >
+                <h3>
+                    قسط {{ fa(row.sequence) }} ·
+                    {{ installmentLabels[row.status] }}
+                </h3>
+                <p>سررسید: {{ dateOnly(row.due_date) }}</p>
+                <p>
+                    مبلغ: {{ money(row.amount) }} · پرداخت‌شده:
+                    {{ money(row.paid_amount) }} · مانده:
+                    {{ money(row.remaining_amount) }}
+                </p>
+            </article>
+            <p class="muted">
+                سررسید گذشته به‌تنهایی دسترسی آموزش یا سهمیه را تغییر نمی‌دهد.
+            </p>
+        </section>
         <form
             v-if="admin && invoice.status === 'draft'"
             @submit.prevent="
@@ -139,9 +182,10 @@ function receipt(p) {
                 ><input
                     type="checkbox"
                     v-model="issue.reviewed"
+                    name="invoice_issue_reviewed"
                     required
-                />مبلغ، ردیف‌ها، قرارداد و سررسید پیش‌نویس ذخیره‌شده را بررسی
-                کرده‌ام.</label
+                />مبلغ، ردیف‌ها، قرارداد و برنامه پرداخت پیش‌نویس ذخیره‌شده را
+                بررسی کرده‌ام.</label
             ><button
                 class="btn primary"
                 :disabled="issue.processing || draftDirty"
