@@ -9,6 +9,7 @@ import AssignmentCard from "../Components/AssignmentCard.vue";
 import { fa, dateTime, providers, attendanceStatuses } from "../dates";
 const props = defineProps({
     enrollment: Object,
+    learning_rewards: Object,
     course: Object,
     cohort: Object,
     sections: Array,
@@ -125,6 +126,25 @@ onBeforeUnmount(() => {
                     aria-label="پیشرفت درس‌های دوره"
                 ></progress>
             </div>
+        </section>
+        <section
+            v-if="learning_rewards"
+            class="panel glass consultation-card consultation-section"
+            data-testid="room-reward-terms"
+        >
+            <p>
+                برای تکمیل خوداظهاری هر درس تازه،
+                {{ fa(learning_rewards.lesson_points) }} امتیاز یادگیری ثبت
+                می‌شود. هر حساب از هر درس فقط یک‌بار امتیاز می‌گیرد.
+            </p>
+            <p v-if="learning_rewards.badge_goal">
+                نشان هدف «{{ learning_rewards.badge_title }}» با
+                {{ fa(learning_rewards.badge_goal) }} امتیاز این نوبت ثبت
+                می‌شود.
+            </p>
+            <Link href="/learning-rewards" class="text-link"
+                >دیدن امتیاز و نشان‌ها</Link
+            >
         </section>
         <p>
             <Link

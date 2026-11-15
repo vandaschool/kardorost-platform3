@@ -12,6 +12,7 @@ use App\Models\LiveSession;
 use App\Models\Submission;
 use App\Services\LearningAccess;
 use App\Services\LearningProgress;
+use App\Services\LearningRewards;
 use App\Services\LessonProgressRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,7 +21,7 @@ use Inertia\Response;
 
 class LearningController extends Controller
 {
-    public function show(Request $request, Enrollment $enrollment, LearningAccess $access, LearningProgress $progress): Response
+    public function show(Request $request, Enrollment $enrollment, LearningAccess $access, LearningProgress $progress, LearningRewards $rewards): Response
     {
         $access->learn($request->user(), $enrollment);
         $sections = CourseSection::where('course_id', $enrollment->course_id)->with(['lessons' => fn ($q) => $q->where('is_published', true)])->orderBy('position')->orderBy('id')->get();
@@ -47,7 +48,7 @@ class LearningController extends Controller
         $assignments = Assignment::where('cohort_id', $enrollment->cohort_id)->where('is_published', true)->where(fn ($q) => $q->whereNull('available_at')->orWhere('available_at', '<=', now()))->orderBy('due_at')->orderBy('id')->get();
         $submissions = Submission::where('enrollment_id', $enrollment->id)->with('reviews')->whereIn('assignment_id', $assignments->pluck('id'))->orderByDesc('version')->get()->groupBy('assignment_id');
 
-        return Inertia::render('CourseRoom', [
+        return Inertia::render('CourseRoom', ['learning_rewards' => $rewards->terms($enrollment->cohort_id),
             'enrollment' => $enrollment->only('id', 'status'), 'course' => $enrollment->course->only('id', 'title'), 'cohort' => $enrollment->cohort->only('id', 'title', 'format'),
             'sections' => $sectionData, 'selected' => $selected, 'recording' => $recording, 'progress' => $progress->summary($enrollment), 'sessions' => $sessions,
             'assignments' => $assignments->map(fn ($a) => [...$a->only('id', 'title', 'instructions', 'max_score', 'due_at', 'closes_at'), 'open' => $a->open(), 'attempts' => $submissions->get($a->id, collect())->map(fn ($s) => $this->submissionData($s))->values()]),

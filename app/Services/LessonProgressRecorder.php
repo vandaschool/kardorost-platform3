@@ -30,10 +30,14 @@ class LessonProgressRecorder
             if (array_key_exists('position_seconds', $data)) {
                 $progress->position_seconds = $lesson->duration_seconds ? min($data['position_seconds'], $lesson->duration_seconds) : $data['position_seconds'];
             }
-            if (! empty($data['complete']) && ! $progress->completed_at) {
+            $firstCompletion = ! empty($data['complete']) && ! $progress->completed_at;
+            if ($firstCompletion) {
                 $progress->completed_at = now();
             }
             $progress->save();
+            if ($firstCompletion) {
+                app(LearningRewards::class)->completed($actor, $enrollment, $lesson, $progress);
+            }
 
             return $progress;
         }, 3);

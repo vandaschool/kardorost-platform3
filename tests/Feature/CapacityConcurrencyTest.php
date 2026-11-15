@@ -31,6 +31,10 @@ use App\Models\EnrollmentConsultationBenefit;
 use App\Models\EventReminder;
 use App\Models\Installment;
 use App\Models\InvitationSms;
+use App\Models\LearningBadge;
+use App\Models\LearningRewardEvent;
+use App\Models\LearningRewardPolicy;
+use App\Models\LearningRewardVersion;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
 use App\Models\Organization;
@@ -69,6 +73,7 @@ use App\Services\ContentPublishing;
 use App\Services\CourseConsultationBenefits;
 use App\Services\CourseDiscussions;
 use App\Services\EnrollmentService;
+use App\Services\LearningRewards;
 use App\Services\OrganizationBilling;
 use App\Services\OrganizationEnrollment;
 use App\Services\OrganizationMembership;
@@ -317,6 +322,13 @@ CODE;
 
     protected function tearDown(): void
     {
+        if (Schema::hasTable('learning_reward_policies')) {
+            DB::table('learning_badges')->delete();
+            DB::table('learning_reward_events')->delete();
+            DB::table('learning_reward_policies')->update(['current_version_id' => null]);
+            DB::table('learning_reward_versions')->delete();
+            DB::table('learning_reward_policies')->delete();
+        }
         if (Schema::hasTable('announcements')) {
             DB::table('announcement_recipients')->delete();
             DB::table('announcements')->delete();
@@ -2173,5 +2185,72 @@ CODE;
         $this->assertSame(['SAVED', 'SAVED'], $this->parallelFinance($code, [$arguments, $arguments]));
         $this->assertSame(1, LessonProgress::count());
         $this->assertNotNull(LessonProgress::sole()->completed_at);
+    }
+
+    private function rewardFixture(int $goal = 20): array
+    {
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $student = User::factory()->create();
+        $student->roles()->attach(Role::where('key', 'student')->value('id'));
+        $enrollment = Enrollment::factory()->create(['user_id' => $student->id]);
+        $section = CourseSection::factory()->create(['course_id' => $enrollment->course_id]);
+        $lessons = Lesson::factory()->count(2)->create(['course_section_id' => $section->id]);
+        app(LearningRewards::class)->configure($admin, $enrollment->cohort, ['revision' => 0, 'enabled' => true, 'lesson_points' => 10, 'badge_enabled' => true, 'badge_goal' => $goal, 'badge_title' => 'نشان رقابت آزمایشی', 'reviewed' => true]);
+
+        return [$admin, $student, $enrollment, $lessons];
+    }
+
+    public function test_two_lesson_completions_award_one_goal_badge_and_exact_points(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Reward ledger races require PostgreSQL.');
+        }
+        [$admin, $student, $enrollment, $lessons] = $this->rewardFixture();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+app(\App\Services\LessonProgressRecorder::class)->record(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\Enrollment::findOrFail((int)$argv[2]),\App\Models\Lesson::findOrFail((int)$argv[3]),['complete'=>true]);echo 'SAVED';
+CODE;
+        $this->assertSame(['SAVED', 'SAVED'], $this->parallelFinance($code, [[$student->id, $enrollment->id, $lessons[0]->id], [$student->id, $enrollment->id, $lessons[1]->id]]));
+        $this->assertSame(2, LearningRewardEvent::count());
+        $this->assertSame(20, (int) LearningRewardEvent::sum('points'));
+        $this->assertSame(1, LearningBadge::count());
+        $this->assertSame(20, LearningBadge::sole()->points_at_award);
+    }
+
+    public function test_concurrent_reward_policy_edits_keep_one_next_version(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Reward policy races require PostgreSQL.');
+        }
+        [$admin, $student, $enrollment, $lessons] = $this->rewardFixture();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+try { app(\App\Services\LearningRewards::class)->configure(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\Cohort::findOrFail((int)$argv[2]),['revision'=>1,'enabled'=>true,'lesson_points'=>(int)$argv[3],'badge_enabled'=>false,'reviewed'=>true]);echo 'SAVED'; }catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['SAVED', 'STALE'], $this->parallelFinance($code, [[$admin->id, $enrollment->cohort_id, 20], [$admin->id, $enrollment->cohort_id, 30]]));
+        $this->assertSame(2, LearningRewardVersion::count());
+        $this->assertSame(2, LearningRewardPolicy::sole()->revision);
+        $this->assertSame(10, LearningRewardVersion::oldest('id')->firstOrFail()->definition['lesson_points']);
+    }
+
+    public function test_same_user_cannot_farm_one_lesson_through_two_concurrent_cohort_completions(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Cross-enrollment reward races require PostgreSQL.');
+        }
+        [$admin, $student, $first, $lessons] = $this->rewardFixture(10);
+        $cohort = Cohort::factory()->create(['course_id' => $first->course_id]);
+        $second = Enrollment::factory()->create(['user_id' => $student->id, 'course_id' => $first->course_id, 'cohort_id' => $cohort->id]);
+        app(LearningRewards::class)->configure($admin, $cohort, ['revision' => 0, 'enabled' => true, 'lesson_points' => 10, 'badge_enabled' => true, 'badge_goal' => 10, 'badge_title' => 'نشان رقابت دوم', 'reviewed' => true]);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+app(\App\Services\LessonProgressRecorder::class)->record(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\Enrollment::findOrFail((int)$argv[2]),\App\Models\Lesson::findOrFail((int)$argv[3]),['complete'=>true]);echo 'SAVED';
+CODE;
+        $this->assertSame(['SAVED', 'SAVED'], $this->parallelFinance($code, [[$student->id, $first->id, $lessons[0]->id], [$student->id, $second->id, $lessons[0]->id]]));
+        $this->assertSame(2, LessonProgress::count());
+        $this->assertSame(1, LearningRewardEvent::count());
+        $this->assertSame(10, (int) LearningRewardEvent::sum('points'));
+        $this->assertSame(1, LearningBadge::count());
     }
 }
