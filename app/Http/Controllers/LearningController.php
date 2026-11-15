@@ -12,9 +12,9 @@ use App\Models\LiveSession;
 use App\Models\Submission;
 use App\Services\LearningAccess;
 use App\Services\LearningProgress;
+use App\Services\LessonProgressRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -59,23 +59,10 @@ class LearningController extends Controller
         return [...$submission->only('id', 'version', 'body', 'status', 'score', 'feedback', 'reviewed_at', 'created_at', 'file_name', 'review_version'), 'download_url' => $submission->file_path ? route('submissions.file', $submission) : null, 'reviews' => $submission->reviews->map(fn ($r) => $r->only('id', 'revision', 'status', 'score', 'feedback', 'created_at'))];
     }
 
-    public function progress(Request $request, Enrollment $enrollment, Lesson $lesson, LearningAccess $access): RedirectResponse|\Illuminate\Http\Response
+    public function progress(Request $request, Enrollment $enrollment, Lesson $lesson, LearningAccess $access, LessonProgressRecorder $recorder): RedirectResponse|\Illuminate\Http\Response
     {
         $access->learn($request->user(), $enrollment);
-        abort_unless($lesson->section->course_id === $enrollment->course_id && $lesson->available(), 403);
-        $data = $request->validate(['position_seconds' => 'sometimes|integer|min:0|max:864000', 'complete' => 'sometimes|boolean']);
-        DB::transaction(function () use ($enrollment, $lesson, $data, $request, $access) {
-            $enrollment = Enrollment::whereKey($enrollment->id)->lockForUpdate()->firstOrFail();
-            $access->learn($request->user(), $enrollment);
-            $progress = Progress::firstOrCreate(['enrollment_id' => $enrollment->id, 'lesson_id' => $lesson->id]);
-            if (array_key_exists('position_seconds', $data)) {
-                $progress->position_seconds = $lesson->duration_seconds ? min($data['position_seconds'], $lesson->duration_seconds) : $data['position_seconds'];
-            }
-            if (! empty($data['complete']) && ! $progress->completed_at) {
-                $progress->completed_at = now();
-            }
-            $progress->save();
-        });
+        $recorder->record($request->user(), $enrollment, $lesson, $request->only('position_seconds', 'complete'));
 
         return $request->expectsJson() ? response()->noContent() : back();
     }
