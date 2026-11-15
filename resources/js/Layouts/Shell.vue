@@ -81,6 +81,7 @@ const menus = computed(() => {
             ]),
             group("مالی", "ReceiptText", [
                 ["مالی و رسیدها", "ReceiptText", "/admin/finance"],
+                ["گزارش و خروجی‌ها", "Activity", "/admin/reports"],
                 ["بازپرداخت‌ها", "ReceiptText", "/refunds?view=admin"],
             ]),
             group("سازمان‌ها", "Building2", [

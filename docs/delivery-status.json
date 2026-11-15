@@ -1,5 +1,5 @@
 {
-  "phase": "dated-organization-contract-installments",
+  "phase": "admin-operational-reports-and-filtered-exports",
   "completed": [
     "phone-verification",
     "password-login",
@@ -215,17 +215,25 @@
     "verified-ledger-derived-installment-balances",
     "tehran-local-corporate-overdue-and-today-amounts",
     "legacy-single-date-corporate-invoice-compatibility",
-    "concurrent-contract-schedule-issue-and-settlement-guards"
+    "concurrent-contract-schedule-issue-and-settlement-guards",
+    "tehran-filtered-admin-cash-flow-reports",
+    "capture-time-and-completed-refund-metric-definitions",
+    "four-purpose-payment-report-breakdown",
+    "zero-filled-daily-financial-aggregates",
+    "created-account-and-current-enrollment-status-report",
+    "paginated-report-source-records",
+    "audited-private-full-filter-report-csv",
+    "report-csv-formula-and-private-data-protection"
   ],
   "tests": {
     "postgresql": {
-      "passed": 641,
-      "assertions": 5056
+      "passed": 655,
+      "assertions": 5239
     },
     "sqlite": {
-      "passed": 557,
+      "passed": 571,
       "skipped": 84,
-      "assertions": 4584
+      "assertions": 4767
     },
     "javascript": {
       "passed": 6
@@ -366,7 +374,11 @@
     "issue-frozen-corporate-schedule",
     "reviewed-partial-deposits-cover-oldest-installments",
     "scheduled-corporate-invoice-mobile-390",
-    "legacy-single-date-corporate-invoice-regression"
+    "legacy-single-date-corporate-invoice-regression",
+    "operational-report-capture-refund-net-reconciliation",
+    "full-report-csv-vs-paginated-source-records",
+    "report-refund-privacy-and-dataset-filters",
+    "operational-report-empty-period-and-mobile-390"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -443,7 +455,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase25_verified_pending_pr_merge_then_continue_admin_operational_reports",
+    "current_work": "phase26_verified_pending_pr_merge_then_continue_bulk_internal_announcements",
     "next_groups": [
       "organization_contract_installments_and_lifecycle",
       "remaining_purchase_cancellation_refunds_awaiting_policy",
@@ -498,5 +510,11 @@
   "event_sms_reminders_scope": "eligible_confirmed_consultation_and_published_live_class_optional_two_argument_pattern",
   "organization_installment_schedule_limit": 24,
   "organization_installment_coverage_method": "oldest_due_first_v1_existing_verified_invoice_allocations",
-  "organization_contract_overdue_penalties_complete": false
+  "organization_contract_overdue_penalties_complete": false,
+  "admin_operational_reports_complete": true,
+  "admin_operational_reports_scope": "capture_and_refund_time_cash_flow_new_accounts_created_enrollments_current_status_up_to_366_tehran_days",
+  "acquisition_analytics_complete": false,
+  "retention_analytics_complete": false,
+  "accounting_profit_reports_complete": false,
+  "coach_settlement_complete": false
 }
