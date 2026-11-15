@@ -47,11 +47,15 @@ class OrganizationController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate(['name' => 'required|string|max:150', 'type' => 'required|in:university,company', 'phone' => 'required|string|max:30']);
-        $manager = User::where('phone', Phone::normalize($data['phone']))->where('is_active', true)->first();
+        $manager = User::where('phone', Phone::normalize($data['phone']))->where('is_active', true)->whereNotNull('phone_verified_at')->first();
         if (! $manager) {
             throw ValidationException::withMessages(['phone' => 'مدیر ابتدا باید ثبت‌نام کند و شماره‌اش را تأیید کند.']);
         }
         DB::transaction(function () use ($data, $manager, $request) {
+            $manager = User::whereKey($manager->id)->lockForUpdate()->firstOrFail();
+            if (! $manager->is_active || ! $manager->phone_verified_at) {
+                throw ValidationException::withMessages(['phone' => 'حساب مدیر باید فعال و شماره او تأییدشده باشد.']);
+            }
             $org = Organization::create(['name' => $data['name'], 'type' => $data['type']]);
             $org->members()->attach($manager->id, ['kind' => 'manager']);
             $manager->roles()->syncWithoutDetaching([Role::where('key', 'org_admin')->value('id')]);

@@ -29,7 +29,7 @@ class User extends Authenticatable
 
     public function organizations(): BelongsToMany
     {
-        return $this->belongsToMany(Organization::class)->withPivot('kind')->withTimestamps();
+        return $this->belongsToMany(Organization::class)->using(OrganizationMember::class)->withPivot('kind', 'membership_key')->withTimestamps();
     }
 
     public function hasRole(string $role): bool

@@ -1,5 +1,5 @@
 <script setup>
-import { Head } from "@inertiajs/vue3";
+import { Head, Link } from "@inertiajs/vue3";
 import Shell from "../Layouts/Shell.vue";
 import OrganizationInvitationCard from "../Components/OrganizationInvitationCard.vue";
 import Pagination from "../Components/Pagination.vue";
@@ -18,6 +18,9 @@ defineProps({ invitations: Object });
                 </p>
             </div>
         </section>
+        <Link href="/organization-memberships" class="btn secondary"
+            >عضویت‌های من و خروج از سازمان</Link
+        >
         <p v-if="!invitations.data.length" class="muted">
             دعوتی برای شماره شما از سازمان‌های فعال وجود ندارد.
         </p>

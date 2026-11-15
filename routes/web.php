@@ -20,6 +20,7 @@ use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\OrganizationInvitationController;
 use App\Http\Controllers\OrganizationInvoiceController;
 use App\Http\Controllers\OrganizationLicenseController;
+use App\Http\Controllers\OrganizationMembershipController;
 use App\Http\Controllers\PackagePurchaseController;
 use App\Http\Controllers\PanelController;
 use App\Http\Controllers\ReceiptController;
@@ -51,6 +52,8 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/panel', [PanelController::class, 'home'])->name('panel');
     Route::post('/panel/role', [PanelController::class, 'switch']);
+    Route::get('/organization-memberships', [OrganizationMembershipController::class, 'mine'])->name('organization-memberships');
+    Route::post('/organization-memberships/{organization}/leave', [OrganizationMembershipController::class, 'leave'])->middleware('throttle:10,1');
     Route::get('/support', [SupportController::class, 'index'])->name('support');
     Route::post('/support', [SupportController::class, 'create'])->middleware('throttle:10,1');
     Route::get('/support/{ticket}', [SupportController::class, 'show'])->name('support.show');
@@ -158,12 +161,16 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::post('/organization/invoices/{invoice}/pay', [OrganizationInvoiceController::class, 'pay'])->middleware('throttle:10,1');
         Route::post('/organization/invoices/{invoice}/receipts', [OrganizationInvoiceController::class, 'receipt'])->middleware('throttle:10,1');
         Route::post('/organization/invoices/{invoice}/payments/{payment}/refund', [OrganizationInvoiceController::class, 'refund'])->middleware('throttle:10,1');
+        Route::post('/organization/members/{member}/remove', [OrganizationMembershipController::class, 'remove'])->middleware('throttle:20,1');
         Route::get('/organization', [OrganizationController::class, 'index'])->name('panel.org_admin');
         Route::post('/organization/switch', [OrganizationController::class, 'switch']);
         Route::post('/organization/members', [OrganizationController::class, 'addMember'])->middleware('throttle:20,1');
         Route::get('/organization/members/{member}', [OrganizationController::class, 'report']);
     });
     Route::middleware('panel.role:admin')->group(function () {
+        Route::get('/admin/organization-managers', [OrganizationMembershipController::class, 'admin'])->name('admin.organization-managers');
+        Route::post('/admin/organizations/{organization}/managers', [OrganizationMembershipController::class, 'assign']);
+        Route::post('/admin/organizations/{organization}/members/{member}/remove', [OrganizationMembershipController::class, 'adminRemove']);
         Route::get('/admin/surveys', [SurveyController::class, 'admin'])->name('admin.surveys');
         Route::post('/admin/surveys', [SurveyController::class, 'create']);
         Route::get('/admin/surveys/{survey}', [SurveyController::class, 'edit'])->name('admin.surveys.edit');

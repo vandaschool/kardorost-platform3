@@ -10,6 +10,7 @@ const form = useForm({
 const labels = {
     pending: "منتظر پاسخ",
     accepted: "پذیرفته‌شده",
+    membership_ended: "عضویت پایان‌یافته؛ پذیرش تازه لازم است",
     declined: "ردشده توسط فرد",
     revoked: "لغوشده توسط سازمان",
 };
