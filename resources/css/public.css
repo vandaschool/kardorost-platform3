@@ -520,3 +520,7 @@
     width: auto;
     margin-top: 8px;
 }
+
+.public-mentor-filter { flex-wrap: wrap; }
+.public-mentor-filter label { flex: 1 1 170px; min-width: 0; }
+.public-mentor-filter label:first-child { flex-basis: 260px; }
