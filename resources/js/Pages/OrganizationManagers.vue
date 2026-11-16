@@ -1,6 +1,7 @@
 <script setup>
 import { Head, router, useForm } from "@inertiajs/vue3";
 import Shell from "../Layouts/Shell.vue";
+import OrganizationLearningExportLinks from "../Components/OrganizationLearningExportLinks.vue";
 import MembershipEnd from "../Components/MembershipEnd.vue";
 import { dateTime } from "../dates";
 const props = defineProps({
@@ -105,12 +106,10 @@ const actions = {
                         {{ member.kind === "manager" ? "مدیر" : "عضو" }} ·
                         {{ member.is_active ? "حساب فعال" : "حساب غیرفعال" }}
                     </p>
-                    <a
-                        :href="`/admin/organizations/${organization.id}/members/${member.id}/learning-export`"
-                        class="btn secondary"
-                        data-testid="admin-member-learning-export"
-                        >خلاصه یادگیری (CSV)</a
-                    >
+                    <OrganizationLearningExportLinks
+                        :url="`/admin/organizations/${organization.id}/members/${member.id}/learning-export`"
+                        prefix="admin-member-learning-export"
+                    />
                     <button
                         v-if="member.kind === 'member'"
                         class="btn secondary"

@@ -1,5 +1,5 @@
 {
-  "phase": "optimistic-account-access-revisions",
+  "phase": "private-organization-attendance-and-submission-version-csv",
   "completed": [
     "phone-verification",
     "password-login",
@@ -376,17 +376,21 @@
     "versioned-admin-account-access-forms-reject-stale-overwrites",
     "aba-safe-monotonic-account-access-revision",
     "organization-and-console-role-grants-advance-account-access-revision",
-    "actual-stale-form-discard-and-current-role-review-refresh"
+    "actual-stale-form-discard-and-current-role-review-refresh",
+    "private-organization-member-recorded-attendance-csv",
+    "private-organization-member-all-submission-versions-current-score-csv",
+    "cohort-source-bound-organization-learning-report-records",
+    "shared-responsive-three-dataset-organization-export-links"
   ],
   "tests": {
     "postgresql": {
-      "passed": 1016,
-      "assertions": 8079
+      "passed": 1026,
+      "assertions": 8261
     },
     "sqlite": {
-      "passed": 869,
+      "passed": 879,
       "skipped": 147,
-      "assertions": 7260
+      "assertions": 7442
     },
     "javascript": {
       "passed": 6
@@ -647,7 +651,10 @@
     "organization-learning-export-private-bom-headers-progress-attendance-320-390-768-1440",
     "two-real-admin-tabs-stale-form-no-overwrite-or-extra-audit",
     "real-discard-and-refresh-review-before-revision-three-save",
-    "access-revision-form-320-390-768-1440"
+    "access-revision-form-320-390-768-1440",
+    "org-member-real-attendance-and-submission-csv-27-each-zero-null-and-all-versions",
+    "full-admin-two-detail-csv-downloads-and-real-departure-revocation",
+    "org-detail-exports-private-headers-and-responsive-three-links-320-390-768-1440"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -724,9 +731,9 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase50_account_access_revisions_verified_ready_for_pr_detailed_organization_learning_exports_next",
+    "current_work": "phase51_detailed_organization_learning_exports_verified_ready_for_pr_private_final_assessment_report_csv_next",
     "next_groups": [
-      "private_organization_member_detailed_attendance_and_submission_csv",
+      "private_final_assessment_report_csv_without_invented_instruments",
       "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
       "career_and_assessment_extensions_without_invented_instruments",
       "coach_settlement_and_organization_benefits_requiring_business_terms",
@@ -849,6 +856,8 @@
   "admin_account_access_optimistic_revision_complete": true,
   "organization_member_learning_summary_csv_complete": true,
   "organization_member_learning_summary_csv_scope": "current_selected_org_manager_or_explicit_full_admin_current_member_personal_and_sponsored_enrollments_published_lesson_self_reported_progress_recorded_attendance_counts_certificate_status_fourteen_columns_no_phone_finance_answers_body_or_private_urls",
-  "organization_member_detailed_attendance_submission_exports_complete": false,
-  "admin_account_access_optimistic_revision_scope": "required_account_access_revision_under_existing_ordered_actor_target_locks_each_accepted_admin_save_advances_once_actual_org_and_console_role_grants_advance_on_new_role_initial_account_one_direct_external_db_changes_not_tracked"
+  "organization_member_detailed_attendance_submission_exports_complete": true,
+  "admin_account_access_optimistic_revision_scope": "required_account_access_revision_under_existing_ordered_actor_target_locks_each_accepted_admin_save_advances_once_actual_org_and_console_role_grants_advance_on_new_role_initial_account_one_direct_external_db_changes_not_tracked",
+  "organization_member_detailed_attendance_submission_exports_scope": "current_selected_member_recorded_same_cohort_attendance_twelve_columns_all_same_cohort_submission_versions_current_status_score_and_assignment_max_sixteen_columns_no_body_feedback_file_name_private_url_phone_finance",
+  "organization_member_submission_review_history_csv_complete": false
 }
