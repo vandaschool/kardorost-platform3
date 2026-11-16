@@ -1,5 +1,5 @@
 {
-  "phase": "private-organization-submission-review-history-csv",
+  "phase": "owner-consented-expiring-revocable-resume-sharing",
   "completed": [
     "phone-verification",
     "password-login",
@@ -396,17 +396,21 @@
     "locked-current-owner-admin-guide-access-and-source-hash-validation",
     "private-current-organization-member-all-submission-review-revisions-csv",
     "recorded-review-feedback-status-score-zero-null-and-current-assignment-max",
-    "four-responsive-organization-learning-exports-with-independent-admin-route"
+    "four-responsive-organization-learning-exports-with-independent-admin-route",
+    "private-by-default-owner-reviewed-consented-resume-snapshot-sharing",
+    "source-bound-encrypted-expiring-bearer-links-with-default-contact-omission",
+    "terminal-owner-or-full-admin-revocation-and-atomic-archive-revocation",
+    "shared-source-validation-and-independent-publication-privacy-revocation-rate-budgets"
   ],
   "tests": {
     "postgresql": {
-      "passed": 1094,
-      "assertions": 9039
+      "passed": 1122,
+      "assertions": 9351
     },
     "sqlite": {
-      "passed": 936,
-      "skipped": 158,
-      "assertions": 8166
+      "passed": 960,
+      "skipped": 162,
+      "assertions": 8457
     },
     "javascript": {
       "passed": 6
@@ -685,7 +689,12 @@
     "linkedin-owner-full-admin-teacher-org-manager-peer-isolation-and-320-390-768-1440",
     "two-actual-teacher-feedback-revisions-and-27-row-19-column-history-csv",
     "member-full-admin-history-csv-original-feedback-zero-null-formula-guard-and-private-headers",
-    "four-learning-export-links-320-390-768-1440-and-real-member-departure-revocation"
+    "four-learning-export-links-320-390-768-1440-and-real-member-departure-revocation",
+    "actual-owner-consent-contact-preview-reset-publication-clipboard-and-anonymous-view",
+    "public-resume-default-contact-omission-optin-escaped-html-headers-and-print-pdf",
+    "frozen-shared-source-after-new-version-owner-admin-revocation-and-actual-archive-restore",
+    "consistent-past-clock-expired-share-fixture-and-new-active-english-share",
+    "resume-share-management-teacher-same-org-manager-peer-isolation-and-320-390-768-1440"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -762,8 +771,9 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase55_verified_all_review_history_private_csv_full_suites_dates_pint_build_and_real_browser_ready_to_merge_then_continue",
+    "current_work": "phase56_fully_verified_24_feature_4_pg_races_browser_complete_full_pg1122_sqlite960_ready_to_merge_then_latest_container_upgrade_and_recovery_acceptance",
     "next_groups": [
+      "latest_container_code_upgrade_and_recovery_acceptance_without_claiming_public_deployment",
       "career_and_assessment_extensions_without_invented_instruments",
       "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
       "coach_settlement_and_organization_benefits_requiring_business_terms",
@@ -804,7 +814,7 @@
   "resume_uploaded_file_analysis_complete": false,
   "resume_ai_generation_complete": false,
   "resume_translation_complete": false,
-  "resume_public_sharing_complete": false,
+  "resume_public_sharing_complete": true,
   "linkedin_assistance_complete": true,
   "career_path_recommendations_complete": false,
   "panel_navigation_grouped": true,
@@ -896,5 +906,9 @@
   "coach_credential_publication_complete": false,
   "linkedin_assistance_scope": "private_owner_or_current_full_admin_selected_saved_resume_source_sections_fa_en_readonly_copy_or_utf8_text_contact_fields_and_links_omitted_free_text_requires_owner_review_no_ai_translation_external_connection_or_automatic_publication",
   "linkedin_external_profile_connection_complete": false,
-  "organization_member_submission_review_history_csv_scope": "current_selected_org_manager_or_independent_current_full_admin_current_member_nineteen_columns_every_recorded_same_cohort_submission_review_revision_original_score_status_feedback_current_assignment_max_not_historical_max_no_body_file_contact_finance_or_reviewer_account_identity"
+  "organization_member_submission_review_history_csv_scope": "current_selected_org_manager_or_independent_current_full_admin_current_member_nineteen_columns_every_recorded_same_cohort_submission_review_revision_original_score_status_feedback_current_assignment_max_not_historical_max_no_body_file_contact_finance_or_reviewer_account_identity",
+  "resume_public_sharing_scope": "explicit_active_verified_owner_review_and_consent_for_selected_frozen_snapshot_7_30_90_days_one_active_link_default_phone_email_links_omitted_optional_contact_optin_owner_or_full_admin_terminal_revoke_admin_cannot_supply_owner_consent_source_bound_encryption_token_hash_and_current_source_integrity_no_index_no_referrer_no_store",
+  "resume_public_sharing_archive_policy": "all_unrevoked_links_revoked_with_parent_archive_same_transaction_restore_never_reactivates",
+  "resume_public_sharing_owner_eligibility": "any_role_active_verified_account_temporary_pause_on_deactivation_or_verification_loss",
+  "resume_public_sharing_recipient_copy_recall_complete": false
 }
