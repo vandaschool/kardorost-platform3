@@ -1,5 +1,5 @@
 {
-  "phase": "recovery-snapshot-reconciliation-boundaries",
+  "phase": "reviewed-scheduled-internal-announcements",
   "completed": [
     "phone-verification",
     "password-login",
@@ -337,17 +337,25 @@
     "filtered-mentor-pagination-canonical-and-noindex",
     "authenticated-quiesced-external-reconciliation-cutoff",
     "snapshot-completion-and-source-start-timing-metadata",
-    "legacy-snapshot-recovery-without-invented-cutoff"
+    "legacy-snapshot-recovery-without-invented-cutoff",
+    "encrypted-reviewed-internal-announcement-schedules",
+    "internal-approval-hmac-bound-content-time-actor-and-revisions",
+    "tehran-jalali-internal-announcement-scheduling",
+    "due-time-current-role-audience-snapshots",
+    "versioned-internal-schedule-cancellation-and-replacement-history",
+    "bounded-due-announcement-processing-and-safe-failure-isolation",
+    "current-admin-rechecks-inside-announcement-mutation-locks",
+    "inflight-announcement-draft-edit-preservation"
   ],
   "tests": {
     "postgresql": {
-      "passed": 887,
-      "assertions": 7010
+      "passed": 910,
+      "assertions": 7140
     },
     "sqlite": {
-      "passed": 769,
-      "skipped": 118,
-      "assertions": 6351
+      "passed": 786,
+      "skipped": 124,
+      "assertions": 6449
     },
     "javascript": {
       "passed": 6
@@ -577,7 +585,13 @@
     "mentor-fourteen-match-pagination-and-filter-preservation",
     "mentor-persian-arabic-joiner-case-normalization",
     "mentor-private-drafts-ineligible-facets-and-escaped-empty-search",
-    "mentor-filtered-canonical-noindex-and-320-1440"
+    "mentor-filtered-canonical-noindex-and-320-1440",
+    "legacy-immediate-and-stopped-announcement-regression",
+    "scheduled-announcement-approval-cancel-edit-history",
+    "inflight-announcement-save-keeps-new-text-unsaved",
+    "actual-wall-clock-internal-announcement-scheduler-and-database-worker",
+    "scheduled-announcement-two-one-time-student-deliveries-and-inbox-isolation",
+    "scheduled-announcement-320-390-768-1440"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -654,13 +668,13 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase42_recovery_snapshot_boundaries_verified_ready_for_pr_scheduled_internal_announcements_next",
+    "current_work": "phase43_scheduled_internal_announcements_verified_ready_for_pr_organization_targeted_internal_announcements_next",
     "next_groups": [
-      "organization_contract_installments_and_lifecycle",
-      "remaining_purchase_cancellation_refunds_awaiting_policy",
-      "career_and_assessment_extensions",
-      "reporting_and_gamification",
-      "deployment_and_end_to_end_acceptance"
+      "organization_and_cohort_targeted_internal_announcements",
+      "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
+      "career_and_assessment_extensions_without_invented_instruments",
+      "coach_settlement_and_organization_benefits_requiring_business_terms",
+      "production_server_domain_secrets_offserver_backups_and_live_acceptance"
     ],
     "resume_instructions": "Inspect git status and this file; preserve unfinished changes, verify each coherent phase, merge through a PR to main, and continue. Do not claim live integrations or unknown psychometric content are verified. The owner asked to persist across phases and resume after limits when available.",
     "resumption": "hourly_conditional_followup_enabled_with_active_run_guard"
@@ -719,7 +733,7 @@
   "bulk_internal_announcements_complete": true,
   "bulk_internal_announcements_scope": "reviewed_role_based_active_verified_account_snapshot_no_sms_or_email",
   "organization_or_cohort_targeted_announcements_complete": false,
-  "scheduled_announcements_complete": false,
+  "scheduled_announcements_complete": true,
   "bulk_sms_complete": false,
   "lesson_completion_evidence": "student_self_report_not_verified_video_watch_or_skill",
   "learning_rewards_complete": true,
@@ -763,5 +777,6 @@
   "public_coach_search_index": "no_plaintext_index_bounded_memory_linear_encrypted_snapshot_scan_large_catalog_index_and_load_acceptance_pending",
   "encrypted_backup_format": 2,
   "external_reconciliation_boundary": "confirmed_all_writers_quiesced_at_not_later_archive_creation_time",
-  "legacy_backup_reconciliation_policy": "format_1_restorable_but_requires_separately_confirmed_earlier_reconciliation_boundary"
+  "legacy_backup_reconciliation_policy": "format_1_restorable_but_requires_separately_confirmed_earlier_reconciliation_boundary",
+  "scheduled_announcements_scope": "reviewed_encrypted_role_based_internal_only_snapshot_hmac_content_actor_time_revisions_due_current_active_verified_audience_bounded_100_no_sms_email"
 }

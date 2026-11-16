@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Announcement;
+use App\Models\AnnouncementSchedule;
 use App\Models\Assessment;
 use App\Models\AssessmentAttempt;
 use App\Models\AssessmentVersion;
@@ -89,6 +90,7 @@ use App\Services\OrganizationPaymentSchedule;
 use App\Services\PackageBilling;
 use App\Services\ReceiptService;
 use App\Services\RefundService;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -350,6 +352,9 @@ CODE;
             DB::table('learning_reward_policies')->update(['current_version_id' => null]);
             DB::table('learning_reward_versions')->delete();
             DB::table('learning_reward_policies')->delete();
+        }
+        if (Schema::hasTable('announcement_schedules')) {
+            DB::table('announcement_schedules')->delete();
         }
         if (Schema::hasTable('announcements')) {
             DB::table('announcement_recipients')->delete();
@@ -2673,5 +2678,109 @@ CODE;
     public function test_waiting_survey_export_rechecks_reassigned_course_coach(): void
     {
         $this->surveyExportAfterAccessChange(true);
+    }
+
+    private function scheduledAnnouncementFixture(): array
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Scheduled announcement races require PostgreSQL.');
+        }
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $student = User::factory()->create();
+        $student->roles()->attach(Role::where('key', 'student')->value('id'));
+        $announcement = Announcement::factory()->create(['created_by' => $admin->id]);
+        $schedule = app(Announcements::class)->schedule($admin, $announcement, 1, CarbonImmutable::now()->addMinutes(2), true);
+
+        return [$admin, $announcement->fresh(), $schedule];
+    }
+
+    public function test_two_concurrent_announcement_schedules_keep_one_pending_review(): void
+    {
+        [$admin, $announcement, $old] = $this->scheduledAnnouncementFixture();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();try{app(\App\Services\Announcements::class)->schedule(\App\Models\User::findOrFail((int)$argv[1]),\App\Models\Announcement::findOrFail((int)$argv[2]),2,\Carbon\CarbonImmutable::now()->addMinutes(3),true);echo 'SCHEDULED';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $this->assertSame(['SCHEDULED', 'STALE'], $this->parallelFinance($code, [[$admin->id, $announcement->id], [$admin->id, $announcement->id]]));
+        $this->assertSame('replaced', $old->fresh()->reason);
+        $this->assertSame(1, AnnouncementSchedule::where('status', 'pending')->count());
+        $this->assertSame(0, $announcement->recipients()->count());
+    }
+
+    public function test_concurrent_due_announcement_processors_create_one_recipient_snapshot(): void
+    {
+        [$admin, $announcement, $schedule] = $this->scheduledAnnouncementFixture();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();\Illuminate\Support\Carbon::setTestNow($argv[2]);echo app(\App\Services\Announcements::class)->processSchedule(\App\Models\AnnouncementSchedule::findOrFail((int)$argv[1]));
+CODE;
+        $args = [$schedule->id, $schedule->scheduled_for->copy()->addMinute()->toIso8601String()];
+        $this->assertSame(['already_handled', 'published'], $this->parallelFinance($code, [$args, $args]));
+        $this->assertSame(1, $announcement->recipients()->count());
+        $this->assertSame(0, DB::table('notifications')->count());
+        $this->assertSame('published', $schedule->fresh()->status);
+    }
+
+    private function announcementScheduleLifecycleRace(bool $edit): void
+    {
+        [$admin, $announcement, $schedule] = $this->scheduledAnnouncementFixture();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();\Illuminate\Support\Carbon::setTestNow($argv[4]);$service=app(\App\Services\Announcements::class);$schedule=\App\Models\AnnouncementSchedule::findOrFail((int)$argv[1]);if($argv[3]==='due'){echo $service->processSchedule($schedule);}else{try{if($argv[3]==='edit'){$service->save(\App\Models\User::findOrFail((int)$argv[2]),['title'=>'Edited announcement','message'=>'Edited private message','roles'=>['student']],$schedule->announcement,2);echo 'EDITED';}else{$service->cancelSchedule(\App\Models\User::findOrFail((int)$argv[2]),$schedule->announcement,2,$schedule);echo 'CANCELLED';}}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}}
+CODE;
+        $time = $schedule->scheduled_for->copy()->addMinute()->toIso8601String();
+        $result = $this->parallelFinance($code, [[$schedule->id, $admin->id, 'due', $time], [$schedule->id, $admin->id, $edit ? 'edit' : 'cancel', $time]]);
+        $this->assertTrue(in_array($result, [[$edit ? 'EDITED' : 'CANCELLED', 'already_handled'], ['STALE', 'published']], true));
+        $published = $schedule->fresh()->status === 'published';
+        $this->assertSame($published ? 1 : 0, $announcement->recipients()->count());
+        $this->assertSame($published ? 'sending' : 'draft', $announcement->fresh()->status);
+    }
+
+    public function test_due_announcement_racing_draft_edit_has_one_consistent_outcome(): void
+    {
+        $this->announcementScheduleLifecycleRace(true);
+    }
+
+    public function test_due_announcement_racing_cancellation_has_one_consistent_outcome(): void
+    {
+        $this->announcementScheduleLifecycleRace(false);
+    }
+
+    public function test_waiting_due_announcement_rechecks_approver_role(): void
+    {
+        [$admin, $announcement, $schedule] = $this->scheduledAnnouncementFixture();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();\Illuminate\Support\Carbon::setTestNow($argv[2]);$schedule=\App\Models\AnnouncementSchedule::findOrFail((int)$argv[1]);echo "READY\n";flush();echo app(\App\Services\Announcements::class)->processSchedule($schedule);
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $schedule->id, $schedule->scheduled_for->copy()->addMinute()->toIso8601String()], base_path(), null, null, 20);
+        DB::transaction(function () use ($admin, $process) {
+            User::whereKey($admin->id)->lockForUpdate()->firstOrFail();
+            $process->start();
+            $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'READY')));
+            $admin->roles()->detach();
+        });
+        $process->wait();
+        $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+        $this->assertSame("READY\nblocked", $process->getOutput());
+        $this->assertSame('author_ineligible', $schedule->fresh()->reason);
+        $this->assertSame(0, $announcement->recipients()->count());
+    }
+
+    public function test_waiting_immediate_announcement_publication_rechecks_role_after_initial_check(): void
+    {
+        [$admin, $announcement, $schedule] = $this->scheduledAnnouncementFixture();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$announcement=\App\Models\Announcement::findOrFail((int)$argv[2]);\Illuminate\Support\Facades\DB::listen(function($query){if(str_contains($query->sql,'roles')&&in_array('admin',$query->bindings,true)){echo "CHECKED\n";flush();}});try{app(\App\Services\Announcements::class)->publish($actor,$announcement,2);echo 'PUBLISHED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $admin->id, (string) $announcement->id], base_path(), null, null, 20);
+        DB::transaction(function () use ($admin, $announcement, $process) {
+            Announcement::whereKey($announcement->id)->lockForUpdate()->firstOrFail();
+            $process->start();
+            $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'CHECKED')));
+            $admin->roles()->detach();
+        });
+        $process->wait();
+        $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+        $this->assertStringEndsWith('403', $process->getOutput());
+        $this->assertSame('pending', $schedule->fresh()->status);
+        $this->assertSame(0, $announcement->recipients()->count());
     }
 }

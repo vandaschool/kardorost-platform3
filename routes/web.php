@@ -225,6 +225,8 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/admin/announcements/{announcement}', [AnnouncementController::class, 'show'])->name('admin.announcements.show');
         Route::patch('/admin/announcements/{announcement}', [AnnouncementController::class, 'save']);
         Route::post('/admin/announcements/{announcement}/publish', [AnnouncementController::class, 'publish'])->middleware('throttle:10,1');
+        Route::post('/admin/announcements/{announcement}/schedule', [AnnouncementController::class, 'schedule'])->middleware('throttle:10,1');
+        Route::post('/admin/announcements/{announcement}/schedules/{schedule}/cancel', [AnnouncementController::class, 'cancelSchedule']);
         Route::post('/admin/announcements/{announcement}/stop', [AnnouncementController::class, 'stop']);
         Route::post('/admin/announcements/{announcement}/retry', [AnnouncementController::class, 'retry']);
         Route::get('/admin/reports', [OperationalReportController::class, 'index'])->name('admin.reports');
