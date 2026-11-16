@@ -1,5 +1,5 @@
 {
-  "phase": "current-container-error-recovery-acceptance",
+  "phase": "current-consultation-write-authorization",
   "completed": [
     "phone-verification",
     "password-login",
@@ -412,17 +412,19 @@
     "persian-403-404-405-419-429-500-503-private-html-and-minimal-inertia-error-pages",
     "standalone-no-database-no-asset-error-fallback-and-safe-get-recovery-without-mutation-replay",
     "actual-latest-production-container-build-and-code-only-upgrade-with-497-source-files-matched",
-    "latest-container-restore-four-panels-error-pages-and-isolated-action-budgets-before-and-after-workers"
+    "latest-container-restore-four-panels-error-pages-and-isolated-action-budgets-before-and-after-workers",
+    "consultation-slot-create-publish-meeting-booking-change-request-close-current-actor-under-sorted-account-locks",
+    "consultation-admin-price-permission-owner-withdrawal-and-role-activity-races-verified"
   ],
   "tests": {
     "postgresql": {
-      "passed": 1141,
-      "assertions": 9628
+      "passed": 1157,
+      "assertions": 9742
     },
     "sqlite": {
-      "passed": 979,
-      "skipped": 162,
-      "assertions": 8734
+      "passed": 987,
+      "skipped": 170,
+      "assertions": 8778
     },
     "javascript": {
       "passed": 6
@@ -716,7 +718,8 @@
     "phase59-stale-admin-link-with-student-session-minimal-inertia403-and-safe-panel-recovery",
     "phase59-standalone404-light-dark-real-cross-origin419-and-public429-retry-after-320-1440",
     "phase60-upgraded-production-nginx-fpm-pg-four-panels-private-credential-consented-share-and-error403-404-419-429",
-    "phase60-independent-restore-same-checks-workers-stopped-then-running-with-three-real-heartbeats-and-isolated-action-budgets"
+    "phase60-independent-restore-same-checks-workers-stopped-then-running-with-three-real-heartbeats-and-isolated-action-budgets",
+    "phase61-real-coach-free-jalali-slot-form-hide-publish-meeting-student-book-cancel-own-request-withdraw-admin-close-peer403-320-1440"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -793,9 +796,9 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase60_verified_ready_to_merge_then_current_consultation_write_authorization_after_concurrent_role_or_activity_changes",
+    "current_work": "phase61_verified_ready_to_merge_then_current_actor_authorization_for_manual_consultation_grants_and_payment_initiation",
     "next_groups": [
-      "current_consultation_write_authorization_under_sorted_account_locks",
+      "manual_consultation_grant_configuration_and_payment_initiation_current_actor_authorization_then_refresh_container_acceptance",
       "career_and_assessment_extensions_without_invented_instruments",
       "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
       "coach_settlement_and_organization_benefits_requiring_business_terms",
@@ -940,8 +943,10 @@
   "container_current_production_images_published": false,
   "implicit_action_rate_budgets_isolated": true,
   "implicit_action_rate_budgets_scope": "throttle_alias_numeric_or_unnamed_limits_without_explicit_prefix_normalized_route_template_and_declared_methods_no_query_or_record_id_variation_original_framework_identity_counts_durations_storage_named_limiters_and_explicit_shared_prefix_unchanged",
-  "container_acceptance_matches_current_application_code": true,
-  "container_acceptance_pending_changes": null,
+  "container_acceptance_matches_current_application_code": false,
+  "container_acceptance_pending_changes": "phase61_consultation_service_current_actor_lock_and_authorization_checks_not_in_last_image_0fd3924",
   "persian_error_recovery_pages_complete": true,
-  "persian_error_recovery_pages_scope": "403/404/405/419/429/500/503 HTML private no-store noindex no-referrer, minimal Inertia props without session/database shares, standalone inline CSS with no asset dependency, Retry-After/Allow/rate headers and HEAD preserved; API/JSON/validation/redirect/debug5xx contracts unchanged; fixed GET recovery without replay, history or reload"
+  "persian_error_recovery_pages_scope": "403/404/405/419/429/500/503 HTML private no-store noindex no-referrer, minimal Inertia props without session/database shares, standalone inline CSS with no asset dependency, Retry-After/Allow/rate headers and HEAD preserved; API/JSON/validation/redirect/debug5xx contracts unchanged; fixed GET recovery without replay, history or reload",
+  "consultation_management_current_authorization_complete": true,
+  "consultation_management_current_authorization_scope": "createSlot/resolve/change/publish/meeting lock sorted actor and participants before slot/booking/request, reload actor and recheck current activity/role/ownership and admin-only paid-price permission before writes/audit/notifications; active owner cancellation/withdrawal remains after student-role loss; eight PostgreSQL races; grant configuration/payment-attempt current-actor review is next and not included"
 }

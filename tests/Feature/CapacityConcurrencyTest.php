@@ -3539,4 +3539,102 @@ CODE;
         $this->assertStringEndsWith('404', $process->getOutput());
         $this->assertNull($share->fresh()->revoked_at);
     }
+
+    private function consultationWriteAfterAccessChange(string $action, string $identity = 'admin', bool $deactivate = false): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Consultation authorization row-lock races require PostgreSQL.');
+        }
+        $slot = ConsultationSlot::factory()->create(['published' => false]);
+        $booking = $action === 'cancel' ? Consultation::factory()->create(['consultation_slot_id' => $slot->id]) : null;
+        $request = $action === 'resolve' ? ConsultationRequest::factory()->create() : null;
+        $actor = match ($identity) {
+            'coach' => $slot->coach,
+            'owner' => $booking->student,
+            default => User::factory()->create(),
+        };
+        if ($identity === 'admin' || $action === 'create_paid') {
+            $actor->roles()->attach(Role::where('key', 'admin')->value('id'));
+        }
+        $checkRole = $identity === 'owner' ? 'owner' : ($action === 'create_paid' ? 'admin' : $identity);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$action=$argv[1];$actor=\App\Models\User::findOrFail((int)$argv[2]);$slot=\App\Models\ConsultationSlot::findOrFail((int)$argv[3]);$booking=(int)$argv[4]?\App\Models\Consultation::findOrFail((int)$argv[4]):null;$request=(int)$argv[5]?\App\Models\ConsultationRequest::findOrFail((int)$argv[5]):null;$role=$argv[6];$checks=0;$required=$action==='create_paid'?2:1;
+\Illuminate\Support\Facades\DB::listen(function($query)use($role,$required,&$checks){if(str_contains($query->sql,'roles')&&in_array($role,$query->bindings,true)&&++$checks===$required){echo "CHECKED\n";flush();}});
+if($role==='owner'){echo "CHECKED\n";flush();}
+try{$service=app(\App\Services\ConsultationService::class);match($action){'create','create_paid'=>$service->createSlot($actor,$slot->coach,\Carbon\CarbonImmutable::now()->addDays(2),60,'meet',null,$action==='create_paid'?100000:0),'resolve'=>$service->resolve($actor,$request,1,'Software-only access race'),'cancel'=>$service->change($actor,$booking,1,'cancel','Software-only access race',null),'publish'=>$service->publish($actor,$slot,true),'meeting'=>$service->meeting($actor,$slot,'https://meet.google.com/xyz-abcd-efg')};echo 'COMMITTED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, $action, (string) $actor->id, (string) $slot->id, (string) ($booking?->id ?? 0), (string) ($request?->id ?? 0), $checkRole], base_path(), null, null, 20);
+        try {
+            DB::transaction(function () use ($actor, $process, $deactivate) {
+                User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+                $process->start();
+                $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'CHECKED')), $process->getErrorOutput());
+                if ($deactivate) {
+                    User::whereKey($actor->id)->update(['is_active' => false]);
+                } else {
+                    $actor->roles()->detach(Role::where('key', 'admin')->value('id'));
+                }
+            });
+            $process->wait();
+            $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+            $this->assertStringEndsWith('403', $process->getOutput());
+        } finally {
+            if ($process->isRunning()) {
+                $process->stop();
+            }
+        }
+        $this->assertDatabaseCount('consultation_slots', 1);
+        $this->assertFalse($slot->fresh()->published);
+        $this->assertSame('https://meet.google.com/abc-defg-hij', $slot->fresh()->meeting_url);
+        $this->assertDatabaseCount('audit_events', 0);
+        $this->assertDatabaseCount('notifications', 0);
+        if ($booking) {
+            $this->assertSame('confirmed', $booking->fresh()->status);
+            $this->assertSame(1, $booking->fresh()->version);
+        }
+        if ($request) {
+            $this->assertSame('pending', $request->fresh()->status);
+            $this->assertSame(1, $request->fresh()->version);
+        }
+    }
+
+    public function test_waiting_consultation_slot_creation_rechecks_current_admin_role(): void
+    {
+        $this->consultationWriteAfterAccessChange('create');
+    }
+
+    public function test_waiting_consultation_request_close_rechecks_current_admin_role(): void
+    {
+        $this->consultationWriteAfterAccessChange('resolve');
+    }
+
+    public function test_waiting_consultation_cancellation_rechecks_current_admin_role(): void
+    {
+        $this->consultationWriteAfterAccessChange('cancel');
+    }
+
+    public function test_waiting_consultation_publication_rechecks_current_admin_role(): void
+    {
+        $this->consultationWriteAfterAccessChange('publish');
+    }
+
+    public function test_waiting_consultation_meeting_link_rechecks_current_admin_role(): void
+    {
+        $this->consultationWriteAfterAccessChange('meeting');
+    }
+
+    public function test_waiting_own_paid_slot_creation_rechecks_admin_price_permission_even_if_coach_role_remains(): void
+    {
+        $this->consultationWriteAfterAccessChange('create_paid', 'coach');
+    }
+
+    public function test_waiting_coach_meeting_link_rechecks_current_activity(): void
+    {
+        $this->consultationWriteAfterAccessChange('meeting', 'coach', true);
+    }
+
+    public function test_waiting_owner_cancellation_rechecks_current_activity(): void
+    {
+        $this->consultationWriteAfterAccessChange('cancel', 'owner', true);
+    }
 }
