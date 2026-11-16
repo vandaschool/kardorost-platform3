@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AssessmentController;
+use App\Http\Controllers\AuditEventController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BillingPlanController;
 use App\Http\Controllers\CareerController;
@@ -285,6 +286,7 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::patch('/admin/organization-invoices/{invoice}', [OrganizationInvoiceController::class, 'update']);
         Route::post('/admin/organization-invoices/{invoice}/issue', [OrganizationInvoiceController::class, 'issue']);
         Route::post('/admin/organization-invoices/{invoice}/void', [OrganizationInvoiceController::class, 'void']);
+        Route::get('/admin/activity', [AuditEventController::class, 'index'])->name('admin.activity');
         Route::get('/admin/{section}', [PanelController::class, 'admin']);
         Route::patch('/admin/users/{user}', [AdminUserController::class, 'update']);
         Route::patch('/admin/courses/{course}/coach', [AdminUserController::class, 'assignCoach']);
