@@ -105,6 +105,12 @@ const actions = {
                         {{ member.kind === "manager" ? "مدیر" : "عضو" }} ·
                         {{ member.is_active ? "حساب فعال" : "حساب غیرفعال" }}
                     </p>
+                    <a
+                        :href="`/admin/organizations/${organization.id}/members/${member.id}/learning-export`"
+                        class="btn secondary"
+                        data-testid="admin-member-learning-export"
+                        >خلاصه یادگیری (CSV)</a
+                    >
                     <button
                         v-if="member.kind === 'member'"
                         class="btn secondary"
