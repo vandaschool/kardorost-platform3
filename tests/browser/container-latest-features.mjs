@@ -231,6 +231,10 @@ try {
             headers.robots.includes("noindex") &&
             headers.referrer === "no-referrer",
     );
+    const fallbackPolicy = await evaluate(
+        "fetch('/').then(async r=>{await r.text();return r.headers.get('referrer-policy')})",
+    );
+    assert.equal(fallbackPolicy, "strict-origin-when-cross-origin");
     await responsive("Container anonymous fixed resume");
     await login("admin");
     await goto("/coach-credentials/" + fixture.credential_id);

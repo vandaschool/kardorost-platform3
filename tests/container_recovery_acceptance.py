@@ -117,7 +117,7 @@ with tempfile.TemporaryDirectory(prefix='kardorost-recovery-acceptance-') as tem
     assert after_refusal == restored
     target.run(['up', '-d', '--no-build', '--wait', '--wait-timeout', '120', 'app', 'web'])
     # Save only the synthetic private destination environment for separate browser acceptance.
-    destination = Path(os.environ.get('RECOVERY_DESTINATION_ENV_FILE', '/tmp/kardorost-compose-restored.env')).absolute()
+    destination = Path(os.environ.get('RECOVERY_DESTINATION_ENV_FILE', '/tmp/kardorost-compose-restored.env')).resolve()
     assert destination.is_relative_to('/tmp') and destination.name.startswith('kardorost-compose-restored')
     assert not destination.exists(), 'Preserve any prior destination environment instead of overwriting it.'
     descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)

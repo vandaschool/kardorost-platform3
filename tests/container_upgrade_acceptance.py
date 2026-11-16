@@ -32,7 +32,7 @@ def php(composition, code):
 
 
 source_file = Path(os.environ['CONTAINER_SOURCE_ENV_FILE']).resolve()
-destination = Path(os.environ['CONTAINER_UPGRADE_ENV_FILE']).absolute()
+destination = Path(os.environ['CONTAINER_UPGRADE_ENV_FILE']).resolve()
 tag = os.environ['CONTAINER_TARGET_IMAGE_TAG']
 revision = os.environ['CONTAINER_TARGET_REVISION']
 assert source_file.is_relative_to('/tmp') and destination.is_relative_to('/tmp')
@@ -85,7 +85,12 @@ code = "$files=json_decode(" + json.dumps(json.dumps(files)) + ",true);$hashes=[
 actual = json.loads(run(target, ['exec', '-T', 'app', 'php', '-r', code]))
 assert actual == expected, 'The running image does not contain the exact checked-out application source.'
 fixture = bootstrap + r"""if(\App\Models\User::count()!==4||\App\Models\User::where('name','like','بررسی کانتینر %')->count()!==4||\App\Models\ResumeShare::exists()||\App\Models\CoachCredential::exists()){throw new RuntimeException('Use only the owned four-user pre-fixture source.');}$owner=\App\Models\User::where('phone','989121234560')->firstOrFail();$coach=\App\Models\User::where('phone','989121234561')->firstOrFail();$handle=tmpfile();fwrite($handle,"%PDF-1.4\n% SOFTWARE-ONLY-CONTAINER-PRIVATE-CREDENTIAL\n%%EOF\n");$file=new \Illuminate\Http\UploadedFile(stream_get_meta_data($handle)['uri'],'container-software-only.pdf','application/pdf',UPLOAD_ERR_OK,true);$credential=app(\App\Services\CoachCredentials::class)->submit($coach,['title'=>'مدرک صرفاً آزمایشی کانتینر، بدون اعتبار واقعی','issuer'=>'نمونه نرم‌افزاری','consent'=>true,'request_key'=>(string)\Illuminate\Support\Str::uuid()],$file);$builder=app(\App\Services\ResumeBuilder::class);$resume=$builder->create($owner,'اشتراک رزومه صرفاً آزمایشی کانتینر');$builder->save($owner,$resume,1,$resume->title,[...$resume->draft,'name'=>'نام نسخه آزمایشی کانتینر','headline'=>'توسعه‌دهنده نمونه نرم‌افزاری','summary'=>'این متن فقط برای بررسی بازیابی کانتینر است.','phone'=>'09120000099','email'=>'container-private-source@example.test']);$version=$builder->snapshot($owner,$resume,2);app(\App\Services\ResumeSharing::class)->publish($owner,$resume,$version,['revision'=>3,'request_key'=>(string)\Illuminate\Support\Str::uuid(),'duration_days'=>7,'include_contacts'=>false,'reviewed'=>true,'consent'=>true]);echo 'SYNTHETIC_LATEST_FIXTURES_CREATED';"""
-assert run(target, ['exec', '-T', 'app', 'php', '-r', fixture]).strip() == 'SYNTHETIC_LATEST_FIXTURES_CREATED'
+if os.environ.get('CONTAINER_UPGRADE_REUSE_LATEST_FIXTURES') == '1':
+    retained = bootstrap + r"""$c=\App\Models\CoachCredential::sole();$s=\App\Models\ResumeShare::sole();$m=app(\App\Services\CoachCredentials::class)->metadata($c);$data=app(\App\Services\ResumeSharing::class)->metadata($s);$payload=app(\App\Services\ResumeSharing::class)->publicPayload($data['token']);if($m['title']!=='مدرک صرفاً آزمایشی کانتینر، بدون اعتبار واقعی'||$payload['definition']['name']!=='نام نسخه آزمایشی کانتینر'||hash('sha256',\Illuminate\Support\Facades\Storage::disk('learning')->get($c->file_path))!==$m['sha256']){throw new RuntimeException('Preserved synthetic fixture changed.');}echo 'LATEST_FIXTURES_RETAINED';"""
+    assert run(target, ['exec', '-T', 'app', 'php', '-r', retained]).strip() == 'LATEST_FIXTURES_RETAINED'
+else:
+    assert run(target, ['exec', '-T', 'app', 'php', '-r', fixture]).strip() == 'SYNTHETIC_LATEST_FIXTURES_CREATED'
+
 run(target, ['up', '-d', '--no-build', '--wait', '--wait-timeout', '120', 'web', 'worker-default', 'worker-sms', 'scheduler'])
 assert target.running() == {'postgres', 'app', 'web', 'worker-default', 'worker-sms', 'scheduler'}
 report = {'result': 'passed', 'scope': 'owned_loopback_four_synthetic_users_same_project_volumes_and_keys', 'before_migrations': before['migration_count'], 'after_migrations': after['migration_count'], 'tracked_source_files_matched': len(files), 'checks': ['existing_encrypted_lead_ciphertext_and_plaintext_preserved', 'existing_private_support_file_hash_preserved', 'all_pending_migrations_applied_without_reseeding', 'exact_checked_out_application_source_in_non_development_image', 'new_encrypted_coach_credential_and_original_private_file', 'new_owner_consented_source_bound_resume_share', 'six_services_started_with_external_effects_disabled']}
