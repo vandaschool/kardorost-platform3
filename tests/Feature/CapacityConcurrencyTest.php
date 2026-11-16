@@ -12,6 +12,7 @@ use App\Models\AuditEvent;
 use App\Models\CareerResume;
 use App\Models\CertificateRequest;
 use App\Models\CertificateVisibilityEvent;
+use App\Models\CoachCredential;
 use App\Models\CoachProfile;
 use App\Models\CoachProfilePublication;
 use App\Models\CoachProfileWithdrawal;
@@ -70,11 +71,13 @@ use App\Models\SurveyResponse;
 use App\Models\TicketEvent;
 use App\Models\TicketMessage;
 use App\Models\User;
+use App\Notifications\CoachCredentialChanged;
 use App\Notifications\PlatformAnnouncement;
 use App\Services\Announcements;
 use App\Services\AssessmentService;
 use App\Services\BillingService;
 use App\Services\Certification;
+use App\Services\CoachCredentials;
 use App\Services\CoachProfiles;
 use App\Services\CohortCapacity;
 use App\Services\ConsultationBilling;
@@ -333,6 +336,10 @@ CODE;
 
     protected function tearDown(): void
     {
+        if (Schema::hasTable('coach_credentials')) {
+            DB::table('coach_credential_events')->delete();
+            DB::table('coach_credentials')->delete();
+        }
         if (Schema::hasColumn('consultation_requests', 'requested_coach_id')) {
             DB::table('consultation_requests')->update(['requested_coach_id' => null, 'requested_mentor' => null]);
         }
@@ -3290,5 +3297,95 @@ CODE;
     public function test_waiting_assessment_export_rechecks_current_organization_membership(): void
     {
         $this->assessmentExportAfterAccessChange('organization');
+    }
+
+    private function credentialRaceFixture(): array
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Private credential races require PostgreSQL.');
+        }
+        Storage::fake('learning');
+        $coach = User::factory()->create();
+        $coach->roles()->attach(Role::where('key', 'coach')->value('id'));
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $file = UploadedFile::fake()->createWithContent('software-race.pdf', "%PDF-1.4\n% SOFTWARE-FIXTURE-ONLY\n%%EOF\n");
+        $input = ['title' => 'Software credential race fixture', 'issuer' => 'Not a real credential', 'consent' => true, 'request_key' => (string) Str::uuid()];
+
+        return [$coach, $admin, $file, $input, Storage::disk('learning')->path('')];
+    }
+
+    public function test_waiting_private_credential_review_rechecks_revoked_admin_role(): void
+    {
+        [$coach, $admin, $file, $input, $root] = $this->credentialRaceFixture();
+        $credential = app(CoachCredentials::class)->submit($coach, $input, $file);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();config(['filesystems.disks.learning.root'=>$argv[3]]);$actor=\App\Models\User::findOrFail((int)$argv[1]);$credential=\App\Models\CoachCredential::findOrFail((int)$argv[2]);echo 'READY'.PHP_EOL;flush();try{app(\App\Services\CoachCredentials::class)->change($actor,$credential,['revision'=>1,'action'=>'accept','reviewed'=>true]);echo 'REVIEWED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $admin->id, (string) $credential->id, $root], base_path(), null, null, 20);
+        DB::transaction(function () use ($admin, $process) {
+            User::whereKey($admin->id)->lockForUpdate()->firstOrFail();
+            $process->start();
+            $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'READY')));
+            $admin->roles()->detach();
+        });
+        $process->wait();
+        $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+        $this->assertStringEndsWith('403', $process->getOutput());
+        $this->assertSame('submitted', $credential->fresh()->status);
+        $this->assertSame(1, $credential->events()->count());
+        $this->assertSame(0, DB::table('notifications')->where('type', CoachCredentialChanged::class)->count());
+    }
+
+    public function test_concurrent_private_credential_review_and_owner_archive_have_one_revision_winner(): void
+    {
+        [$coach, $admin, $file, $input, $root] = $this->credentialRaceFixture();
+        $credential = app(CoachCredentials::class)->submit($coach, $input, $file);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();config(['filesystems.disks.learning.root'=>$argv[3]]);$actor=\App\Models\User::findOrFail((int)$argv[1]);$credential=\App\Models\CoachCredential::findOrFail((int)$argv[2]);echo 'READY'.PHP_EOL;flush();try{app(\App\Services\CoachCredentials::class)->change($actor,$credential,['revision'=>1,'action'=>$argv[4]==='review'?'accept':'withdraw','reason'=>'Synthetic concurrent decision','reviewed'=>true]);echo $argv[4]==='review'?'REVIEWED':'WITHDRAWN';}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $processes = [new Process([PHP_BINARY, '-r', $code, (string) $admin->id, (string) $credential->id, $root, 'review'], base_path(), null, null, 20), new Process([PHP_BINARY, '-r', $code, (string) $coach->id, (string) $credential->id, $root, 'withdraw'], base_path(), null, null, 20)];
+        DB::transaction(function () use ($coach, $admin, $processes) {
+            User::whereIn('id', [$coach->id, $admin->id])->orderBy('id')->lockForUpdate()->get();
+            foreach ($processes as $process) {
+                $process->start();
+            }
+            foreach ($processes as $process) {
+                $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'READY')));
+            }
+        });
+        $results = [];
+        foreach ($processes as $process) {
+            $process->wait();
+            $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+            $results[] = trim(str_replace('READY', '', $process->getOutput()));
+        }
+        sort($results);
+        $this->assertContains($results, [['REVIEWED', 'STALE'], ['STALE', 'WITHDRAWN']]);
+        $this->assertSame(2, $credential->fresh()->revision);
+        $this->assertSame(2, $credential->events()->count());
+        $this->assertSame(in_array('REVIEWED', $results, true) ? 'accepted' : 'withdrawn', $credential->fresh()->status);
+        $this->assertSame(in_array('REVIEWED', $results, true) ? 1 : 0, DB::table('notifications')->where('type', CoachCredentialChanged::class)->count());
+        Storage::disk('learning')->assertExists($credential->file_path);
+    }
+
+    public function test_waiting_credential_upload_rechecks_coach_role_after_initial_middleware(): void
+    {
+        [$coach, $admin, $file, $input, $root] = $this->credentialRaceFixture();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();config(['filesystems.disks.learning.root'=>$argv[3]]);$actor=\App\Models\User::findOrFail((int)$argv[1]);$request=\Illuminate\Http\Request::create('/coach-credentials','POST');$request->setUserResolver(fn()=>$actor);try{(new \App\Http\Middleware\EnsurePanelRole)->handle($request,function()use($actor,$argv){echo 'READY'.PHP_EOL;flush();$file=new \Illuminate\Http\UploadedFile($argv[2],'software-race.pdf','application/pdf',UPLOAD_ERR_OK,true);app(\App\Services\CoachCredentials::class)->submit($actor,['title'=>'Software upload race','issuer'=>'No real credential','consent'=>true,'request_key'=>$argv[4]],$file);return new \Symfony\Component\HttpFoundation\Response('UPLOADED');},'coach');echo 'UPLOADED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $coach->id, $file->getRealPath(), $root, $input['request_key']], base_path(), null, null, 20);
+        DB::transaction(function () use ($coach, $process) {
+            User::whereKey($coach->id)->lockForUpdate()->firstOrFail();
+            $process->start();
+            $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'READY')));
+            $coach->roles()->detach();
+        });
+        $process->wait();
+        $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+        $this->assertStringEndsWith('403', $process->getOutput());
+        $this->assertSame(0, CoachCredential::count());
+        $this->assertSame([], Storage::disk('learning')->allFiles());
     }
 }

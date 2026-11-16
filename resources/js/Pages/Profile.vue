@@ -2,6 +2,7 @@
 import { Head, useForm, usePage, Link } from "@inertiajs/vue3";
 import Shell from "../Layouts/Shell.vue";
 import Icon from "../Components/Icon.vue";
+defineProps({ has_coach_credentials: Boolean });
 const page = usePage();
 const form = useForm({ name: page.props.auth.user.name });
 const security = useForm({
@@ -19,6 +20,13 @@ const security = useForm({
                 <p class="muted">اطلاعات حسابتان را مرور و به‌روز کنید.</p>
             </div>
         </section>
+        <Link
+            v-if="has_coach_credentials"
+            href="/coach-credentials"
+            class="btn secondary"
+            data-testid="account-coach-credentials"
+            >مدارک خصوصی من و سابقه بررسی</Link
+        >
         <section class="glass panel-card narrow">
             <span class="profile-avatar">{{
                 page.props.auth.user.name.slice(0, 1)

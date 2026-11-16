@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditEvent;
+use App\Models\CoachCredential;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Organization;
@@ -58,7 +59,7 @@ class PanelController extends Controller
 
     public function profile(Request $request): Response
     {
-        return Inertia::render('Profile');
+        return Inertia::render('Profile', ['has_coach_credentials' => $request->user()->hasRole('coach') || CoachCredential::where('user_id', $request->user()->id)->exists()]);
     }
 
     public function updateProfile(Request $request): RedirectResponse
