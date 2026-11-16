@@ -3,6 +3,7 @@ import { Head, Link } from "@inertiajs/vue3";
 import Shell from "../Layouts/Shell.vue";
 import Empty from "../Components/Empty.vue";
 import Icon from "../Components/Icon.vue";
+import OrganizationLearningExportLinks from "../Components/OrganizationLearningExportLinks.vue";
 import FeedbackHistory from "../Components/FeedbackHistory.vue";
 import { fa, dateTime, submissionStatuses, attendanceStatuses } from "../dates";
 defineProps({
@@ -52,17 +53,14 @@ defineProps({
         </section>
         <section class="glass panel-card">
             <h2>ثبت‌نام‌های آموزشی</h2>
-            <a
-                :href="learning_export_url"
-                class="btn secondary"
-                data-testid="member-learning-export"
-                >دانلود خلاصه یادگیری (CSV)</a
-            >
+            <OrganizationLearningExportLinks :url="learning_export_url" />
             <p class="muted caption">
                 تکمیل درس، ثبت خوداظهاری دانشجو است و مشاهده واقعی ویدیو یا
                 مهارت را اثبات نمی‌کند. شمار درس‌های منتشرشده مستقل از زمان
                 بازشدن آن‌هاست؛ حضور فقط وضعیت‌های ثبت‌شده را می‌شمارد. متن
-                تکلیف، پاسخ آزمون و اطلاعات مالی در این خروجی نیستند.
+                تکلیف، پاسخ آزمون و اطلاعات مالی در این خروجی‌ها نیستند. ریز
+                تکلیف، نسخه‌های ارسال و نمره ثبت‌شده را با سقف امتیاز جاری تمرین
+                نشان می‌دهد؛ سابقه ریز تغییر بازخورد در فایل نیست.
             </p>
             <Empty
                 v-if="!enrollments.length"

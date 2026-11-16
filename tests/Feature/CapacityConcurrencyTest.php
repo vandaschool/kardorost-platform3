@@ -3132,9 +3132,9 @@ CODE;
         $organization->members()->attach($member->id, ['kind' => 'member']);
         $key = $organization->members()->where('users.id', $member->id)->firstOrFail()->pivot->membership_key;
         $code = <<<'CODE'
-require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$organization=\App\Models\Organization::findOrFail((int)$argv[2]);$member=\App\Models\User::findOrFail((int)$argv[3]);echo "READY\n";flush();try{$prepared=app(\App\Services\OrganizationLearningExports::class)->prepare($actor,$organization,$member,$argv[4]==='admin');fclose($prepared['stream']);echo 'EXPORTED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$organization=\App\Models\Organization::findOrFail((int)$argv[2]);$member=\App\Models\User::findOrFail((int)$argv[3]);echo "READY\n";flush();try{$prepared=app(\App\Services\OrganizationLearningExports::class)->prepare($actor,$organization,$member,$argv[4]==='admin',$argv[5]);fclose($prepared['stream']);echo 'EXPORTED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}
 CODE;
-        $process = new Process([PHP_BINARY, '-r', $code, (string) $actor->id, (string) $organization->id, (string) $member->id, $asAdmin ? 'admin' : 'manager'], base_path(), null, null, 20);
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $actor->id, (string) $organization->id, (string) $member->id, $asAdmin ? 'admin' : 'manager', $departMember || $asAdmin ? 'attendance' : 'submissions'], base_path(), null, null, 20);
         DB::transaction(function () use ($actor, $member, $organization, $key, $departMember, $process) {
             if ($departMember) {
                 Organization::whereKey($organization->id)->lockForUpdate()->firstOrFail();

@@ -95,13 +95,16 @@ class OrganizationController extends Controller
     {
         $organization = $this->selected($request);
         abort_unless($organization, 403);
+        $data = $request->validate(['dataset' => 'nullable|string|in:summary,attendance,submissions']);
 
-        return $this->downloadLearning($exports->prepare($request->user(), $organization, $member));
+        return $this->downloadLearning($exports->prepare($request->user(), $organization, $member, false, $data['dataset'] ?? 'summary'));
     }
 
     public function adminExportLearning(Request $request, Organization $organization, User $member, OrganizationLearningExports $exports): StreamedResponse
     {
-        return $this->downloadLearning($exports->prepare($request->user(), $organization, $member, true));
+        $data = $request->validate(['dataset' => 'nullable|string|in:summary,attendance,submissions']);
+
+        return $this->downloadLearning($exports->prepare($request->user(), $organization, $member, true, $data['dataset'] ?? 'summary'));
     }
 
     public function report(Request $request, User $member): Response
@@ -110,6 +113,6 @@ class OrganizationController extends Controller
         abort_unless($org && $org->members()->where('users.id', $member->id)->exists(), 403);
         AuditEvent::create(['actor_id' => $request->user()->id, 'action' => 'organization.report_viewed', 'subject_type' => 'user', 'subject_id' => $member->id, 'metadata' => ['organization_id' => $org->id]]);
 
-        return Inertia::render('Member', ['learning_export_url' => route('organization.members.learning-export', $member), 'member' => $member->only('id', 'name', 'phone'), 'organization' => $org, 'assessmentReports' => AssessmentAttempt::where('user_id', $member->id)->where('status', 'completed')->with('edition')->latest('completed_at')->get()->map(fn ($a) => ['id' => $a->id, 'title' => $a->edition->definition['title'], 'number' => $a->edition->number, 'completed_at' => $a->completed_at]), 'enrollments' => Enrollment::where('user_id', $member->id)->with('course', 'cohort')->get(), 'learningReports' => Enrollment::where('user_id', $member->id)->get()->mapWithKeys(fn ($e) => [$e->id => ['certificate_status' => app(Certification::class)->status($e), 'progress' => app(LearningProgress::class)->summary($e), 'attendance' => Attendance::where('enrollment_id', $e->id)->get(['live_session_id', 'status']), 'submissions' => Submission::where('enrollment_id', $e->id)->with('assignment:id,title,max_score', 'reviews')->latest('version')->get()->values()->map(fn ($s) => ['id' => $s->id, 'title' => $s->assignment->title, 'max_score' => $s->assignment->max_score, 'status' => $s->status, 'score' => $s->score, 'feedback' => $s->feedback, 'version' => $s->version, 'body' => $s->body, 'file_name' => $s->file_name, 'download_url' => $s->file_path ? route('submissions.file', $s) : null, 'reviews' => $s->reviews->map(fn ($r) => $r->only('id', 'revision', 'status', 'score', 'feedback', 'created_at'))])]])]);
+        return Inertia::render('Member', ['learning_export_url' => route('organization.members.learning-export', $member), 'member' => $member->only('id', 'name', 'phone'), 'organization' => $org, 'assessmentReports' => AssessmentAttempt::where('user_id', $member->id)->where('status', 'completed')->with('edition')->latest('completed_at')->get()->map(fn ($a) => ['id' => $a->id, 'title' => $a->edition->definition['title'], 'number' => $a->edition->number, 'completed_at' => $a->completed_at]), 'enrollments' => Enrollment::where('user_id', $member->id)->with('course', 'cohort')->get(), 'learningReports' => Enrollment::where('user_id', $member->id)->get()->mapWithKeys(fn ($e) => [$e->id => ['certificate_status' => app(Certification::class)->status($e), 'progress' => app(LearningProgress::class)->summary($e), 'attendance' => Attendance::where('enrollment_id', $e->id)->whereHas('liveSession', fn ($session) => $session->where('cohort_id', $e->cohort_id))->get(['live_session_id', 'status']), 'submissions' => Submission::where('enrollment_id', $e->id)->whereHas('assignment', fn ($assignment) => $assignment->where('cohort_id', $e->cohort_id))->with('assignment:id,title,max_score', 'reviews')->latest('version')->get()->values()->map(fn ($s) => ['id' => $s->id, 'title' => $s->assignment->title, 'max_score' => $s->assignment->max_score, 'status' => $s->status, 'score' => $s->score, 'feedback' => $s->feedback, 'version' => $s->version, 'body' => $s->body, 'file_name' => $s->file_name, 'download_url' => $s->file_path ? route('submissions.file', $s) : null, 'reviews' => $s->reviews->map(fn ($r) => $r->only('id', 'revision', 'status', 'score', 'feedback', 'created_at'))])]])]);
     }
 }
