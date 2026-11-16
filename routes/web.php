@@ -286,6 +286,7 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::patch('/admin/organization-invoices/{invoice}', [OrganizationInvoiceController::class, 'update']);
         Route::post('/admin/organization-invoices/{invoice}/issue', [OrganizationInvoiceController::class, 'issue']);
         Route::post('/admin/organization-invoices/{invoice}/void', [OrganizationInvoiceController::class, 'void']);
+        Route::get('/admin/users', [AdminUserController::class, 'index'])->name('admin.users');
         Route::get('/admin/activity', [AuditEventController::class, 'index'])->name('admin.activity');
         Route::get('/admin/{section}', [PanelController::class, 'admin']);
         Route::patch('/admin/users/{user}', [AdminUserController::class, 'update']);
