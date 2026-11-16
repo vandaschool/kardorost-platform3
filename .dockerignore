@@ -36,3 +36,6 @@ database/*.db
 **/*.pfx
 .aws
 .ssh
+
+**/__pycache__
+**/*.pyc

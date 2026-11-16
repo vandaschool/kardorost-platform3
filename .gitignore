@@ -29,3 +29,6 @@ Thumbs.db
 .env.*
 !.env.example
 .kardorost-ops.lock
+
+__pycache__/
+*.pyc
