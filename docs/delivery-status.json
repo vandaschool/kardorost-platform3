@@ -1,5 +1,5 @@
 {
-  "phase": "searchable-paginated-full-admin-user-directory",
+  "phase": "current-admin-access-and-course-coach-mutation-authorization",
   "completed": [
     "phone-verification",
     "password-login",
@@ -364,17 +364,21 @@
     "bounded-private-audit-browser-payload-without-metadata",
     "paginated-full-admin-private-user-directory",
     "combined-exact-phone-id-role-activity-verification-user-search",
-    "literal-name-search-and-minimal-admin-directory-payload"
+    "literal-name-search-and-minimal-admin-directory-payload",
+    "locked-current-admin-authorization-for-account-and-course-coach-mutations",
+    "deterministically-ordered-cross-admin-access-revocation",
+    "transactional-course-coach-assignment-and-audit-rollback",
+    "explicit-null-only-course-coach-clearing"
   ],
   "tests": {
     "postgresql": {
-      "passed": 978,
-      "assertions": 7829
+      "passed": 991,
+      "assertions": 7893
     },
     "sqlite": {
-      "passed": 842,
-      "skipped": 136,
-      "assertions": 7077
+      "passed": 849,
+      "skipped": 142,
+      "assertions": 7104
     },
     "javascript": {
       "passed": 6
@@ -628,7 +632,8 @@
     "admin-audit-owner-role-isolation-no-store-and-320-390-768-1440",
     "admin-user-directory-combined-29-record-search-preserved-pages-multi-role",
     "admin-user-directory-actual-coach-grant-deactivation-persian-phone-self-lockout-guard",
-    "admin-user-directory-private-escaped-rows-other-role-denial-and-320-390-768-1440"
+    "admin-user-directory-private-escaped-rows-other-role-denial-and-320-390-768-1440",
+    "admin-directory-and-cohort-announcement-full-browser-regression-after-current-authorization-locks"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -705,9 +710,9 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase47_admin_user_directory_verified_ready_for_pr_admin_access_mutation_concurrency_review_next",
+    "current_work": "phase48_current_admin_authorization_verified_ready_for_pr_organization_member_learning_csv_next",
     "next_groups": [
-      "admin_access_and_course_coach_assignment_current_authorization_under_locks",
+      "private_organization_member_learning_summary_csv",
       "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
       "career_and_assessment_extensions_without_invented_instruments",
       "coach_settlement_and_organization_benefits_requiring_business_terms",
@@ -824,5 +829,8 @@
   "admin_audit_history_complete": true,
   "admin_audit_history_scope": "active_full_admin_readonly_exact_id_actor_action_subject_filters_optional_tehran_date_bounds_twenty_five_per_page_current_actor_name_no_metadata_or_private_account_fields_no_tamperproof_claim",
   "admin_user_directory_complete": true,
-  "admin_user_directory_scope": "active_full_admin_twenty_five_per_page_literal_name_substring_normalized_exact_phone_id_role_activity_verification_filters_existing_access_edit_no_password_email_token_or_role_pivot_in_rows"
+  "admin_user_directory_scope": "active_full_admin_twenty_five_per_page_literal_name_substring_normalized_exact_phone_id_role_activity_verification_filters_existing_access_edit_no_password_email_token_or_role_pivot_in_rows",
+  "admin_account_mutation_current_authorization_complete": true,
+  "admin_account_mutation_current_authorization_scope": "actor_and_target_accounts_locked_by_id_current_active_admin_before_write_course_parent_before_accounts_for_assignment_current_candidate_coach_role_and_activity_course_audit_same_transaction",
+  "admin_account_access_optimistic_revision_complete": false
 }

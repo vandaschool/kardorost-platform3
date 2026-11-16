@@ -3018,4 +3018,101 @@ CODE;
         $this->assertSame($published ? 'cohort' : 'organization', $announcement->fresh()->audience['type']);
         $this->assertSame($published ? [$student->id] : [], $announcement->recipients()->pluck('user_id')->all());
     }
+
+    private function adminMutationAfterConcurrentChange(bool $assignment, string $change, bool $changeCoach = false): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Admin access mutation races require PostgreSQL.');
+        }
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $student = User::factory()->create();
+        $student->roles()->attach(Role::where('key', 'student')->value('id'));
+        $coach = User::factory()->create();
+        $coach->roles()->attach(Role::where('key', 'coach')->value('id'));
+        $course = Course::factory()->create(['coach_id' => null]);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$assignment=$argv[4]==='assign';$data=$assignment?['coach_id'=>(int)$argv[5]]:['roles'=>['student','coach'],'is_active'=>true];$request=\Illuminate\Http\Request::create('/admin/synthetic','PATCH',$data);$request->setUserResolver(fn()=>$actor);try{(new \App\Http\Middleware\EnsurePanelRole)->handle($request,function($request)use($assignment,$argv){echo "READY\n";flush();$controller=app(\App\Http\Controllers\AdminUserController::class);return $assignment?$controller->assignCoach($request,\App\Models\Course::findOrFail((int)$argv[3])):$controller->update($request,\App\Models\User::findOrFail((int)$argv[2]));},'admin');echo 'UPDATED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}catch(\Illuminate\Validation\ValidationException){echo 'INVALID_COACH';}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $admin->id, (string) $student->id, (string) $course->id, $assignment ? 'assign' : 'access', (string) $coach->id], base_path(), null, null, 20);
+        DB::transaction(function () use ($admin, $coach, $course, $process, $assignment, $change, $changeCoach) {
+            if ($assignment) {
+                Course::whereKey($course->id)->lockForUpdate()->firstOrFail();
+            }
+            $changed = User::whereKey($changeCoach ? $coach->id : $admin->id)->lockForUpdate()->firstOrFail();
+            $process->start();
+            $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'READY')));
+            if ($change === 'role') {
+                $changed->roles()->detach();
+            } else {
+                $changed->forceFill(['is_active' => false])->save();
+            }
+        });
+        $process->wait();
+        $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+        $this->assertSame("READY\n".($changeCoach ? 'INVALID_COACH' : '403'), $process->getOutput());
+        $this->assertNull($course->fresh()->coach_id);
+        $this->assertFalse($student->hasRole('coach'));
+        $this->assertSame(0, AuditEvent::count());
+    }
+
+    public function test_waiting_admin_user_access_update_rechecks_revoked_actor_role(): void
+    {
+        $this->adminMutationAfterConcurrentChange(false, 'role');
+    }
+
+    public function test_waiting_admin_user_access_update_rechecks_deactivated_actor(): void
+    {
+        $this->adminMutationAfterConcurrentChange(false, 'inactive');
+    }
+
+    public function test_waiting_admin_coach_assignment_rechecks_revoked_actor_role(): void
+    {
+        $this->adminMutationAfterConcurrentChange(true, 'role');
+    }
+
+    public function test_waiting_admin_coach_assignment_rechecks_candidate_coach_role(): void
+    {
+        $this->adminMutationAfterConcurrentChange(true, 'role', true);
+    }
+
+    public function test_waiting_admin_coach_assignment_rechecks_candidate_coach_activity(): void
+    {
+        $this->adminMutationAfterConcurrentChange(true, 'inactive', true);
+    }
+
+    public function test_two_previously_authorized_admins_cannot_concurrently_revoke_each_other(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Cross-admin revocation races require PostgreSQL.');
+        }
+        $first = User::factory()->create();
+        $second = User::factory()->create();
+        foreach ([$first, $second] as $admin) {
+            $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        }
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$request=\Illuminate\Http\Request::create('/admin/synthetic','PATCH',['roles'=>['student'],'is_active'=>true]);$request->setUserResolver(fn()=>$actor);try{(new \App\Http\Middleware\EnsurePanelRole)->handle($request,function($request)use($argv){echo "READY\n";flush();return app(\App\Http\Controllers\AdminUserController::class)->update($request,\App\Models\User::findOrFail((int)$argv[2]));},'admin');echo 'UPDATED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}
+CODE;
+        $processes = [new Process([PHP_BINARY, '-r', $code, (string) $first->id, (string) $second->id], base_path(), null, null, 20), new Process([PHP_BINARY, '-r', $code, (string) $second->id, (string) $first->id], base_path(), null, null, 20)];
+        DB::transaction(function () use ($first, $second, $processes) {
+            User::whereIn('id', [$first->id, $second->id])->orderBy('id')->lockForUpdate()->get();
+            foreach ($processes as $process) {
+                $process->start();
+            }
+            foreach ($processes as $process) {
+                $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'READY')));
+            }
+        });
+        $results = [];
+        foreach ($processes as $process) {
+            $process->wait();
+            $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+            $results[] = $process->getOutput();
+        }
+        sort($results);
+        $this->assertSame(["READY\n403", "READY\nUPDATED"], $results);
+        $this->assertSame(1, User::where('is_active', true)->whereHas('roles', fn ($roles) => $roles->where('key', 'admin'))->count());
+        $this->assertSame(1, AuditEvent::where('action', 'user.access_updated')->count());
+    }
 }
