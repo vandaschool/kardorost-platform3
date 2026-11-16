@@ -139,6 +139,7 @@ class OperationalReadiness
         $check('environment', 'محیط بهره‌برداری', app()->environment('production'), 'محیط سرور عمومی باید production باشد.');
         $check('debug', 'نمایش خطاهای داخلی', config('app.debug') === false, 'نمایش جزئیات خطا در سرور عمومی باید خاموش باشد.');
         $check('public_url', 'نشانی عمومی HTTPS', $this->publicUrl(), 'دامنه واقعی HTTPS را تنظیم کنید؛ صحت DNS و گواهی TLS جداگانه بررسی می‌شود.');
+        $check('trusted_proxy_configuration', 'تنظیم مرز پراکسی', config('trustedproxy.invalid_count', 0) === 0, 'فقط IP یا CIDR صریح پراکسی مورد اعتماد را تنظیم کنید؛ wildcard و شبکه صفر مجاز نیستند.');
         $check('encryption_key', 'کلید رمزگذاری', $this->encryptionKey(), 'کلید معتبر و پایدار لازم است؛ نسخه امن مستقل آن را نگه دارید و بدون برنامه بازیابی عوض نکنید.');
         $check('runtime', 'نسخه و افزونه‌های PHP', PHP_VERSION_ID >= 80400 && extension_loaded('pdo_pgsql') && extension_loaded('mbstring') && extension_loaded('openssl') && extension_loaded('fileinfo'), 'PHP 8.4 یا بالاتر با افزونه‌های PostgreSQL، متن، رمزگذاری و تشخیص فایل لازم است.');
         $check('locale_timezone', 'زبان و ساعت', config('app.timezone') === 'Asia/Tehran' && config('app.locale') === 'fa', 'زبان فارسی و ساعت تهران برای تاریخ‌ها و سررسیدها لازم‌اند.');

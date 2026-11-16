@@ -1,0 +1,189 @@
+name: ${COMPOSE_PROJECT_NAME:-kardorost}
+
+x-app-environment: &app-environment
+  APP_NAME: "${APP_NAME:-Kardorost}"
+  APP_ENV: production
+  APP_KEY: "${APP_KEY:?Set a stable application encryption key}"
+  APP_DEBUG: "false"
+  APP_URL: "${APP_URL:?Set the public application URL}"
+  APP_LOCALE: fa
+  APP_FALLBACK_LOCALE: en
+  LOG_CHANNEL: stderr
+  LOG_LEVEL: warning
+  DB_CONNECTION: pgsql
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_DATABASE: "${DB_DATABASE:-kardorost}"
+  DB_USERNAME: "${DB_USERNAME:-kardorost}"
+  DB_PASSWORD: "${DB_PASSWORD:?Set an application database password}"
+  SESSION_DRIVER: database
+  SESSION_ENCRYPT: "true"
+  SESSION_SECURE_COOKIE: "${SESSION_SECURE_COOKIE:-true}"
+  SESSION_SAME_SITE: lax
+  CACHE_STORE: database
+  QUEUE_CONNECTION: database
+  DB_QUEUE_RETRY_AFTER: "90"
+  FILESYSTEM_DISK: local
+  TRUSTED_PROXIES: "${TRUSTED_PROXIES:-172.16.0.0/12,10.0.0.0/8,192.168.0.0/16,127.0.0.1,::1}"
+  SMS_DRIVER: "${SMS_DRIVER:-disabled}"
+  MELIPAYAMAK_MODE: "${MELIPAYAMAK_MODE:-rest}"
+  MELIPAYAMAK_USERNAME: "${MELIPAYAMAK_USERNAME:-}"
+  MELIPAYAMAK_API_KEY: "${MELIPAYAMAK_API_KEY:-}"
+  MELIPAYAMAK_OTP_BODY_ID: "${MELIPAYAMAK_OTP_BODY_ID:-}"
+  MELIPAYAMAK_INVITATION_BODY_ID: "${MELIPAYAMAK_INVITATION_BODY_ID:-}"
+  MELIPAYAMAK_INVITATIONS_ENABLED: "${MELIPAYAMAK_INVITATIONS_ENABLED:-false}"
+  MELIPAYAMAK_DELIVERY_ENABLED: "${MELIPAYAMAK_DELIVERY_ENABLED:-false}"
+  MELIPAYAMAK_REMINDER_BODY_ID: "${MELIPAYAMAK_REMINDER_BODY_ID:-}"
+  MELIPAYAMAK_REMINDERS_ENABLED: "${MELIPAYAMAK_REMINDERS_ENABLED:-false}"
+  EVENT_REMINDERS_ENABLED: "${EVENT_REMINDERS_ENABLED:-true}"
+  EVENT_REMINDER_LEAD_MINUTES: "${EVENT_REMINDER_LEAD_MINUTES:-60}"
+  ZIBAL_ENABLED: "${ZIBAL_ENABLED:-false}"
+  ZIBAL_MERCHANT: "${ZIBAL_MERCHANT:-}"
+  MANUAL_PAYMENT_DESTINATION: "${MANUAL_PAYMENT_DESTINATION:-}"
+  MANUAL_PAYMENT_HOLDER: "${MANUAL_PAYMENT_HOLDER:-}"
+  RECEIPT_REVIEW_HOLD_HOURS: "${RECEIPT_REVIEW_HOLD_HOURS:-24}"
+  ARVAN_EMBED_HOSTS: "${ARVAN_EMBED_HOSTS:-player.arvancloud.ir,player.arvanvod.ir}"
+  SKYROOM_HOSTS: "${SKYROOM_HOSTS:-skyroom.online,skyroom.ir}"
+  MAIL_MAILER: log
+
+x-application: &application
+  image: kardorost-app:${IMAGE_TAG:-local}
+  build:
+    context: .
+    target: application
+    args:
+      APP_REVISION: "${APP_REVISION:-unknown}"
+  restart: unless-stopped
+  init: true
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  stop_grace_period: 70s
+  volumes:
+    - application_storage:/var/www/html/storage
+  tmpfs:
+    - /tmp:uid=82,gid=82,mode=0750
+    - /var/www/html/bootstrap/cache:uid=82,gid=82,mode=0750
+  depends_on:
+    postgres:
+      condition: service_healthy
+  networks: [backend]
+
+services:
+  postgres:
+    image: kardorost-postgres:${IMAGE_TAG:-local}
+    build:
+      context: .
+      target: database
+      args:
+        APP_REVISION: "${APP_REVISION:-unknown}"
+    user: postgres
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    shm_size: 256mb
+    stop_grace_period: 70s
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: "${DB_ADMIN_PASSWORD:?Set a separate database administrator password}"
+      APP_DB_NAME: "${DB_DATABASE:-kardorost}"
+      APP_DB_USER: "${DB_USERNAME:-kardorost}"
+      APP_DB_PASSWORD: "${DB_PASSWORD:?Set an application database password}"
+    volumes:
+      - database_data:/var/lib/postgresql/data
+    tmpfs:
+      - /tmp:uid=70,gid=70,mode=0750
+      - /var/run/postgresql:uid=70,gid=70,mode=0750
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -h 127.0.0.1 -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks: [backend]
+
+  app:
+    <<: *application
+    environment:
+      <<: *app-environment
+      KARDOROST_ROLE: app
+    healthcheck:
+      test: [CMD, php, -r, "$$socket=@fsockopen('127.0.0.1',9000);exit($$socket?0:1);"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  worker-default:
+    <<: *application
+    environment:
+      <<: *app-environment
+      KARDOROST_ROLE: worker
+    command: [php, artisan, "queue:work", database, "--queue=default", "--sleep=1", "--tries=3", "--timeout=30"]
+    healthcheck:
+      test: [CMD, php, artisan, "platform:heartbeat-status", queue.default]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+  worker-sms:
+    <<: *application
+    environment:
+      <<: *app-environment
+      KARDOROST_ROLE: worker
+    command: [php, artisan, "queue:work", database, "--queue=sms", "--sleep=1", "--tries=1", "--timeout=30"]
+    healthcheck:
+      test: [CMD, php, artisan, "platform:heartbeat-status", queue.sms]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+  scheduler:
+    <<: *application
+    environment:
+      <<: *app-environment
+      KARDOROST_ROLE: scheduler
+    command: [php, artisan, "schedule:work", "--no-interaction"]
+    healthcheck:
+      test: [CMD, php, artisan, "platform:heartbeat-status", scheduler]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+  web:
+    image: kardorost-web:${IMAGE_TAG:-local}
+    build:
+      context: .
+      target: web
+      args:
+        APP_REVISION: "${APP_REVISION:-unknown}"
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8080}:8080"
+    tmpfs:
+      - /tmp:uid=101,gid=101,mode=0750
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, -Y, "off", "http://127.0.0.1:8080/up"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks: [backend]
+
+networks:
+  backend:
+
+volumes:
+  database_data:
+  application_storage:
