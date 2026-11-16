@@ -14,6 +14,7 @@ const props = defineProps({
     pending_schedule: Object,
     schedules: Object,
     organization_choices: Array,
+    cohort_choices: Array,
 });
 const roles = {
     student: "دانشجویان",
@@ -41,25 +42,31 @@ const draft = useForm({
         audience: {
             type: props.selected?.audience?.type || "all",
             organization_id: props.selected?.audience?.organization_id || "",
+            cohort_id: props.selected?.audience?.cohort_id || "",
         },
     },
 });
-const availableRoles = computed(() =>
-    draft.definition.audience.type === "organization"
-        ? {
-              student: "دانشجویان عضو همان مجموعه",
-              org_admin: "مدیران همان مجموعه",
-          }
-        : roles,
-);
+const availableRoles = computed(() => {
+    if (draft.definition.audience.type === "organization")
+        return {
+            student: "دانشجویان عضو همان مجموعه",
+            org_admin: "مدیران همان مجموعه",
+        };
+    if (draft.definition.audience.type === "cohort")
+        return {
+            student: "دانشجویان ثبت‌نام فعال همان نوبت",
+            coach: "مربی فعلی دوره",
+        };
+    return roles;
+});
 watch(
     () => draft.definition.audience.type,
-    (value) => {
+    () => {
         draft.definition.audience.organization_id = "";
-        if (value === "organization")
-            draft.definition.roles = draft.definition.roles.filter((role) =>
-                ["student", "org_admin"].includes(role),
-            );
+        draft.definition.audience.cohort_id = "";
+        draft.definition.roles = draft.definition.roles.filter((role) =>
+            Object.hasOwn(availableRoles.value, role),
+        );
     },
 );
 const saved = ref(JSON.stringify(draft.definition));
@@ -176,6 +183,7 @@ function save() {
                         تمام حساب‌های واجد شرایط نقش‌های انتخاب‌شده
                     </option>
                     <option value="organization">یک سازمان یا دانشگاه</option>
+                    <option value="cohort">یک نوبت آموزشی</option>
                 </select></label
             >
             <label v-if="draft.definition.audience.type === 'organization'"
@@ -209,6 +217,22 @@ function save() {
                     </option>
                 </select></label
             >
+            <label v-if="draft.definition.audience.type === 'cohort'"
+                >نوبت آموزشی<select
+                    name="announcement_cohort"
+                    v-model.number="draft.definition.audience.cohort_id"
+                    required
+                >
+                    <option value="" disabled>نوبت را انتخاب کنید</option>
+                    <option
+                        v-for="cohort in cohort_choices"
+                        :key="cohort.id"
+                        :value="cohort.id"
+                    >
+                        {{ cohort.label }}
+                    </option>
+                </select></label
+            >
             <fieldset>
                 <legend>مخاطبان</legend>
                 <label v-for="(label, key) in availableRoles" :key="key"
@@ -230,6 +254,11 @@ function save() {
             >
                 گیرنده هنگام تحویل نیز باید همان عضویت و نقش را داشته باشد.
                 پایان عضویت، پیام‌های منتظر قبلی را متوقف می‌کند.
+            </p>
+            <p v-if="draft.definition.audience.type === 'cohort'" class="muted">
+                دریافت برای همان ثبت‌نام فعال یا مربی دوره است. ثبت‌نام دوباره
+                یا تغییر مربی، پیام‌های منتظر قبلی را به دسترسی تازه منتقل
+                نمی‌کند.
             </p>
             <p v-for="error in draft.errors" :key="error" class="field-error">
                 {{ error }}
@@ -507,7 +536,7 @@ function save() {
                 <p v-if="row.failure_code" class="muted">
                     {{
                         row.failure_code === "scope_changed"
-                            ? "عضویت قبلی پایان یافته یا محدوده تغییر کرده است."
+                            ? "عضویت یا ثبت‌نام قبلی پایان یافته یا محدوده تغییر کرده است."
                             : "حساب، نقش یا عضویت دیگر شرایط دریافت را ندارد."
                     }}
                 </p>

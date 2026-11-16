@@ -301,7 +301,7 @@ class Announcements
             $recipients = $announcement->recipients()->where('status', 'pending')->orderBy('id')->limit(100)->lockForUpdate()->get();
             $users = User::whereIn('id', $recipients->pluck('user_id'))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
             $eligible = array_fill_keys($this->audience($announcement->roles, $announcement->audience)->whereIn('users.id', $users->keys())->pluck('users.id')->all(), true);
-            $members = app(AnnouncementAudience::class)->members($announcement, $users->keys()->all());
+            $members = app(AnnouncementAudience::class)->state($announcement, $users->keys()->all());
             $sent = 0;
             foreach ($recipients as $recipient) {
                 $user = $users->get($recipient->user_id);
@@ -310,12 +310,12 @@ class Announcements
 
                     continue;
                 }
-                if (! app(AnnouncementAudience::class)->sameMembership($announcement, $recipient, $members)) {
+                if (! app(AnnouncementAudience::class)->sameAccess($announcement, $recipient, $members)) {
                     $recipient->update(['status' => 'skipped', 'failure_code' => 'scope_changed', 'finished_at' => now()]);
 
                     continue;
                 }
-                $notification = new PlatformAnnouncement($id, $announcement->title, $announcement->message, $announcement->audience['label'] ?? null);
+                $notification = new PlatformAnnouncement($id, $announcement->title, $announcement->message, $announcement->audience['label'] ?? null, $announcement->audience['type'] ?? null);
                 $notification->id = (string) Str::uuid();
                 $user->notify($notification);
                 $recipient->update(['status' => 'delivered', 'notification_id' => $notification->id, 'finished_at' => now()]);

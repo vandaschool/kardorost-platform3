@@ -1,5 +1,5 @@
 {
-  "phase": "private-organization-targeted-internal-announcements",
+  "phase": "private-cohort-targeted-internal-announcements",
   "completed": [
     "phone-verification",
     "password-login",
@@ -354,17 +354,21 @@
     "recipient-bound-encrypted-targeted-inbox-payloads",
     "owner-only-private-inbox-decoding-with-safe-corruption-fallback",
     "legacy-global-announcement-schedule-and-inbox-compatibility",
-    "long-unbroken-notification-text-mobile-wrapping"
+    "long-unbroken-notification-text-mobile-wrapping",
+    "cohort-scoped-active-enrollment-and-current-teacher-announcements",
+    "encrypted-source-bound-enrollment-billing-generation-delivery-proof",
+    "original-multi-role-cohort-recipient-access-routes",
+    "cohort-private-encrypted-owner-inbox-and-legacy-org-compatibility"
   ],
   "tests": {
     "postgresql": {
-      "passed": 934,
-      "assertions": 7298
+      "passed": 957,
+      "assertions": 7391
     },
     "sqlite": {
-      "passed": 804,
-      "skipped": 130,
-      "assertions": 6577
+      "passed": 821,
+      "skipped": 136,
+      "assertions": 6639
     },
     "javascript": {
       "passed": 6
@@ -606,7 +610,13 @@
     "org-pending-generation-and-postpublication-member-exclusion",
     "org-private-encrypted-inbox-worker-deliveries-once",
     "org-other-manager-university-member-isolation",
-    "org-announcement-escaped-label-script-and-320-1440-inbox-wrap"
+    "org-announcement-escaped-label-script-and-320-1440-inbox-wrap",
+    "cohort-announcement-active-vs-other-cohort-and-pending-audience",
+    "actual-admin-coach-assignment-before-announcement-worker",
+    "fixture-ended-registration-real-service-renewal-skips-old-notice",
+    "cohort-encrypted-inbox-owner-label-xss-and-two-role-delivery-idempotency",
+    "cohort-announcements-320-390-768-1440",
+    "organization-announcement-full-browser-regression-after-cohort-extension"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -683,9 +693,9 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase44_org_targeted_announcements_verified_ready_for_pr_cohort_targeted_internal_announcements_next",
+    "current_work": "phase45_cohort_targeted_announcements_verified_ready_for_pr_admin_audit_history_next",
     "next_groups": [
-      "organization_and_cohort_targeted_internal_announcements",
+      "searchable_paginated_private_admin_audit_history",
       "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
       "career_and_assessment_extensions_without_invented_instruments",
       "coach_settlement_and_organization_benefits_requiring_business_terms",
@@ -747,7 +757,7 @@
   "coach_settlement_complete": false,
   "bulk_internal_announcements_complete": true,
   "bulk_internal_announcements_scope": "reviewed_role_based_active_verified_account_snapshot_no_sms_or_email",
-  "organization_or_cohort_targeted_announcements_complete": false,
+  "organization_or_cohort_targeted_announcements_complete": true,
   "scheduled_announcements_complete": true,
   "bulk_sms_complete": false,
   "lesson_completion_evidence": "student_self_report_not_verified_video_watch_or_skill",
@@ -795,7 +805,8 @@
   "legacy_backup_reconciliation_policy": "format_1_restorable_but_requires_separately_confirmed_earlier_reconciliation_boundary",
   "scheduled_announcements_scope": "reviewed_encrypted_role_based_internal_only_snapshot_hmac_content_actor_time_revisions_due_current_active_verified_audience_bounded_100_no_sms_email",
   "organization_targeted_internal_announcements_complete": true,
-  "cohort_targeted_internal_announcements_complete": false,
+  "cohort_targeted_internal_announcements_complete": true,
   "organization_targeted_internal_announcements_scope": "admin_only_selected_active_organization_current_student_members_or_actual_managers_frozen_membership_generation_and_source_recipient_identity_no_sms_email",
-  "targeted_announcement_inbox_encryption": "organization_payload_v1_recipient_and_source_bound_owner_decoded_legacy_global_plaintext_format_retained"
+  "targeted_announcement_inbox_encryption": "organization_or_cohort_payload_v1_recipient_and_source_bound_owner_decoded_legacy_org_without_type_and_global_plaintext_format_retained",
+  "cohort_targeted_internal_announcements_scope": "admin_only_exact_cohort_active_student_enrollment_id_and_billing_generation_or_original_current_assigned_course_coach_no_added_postpublication_accounts_no_sms_email"
 }

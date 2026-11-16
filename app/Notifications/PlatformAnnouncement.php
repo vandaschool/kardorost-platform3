@@ -8,7 +8,7 @@ use Throwable;
 
 class PlatformAnnouncement extends Notification
 {
-    public function __construct(private int $announcementId, private string $title, private string $message, private ?string $audienceLabel = null) {}
+    public function __construct(private int $announcementId, private string $title, private string $message, private ?string $audienceLabel = null, private ?string $audienceType = null) {}
 
     public function via(object $notifiable): array
     {
@@ -20,7 +20,11 @@ class PlatformAnnouncement extends Notification
         if ($this->audienceLabel === null) {
             return ['announcement_id' => $this->announcementId, 'title' => $this->title, 'text' => $this->message];
         }
-        $payload = ['engine' => 'organization_announcement_inbox_v1', 'recipient_id' => (int) $notifiable->getKey(), 'announcement_id' => $this->announcementId, 'title' => $this->title, 'text' => $this->message, 'audience_label' => $this->audienceLabel];
+        $type = $this->audienceType ?? 'organization';
+        if (! in_array($type, ['organization', 'cohort'], true)) {
+            throw new \UnexpectedValueException;
+        }
+        $payload = ['engine' => $type.'_announcement_inbox_v1', 'audience_type' => $type, 'recipient_id' => (int) $notifiable->getKey(), 'announcement_id' => $this->announcementId, 'title' => $this->title, 'text' => $this->message, 'audience_label' => $this->audienceLabel];
 
         return ['announcement_id' => $this->announcementId, 'private_payload_version' => 1, 'private_payload' => Crypt::encryptString(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR))];
     }
@@ -35,16 +39,21 @@ class PlatformAnnouncement extends Notification
                 throw new \UnexpectedValueException;
             }
             $payload = json_decode(Crypt::decryptString($data['private_payload']), true, 512, JSON_THROW_ON_ERROR);
-            if (($payload['engine'] ?? null) !== 'organization_announcement_inbox_v1' || ($payload['recipient_id'] ?? null) !== $recipientId || ($payload['announcement_id'] ?? null) !== ($data['announcement_id'] ?? null)) {
+            $type = match ($payload['engine'] ?? null) {
+                'organization_announcement_inbox_v1' => 'organization',
+                'cohort_announcement_inbox_v1' => 'cohort',
+                default => null,
+            };
+            if ($type === null || ($payload['audience_type'] ?? $type) !== $type || ($payload['recipient_id'] ?? null) !== $recipientId || ($payload['announcement_id'] ?? null) !== ($data['announcement_id'] ?? null)) {
                 throw new \UnexpectedValueException;
             }
-            foreach (['title' => 160, 'text' => 3000, 'audience_label' => 255] as $key => $maximum) {
+            foreach (['title' => 160, 'text' => 3000, 'audience_label' => $type === 'cohort' ? 512 : 255] as $key => $maximum) {
                 if (! is_string($payload[$key] ?? null) || ! mb_check_encoding($payload[$key], 'UTF-8') || mb_strlen($payload[$key]) > $maximum) {
                     throw new \UnexpectedValueException;
                 }
             }
 
-            return ['announcement_id' => (int) ($data['announcement_id'] ?? 0), ...array_intersect_key($payload, array_flip(['title', 'text', 'audience_label']))];
+            return ['announcement_id' => (int) ($data['announcement_id'] ?? 0), 'audience_type' => $type, ...array_intersect_key($payload, array_flip(['title', 'text', 'audience_label']))];
         } catch (Throwable) {
             return ['title' => 'اعلان خصوصی', 'text' => 'متن این اعلان قابل نمایش نیست؛ برای پیگیری با پشتیبانی تماس بگیرید.'];
         }

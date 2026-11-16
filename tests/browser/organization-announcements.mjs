@@ -401,7 +401,7 @@ try {
     );
     assert(
         (await evaluate("document.body.innerText")).includes(
-            "عضویت قبلی پایان یافته",
+            "عضویت یا ثبت‌نام قبلی پایان یافته",
         ),
     );
     assert.deepEqual(exceptions, []);

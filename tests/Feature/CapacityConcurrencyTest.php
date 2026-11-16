@@ -2904,4 +2904,118 @@ CODE;
         $this->assertSame($published ? $organization->id : $other->id, $announcement->fresh()->audience['organization_id']);
         $this->assertSame($published ? [$student->id] : [], $announcement->recipients()->pluck('user_id')->all());
     }
+
+    private function cohortAnnouncementFixture(bool $publish = true, bool $coachOnly = false): array
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Cohort announcement races require PostgreSQL.');
+        }
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $coach = User::factory()->create();
+        $coach->roles()->attach(Role::where('key', 'coach')->value('id'));
+        $course = Course::factory()->create(['coach_id' => $coach->id, 'price' => 0, 'is_published' => true]);
+        $cohort = Cohort::factory()->create(['course_id' => $course->id, 'capacity' => 20, 'registration_open' => true]);
+        $student = User::factory()->create();
+        $student->roles()->attach(Role::where('key', 'student')->value('id'));
+        $enrollment = Enrollment::factory()->create(['user_id' => $student->id, 'cohort_id' => $cohort->id, 'status' => 'active']);
+        $announcement = app(Announcements::class)->save($admin, ['title' => 'Private cohort notice', 'message' => 'Private synthetic cohort message', 'roles' => [$coachOnly ? 'coach' : 'student'], 'audience' => ['type' => 'cohort', 'cohort_id' => $cohort->id]]);
+        if ($publish) {
+            app(Announcements::class)->publish($admin, $announcement, 1);
+        }
+
+        return [$admin, $coach, $student, $course, $cohort, $enrollment, $announcement->fresh()];
+    }
+
+    public function test_two_cohort_announcement_workers_deliver_one_encrypted_notification(): void
+    {
+        [$admin, $coach, $student, $course, $cohort, $enrollment, $announcement] = $this->cohortAnnouncementFixture();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();echo app(\App\Services\Announcements::class)->deliver((int)$argv[1]);
+CODE;
+        $this->assertSame(['0', '1'], $this->parallelFinance($code, [[$announcement->id], [$announcement->id]]));
+        $this->assertSame(1, DB::table('notifications')->where('type', PlatformAnnouncement::class)->count());
+        $this->assertSame('completed', $announcement->fresh()->status);
+    }
+
+    private function cohortDeliveryAfterAccessChange(string $change): void
+    {
+        [$admin, $coach, $student, $course, $cohort, $enrollment, $announcement] = $this->cohortAnnouncementFixture(coachOnly: $change === 'coach');
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();\Illuminate\Support\Facades\DB::listen(function($query){if(str_contains($query->sql,'"announcements"')&&str_starts_with($query->sql,'select')&&!str_contains($query->sql,'for update')){echo "PEEKED\n";flush();}});echo app(\App\Services\Announcements::class)->deliver((int)$argv[1]);
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $announcement->id], base_path(), null, null, 20);
+        DB::transaction(function () use ($student, $course, $cohort, $enrollment, $process, $change) {
+            Course::whereKey($course->id)->lockForUpdate()->firstOrFail();
+            Cohort::whereKey($cohort->id)->lockForUpdate()->firstOrFail();
+            $process->start();
+            $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'PEEKED')));
+            if ($change === 'coach') {
+                $course->update(['coach_id' => null]);
+            } else {
+                $enrollment->update(['status' => 'expired']);
+                if ($change === 'renew') {
+                    $renewed = app(EnrollmentService::class)->reserve($student, $cohort);
+                    $this->assertSame(2, $renewed->billing_version);
+                }
+            }
+        });
+        $process->wait();
+        $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+        $this->assertStringEndsWith("\n0", $process->getOutput());
+        $this->assertSame(0, DB::table('notifications')->where('type', PlatformAnnouncement::class)->count());
+        $this->assertSame('skipped', $announcement->recipients()->sole()->status);
+    }
+
+    public function test_waiting_cohort_delivery_rechecks_ended_enrollment(): void
+    {
+        $this->cohortDeliveryAfterAccessChange('expire');
+    }
+
+    public function test_waiting_cohort_delivery_rechecks_real_renewal_billing_generation(): void
+    {
+        $this->cohortDeliveryAfterAccessChange('renew');
+    }
+
+    public function test_waiting_cohort_delivery_rechecks_teacher_reassignment(): void
+    {
+        $this->cohortDeliveryAfterAccessChange('coach');
+    }
+
+    public function test_waiting_cohort_publication_excludes_concurrently_ended_enrollment(): void
+    {
+        [$admin, $coach, $student, $course, $cohort, $enrollment, $announcement] = $this->cohortAnnouncementFixture(false);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$announcement=\App\Models\Announcement::findOrFail((int)$argv[2]);\Illuminate\Support\Facades\DB::listen(function($query){if(str_contains($query->sql,'"announcements"')&&str_starts_with($query->sql,'select')&&!str_contains($query->sql,'for update')){echo "PEEKED\n";flush();}});try{app(\App\Services\Announcements::class)->publish($actor,$announcement,1);echo 'PUBLISHED';}catch(\Illuminate\Validation\ValidationException){echo 'NO_AUDIENCE';}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $admin->id, (string) $announcement->id], base_path(), null, null, 20);
+        DB::transaction(function () use ($cohort, $enrollment, $process) {
+            Cohort::whereKey($cohort->id)->lockForUpdate()->firstOrFail();
+            $process->start();
+            $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'PEEKED')));
+            $enrollment->update(['status' => 'expired']);
+        });
+        $process->wait();
+        $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+        $this->assertStringEndsWith('NO_AUDIENCE', $process->getOutput());
+        $this->assertSame('draft', $announcement->fresh()->status);
+        $this->assertSame(0, $announcement->recipients()->count());
+    }
+
+    public function test_cohort_to_organization_edit_racing_publication_cannot_change_frozen_target(): void
+    {
+        [$admin, $coach, $student, $course, $cohort, $enrollment, $announcement] = $this->cohortAnnouncementFixture(false);
+        $organization = Organization::factory()->create(['status' => 'active']);
+        $member = User::factory()->create();
+        $member->roles()->attach(Role::where('key', 'student')->value('id'));
+        $organization->members()->attach($member->id, ['kind' => 'member']);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$service=app(\App\Services\Announcements::class);$actor=\App\Models\User::findOrFail((int)$argv[1]);$announcement=\App\Models\Announcement::findOrFail((int)$argv[2]);try{if($argv[3]==='publish'){$service->publish($actor,$announcement,1);echo 'PUBLISHED';}else{$service->save($actor,['title'=>'Changed organization target','message'=>'Changed private audience','roles'=>['student'],'audience'=>['type'=>'organization','organization_id'=>(int)$argv[4]]],$announcement,1);echo 'EDITED';}}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $result = $this->parallelFinance($code, [[$admin->id, $announcement->id, 'publish', $organization->id], [$admin->id, $announcement->id, 'edit', $organization->id]]);
+        $this->assertTrue(in_array($result, [['EDITED', 'STALE'], ['PUBLISHED', 'STALE']], true));
+        $published = in_array('PUBLISHED', $result, true);
+        $this->assertSame($published ? 'cohort' : 'organization', $announcement->fresh()->audience['type']);
+        $this->assertSame($published ? [$student->id] : [], $announcement->recipients()->pluck('user_id')->all());
+    }
 }
