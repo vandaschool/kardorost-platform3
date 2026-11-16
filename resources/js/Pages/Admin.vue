@@ -9,34 +9,14 @@ import BillingPlanEditor from "../Components/BillingPlanEditor.vue";
 const props = defineProps({
     section: String,
     courses: Array,
-    users: Array,
     organizations: Array,
     coaches: Array,
 });
 const labels = {
     courses: "مدیریت دوره‌ها",
-    users: "کاربران",
     organizations: "دانشگاه‌ها و شرکت‌ها",
 };
 const open = ref(false);
-const editUser = ref(null);
-const access = useForm({ roles: [], is_active: true });
-const roleLabels = {
-    student: "دانشجو",
-    coach: "مربی",
-    org_admin: "مدیر سازمان",
-    admin: "ادمین",
-};
-function startEdit(u) {
-    editUser.value = u.id;
-    access.roles = u.roles.map((r) => r.key);
-    access.is_active = u.is_active;
-}
-function saveAccess() {
-    access.patch("/admin/users/" + editUser.value, {
-        onSuccess: () => (editUser.value = null),
-    });
-}
 const assignment = useForm({ coach_id: null });
 function assignCoach(c, id) {
     assignment.coach_id = id ? Number(id) : null;
@@ -78,11 +58,7 @@ const fa = (n) => new Intl.NumberFormat("fa-IR").format(n);
                     {{
                         section === "courses"
                             ? "دوره، شیوه برگزاری و ظرفیت ثبت‌نام را مشخص کنید."
-                            : section === "organizations"
-                              ? "دانشگاه‌ها و شرکت‌ها را با مدیر مستقل تعریف کنید."
-                              : section === "users"
-                                ? "حساب‌ها و نقش‌های فعلی کاربران را ببینید."
-                                : "تاریخچه اقدامات ثبت‌شده در پلتفرم."
+                            : "دانشگاه‌ها و شرکت‌ها را با مدیر مستقل تعریف کنید."
                     }}
                 </p>
             </div>
@@ -262,89 +238,6 @@ const fa = (n) => new Intl.NumberFormat("fa-IR").format(n);
                         :course-price="c.price"
                     /></div
             ></template>
-            <template v-else-if="section === 'users'"
-                ><form
-                    v-if="editUser"
-                    @submit.prevent="saveAccess"
-                    class="access-form"
-                >
-                    <h3>ویرایش نقش‌ها و فعالیت حساب</h3>
-                    <div class="access-options">
-                        <label
-                            v-for="(label, key) in roleLabels"
-                            :key="key"
-                            class="check-label"
-                            ><input
-                                type="checkbox"
-                                :value="key"
-                                v-model="access.roles"
-                            />{{ label }}</label
-                        ><label class="check-label"
-                            ><input
-                                type="checkbox"
-                                v-model="access.is_active"
-                            />حساب فعال</label
-                        >
-                    </div>
-                    <p
-                        v-for="(e, k) in access.errors"
-                        :key="k"
-                        class="field-error"
-                    >
-                        {{ e }}
-                    </p>
-                    <button class="btn primary" :disabled="access.processing">
-                        ذخیره دسترسی</button
-                    ><button
-                        class="btn secondary"
-                        type="button"
-                        @click="editUser = null"
-                    >
-                        انصراف
-                    </button>
-                </form>
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>نام</th>
-                                <th>شماره موبایل</th>
-                                <th>نقش‌ها</th>
-                                <th>وضعیت</th>
-                                <th>عملیات</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="u in users" :key="u.id">
-                                <td>{{ u.name }}</td>
-                                <td dir="ltr">{{ u.phone }}</td>
-                                <td>
-                                    <span
-                                        v-for="r in u.roles"
-                                        :key="r.key"
-                                        class="badge teal"
-                                        >{{ r.name }}</span
-                                    >
-                                </td>
-                                <td>{{ u.is_active ? "فعال" : "غیرفعال" }}</td>
-                                <td>
-                                    <button
-                                        class="text-link"
-                                        @click="startEdit(u)"
-                                    >
-                                        ویرایش دسترسی
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <Empty
-                    v-if="!users.length"
-                    icon="Users"
-                    title="هنوز کاربری ثبت نشده"
-                    text="حساب‌ها پس از ثبت‌نام در این فهرست قرار می‌گیرند."
-            /></template>
             <template v-else-if="section === 'organizations'"
                 ><Empty
                     v-if="!organizations.length"
