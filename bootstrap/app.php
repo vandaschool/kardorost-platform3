@@ -4,10 +4,12 @@ use App\Http\Middleware\ActionThrottleRequests;
 use App\Http\Middleware\EnsureAccountActive;
 use App\Http\Middleware\EnsurePanelRole;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Services\ErrorPages;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -21,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias(['throttle' => ActionThrottleRequests::class, 'account.active' => EnsureAccountActive::class, 'panel.role' => EnsurePanelRole::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->respond(fn (Response $response, Throwable $exception, Request $request): Response => app(ErrorPages::class)->respond($response, $exception, $request));
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
