@@ -8,6 +8,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BillingPlanController;
 use App\Http\Controllers\CareerController;
 use App\Http\Controllers\CertificateController;
+use App\Http\Controllers\CoachCredentialController;
 use App\Http\Controllers\CoachProfileController;
 use App\Http\Controllers\CommunicationController;
 use App\Http\Controllers\ConsultationController;
@@ -76,6 +77,11 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::post('/panel/role', [PanelController::class, 'switch']);
     Route::get('/organization-memberships', [OrganizationMembershipController::class, 'mine'])->name('organization-memberships');
     Route::post('/organization-memberships/{organization}/leave', [OrganizationMembershipController::class, 'leave'])->middleware('throttle:10,1');
+    Route::get('/coach-credentials', [CoachCredentialController::class, 'index'])->name('coach-credentials');
+    Route::post('/coach-credentials', [CoachCredentialController::class, 'store'])->middleware(['panel.role:coach', 'throttle:10,1']);
+    Route::get('/coach-credentials/{credential}', [CoachCredentialController::class, 'show'])->name('coach-credentials.show');
+    Route::post('/coach-credentials/{credential}/change', [CoachCredentialController::class, 'change'])->middleware('throttle:20,1');
+    Route::get('/coach-credentials/{credential}/file', [CoachCredentialController::class, 'file'])->name('coach-credentials.file');
     Route::get('/career/resumes', [CareerController::class, 'index'])->name('career.resumes');
     Route::post('/career/resumes', [CareerController::class, 'create'])->middleware('throttle:10,1');
     Route::get('/career/resumes/{resume}', [CareerController::class, 'edit'])->name('career.edit');
@@ -212,6 +218,7 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/organization/members/{member}', [OrganizationController::class, 'report']);
     });
     Route::middleware('panel.role:admin')->group(function () {
+        Route::get('/admin/coach-credentials', [CoachCredentialController::class, 'admin'])->name('admin.coach-credentials');
         Route::get('/admin/readiness', OperationalReadinessController::class)->name('admin.readiness');
         Route::get('/admin/contact-leads', [ContactLeadController::class, 'admin'])->name('admin.contact-leads');
         Route::get('/admin/contact-leads/{lead}', [ContactLeadController::class, 'admin'])->whereNumber('lead')->name('admin.contact-leads.show');

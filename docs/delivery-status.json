@@ -1,5 +1,5 @@
 {
-  "phase": "private-final-assessment-report-csv",
+  "phase": "private-coach-credentials-internal-review",
   "completed": [
     "phone-verification",
     "password-login",
@@ -384,17 +384,22 @@
     "private-completed-assessment-subscale-report-csv",
     "locked-current-owner-admin-selected-manager-assessment-export-access",
     "stored-likert-report-shape-math-and-cipher-failure-closed-export",
-    "independent-subscale-percent-disclosure-no-answers-or-recalculation"
+    "independent-subscale-percent-disclosure-no-answers-or-recalculation",
+    "private-source-bound-coach-credential-upload-and-consent",
+    "current-owner-and-full-admin-original-file-hash-verified-download",
+    "revision-checked-internal-review-and-terminal-owner-withdrawal",
+    "encrypted-bound-credential-metadata-and-review-history",
+    "generic-private-review-notification-and-former-coach-account-history-link"
   ],
   "tests": {
     "postgresql": {
-      "passed": 1042,
-      "assertions": 8365
+      "passed": 1064,
+      "assertions": 8653
     },
     "sqlite": {
-      "passed": 892,
-      "skipped": 150,
-      "assertions": 7534
+      "passed": 911,
+      "skipped": 153,
+      "assertions": 7801
     },
     "javascript": {
       "passed": 6
@@ -662,7 +667,11 @@
     "software-only-two-dimension-final-report-private-csv-owner-admin-manager",
     "new-assessment-publication-keeps-prior-completed-csv-bytes",
     "actual-organization-departure-revokes-manager-keeps-independent-owner-admin-report-access",
-    "assessment-report-csv-private-headers-no-answer-content-and-320-390-768-1440"
+    "assessment-report-csv-private-headers-no-answer-content-and-320-390-768-1440",
+    "real-oversize-upload-rejected-and-three-mebibyte-pdf-private-original-hash",
+    "actual-admin-internal-review-and-coach-role-removal-owner-still-has-history",
+    "owner-withdrawal-preserves-original-file-and-private-review-events",
+    "other-coach-student-organization-manager-isolation-and-320-390-768-1440"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -739,11 +748,10 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase52_private_final_assessment_report_csv_verified_ready_for_pr_private_coach_credential_uploads_next",
+    "current_work": "phase53_verified_private_coach_credential_upload_internal_review_history_and_owner_archive_ready_to_merge_then_continue_independent_career_extensions",
     "next_groups": [
-      "private_coach_uploaded_credentials_and_internal_admin_review_no_official_claim",
-      "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
       "career_and_assessment_extensions_without_invented_instruments",
+      "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
       "coach_settlement_and_organization_benefits_requiring_business_terms",
       "production_server_domain_secrets_offserver_backups_and_live_acceptance"
     ],
@@ -817,7 +825,7 @@
   "certificate_public_visibility_control_complete": true,
   "public_coach_profiles_scope": "self_authored_plain_text_consented_snapshot_current_admin_review_current_active_verified_coach_role",
   "public_coach_photos_complete": false,
-  "coach_uploaded_credentials_complete": false,
+  "coach_uploaded_credentials_complete": true,
   "public_coach_specialty_search_complete": true,
   "public_coach_specific_availability_link_complete": true,
   "coach_official_credentials_automatically_verified": false,
@@ -869,5 +877,7 @@
   "organization_member_detailed_attendance_submission_exports_scope": "current_selected_member_recorded_same_cohort_attendance_twelve_columns_all_same_cohort_submission_versions_current_status_score_and_assignment_max_sixteen_columns_no_body_feedback_file_name_private_url_phone_finance",
   "organization_member_submission_review_history_csv_complete": false,
   "assessment_report_csv_complete": true,
-  "assessment_report_csv_scope": "likert_sum_v1_stored_completed_dimensions_fourteen_columns_current_owner_name_frozen_edition_source_scores_no_questions_answers_phone_combined_score_or_official_validity_claim_owner_or_current_admin_or_selected_active_org_manager_current_member"
+  "assessment_report_csv_scope": "likert_sum_v1_stored_completed_dimensions_fourteen_columns_current_owner_name_frozen_edition_source_scores_no_questions_answers_phone_combined_score_or_official_validity_claim_owner_or_current_admin_or_selected_active_org_manager_current_member",
+  "coach_uploaded_credentials_scope": "private_owner_and_current_full_admin_only_4mib_pdf_png_jpeg_encrypted_source_bound_metadata_original_hash_download_internal_review_revision_history_owner_terminal_withdrawal_no_public_or_official_verification",
+  "coach_credential_publication_complete": false
 }

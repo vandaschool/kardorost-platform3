@@ -66,6 +66,7 @@ const menus = computed(() => {
             ]),
             group("مشاوره", "MessagesSquare", [
                 ["پروفایل مربیان", "UserRound", "/admin/coach-profiles"],
+                ["مدارک خصوصی مربیان", "FileText", "/admin/coach-credentials"],
                 [
                     "جلسات و درخواست‌ها",
                     "CalendarDays",
@@ -151,6 +152,7 @@ const menus = computed(() => {
             item("رزومه شخصی", "FileText", "/career/resumes"),
             group("حساب من", "UserRound", [
                 ["پروفایل حرفه‌ای مربی", "UserRound", "/coach/profile"],
+                ["مدارک خصوصی من", "FileText", "/coach-credentials"],
                 ...accountItems,
             ]),
         ];
