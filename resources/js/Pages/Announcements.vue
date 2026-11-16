@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 import { Head, Link, router, useForm } from "@inertiajs/vue3";
 import Shell from "../Layouts/Shell.vue";
 import Pagination from "../Components/Pagination.vue";
+import JalaliDateInput from "../Components/JalaliDateInput.vue";
 import { fa, dateTime } from "../dates";
 const props = defineProps({
     announcements: Object,
@@ -10,6 +11,8 @@ const props = defineProps({
     counts: Object,
     recipients: Object,
     estimated_audience: Number,
+    pending_schedule: Object,
+    schedules: Object,
 });
 const roles = {
     student: "دانشجویان",
@@ -42,6 +45,38 @@ const publish = useForm({
     revision: props.selected?.revision,
     reviewed: false,
 });
+const scheduled = useForm({
+    revision: props.selected?.revision,
+    date: "",
+    time: "",
+    reviewed: false,
+});
+const cancellation = useForm({ revision: props.selected?.revision });
+const busy = computed(
+    () =>
+        draft.processing ||
+        publish.processing ||
+        scheduled.processing ||
+        cancellation.processing,
+);
+const scheduleLabels = {
+    pending: "در انتظار موعد",
+    published: "مخاطبان ثبت و ارسال به صف واگذار شد",
+    cancelled: "لغوشده",
+    blocked: "متوقف‌شده؛ تأیید تازه لازم است",
+};
+const reasonLabels = {
+    draft_changed: "متن یا نقش‌های مخاطب ویرایش شدند",
+    published_now: "انتشار فوری انجام شد",
+    replaced: "برنامه دیگری جایگزین شد",
+    admin_cancelled: "ادمین برنامه را لغو کرد",
+    author_ineligible: "ادمین تأییدکننده دیگر دسترسی فعال ندارد",
+    announcement_changed: "نسخه اطلاعیه تغییر کرده است",
+    snapshot_changed: "نسخه ثابت با تأیید ثبت‌شده همخوان نیست",
+    already_published: "اطلاعیه قبلاً منتشر شده است",
+    invalid_content: "متن ذخیره‌شده معتبر نیست",
+    empty_audience: "در موعد، مخاطب واجد شرایطی وجود نداشت",
+};
 const stop = useForm({ revision: props.selected?.revision, reason: "" });
 const retry = useForm({ revision: props.selected?.revision });
 watch(
@@ -52,12 +87,16 @@ watch(
         stop.revision = value;
         retry.revision = value;
         publish.reviewed = false;
+        scheduled.revision = value;
+        cancellation.revision = value;
+        scheduled.reviewed = false;
     },
 );
 function save() {
+    const submitted = JSON.stringify(draft.definition);
     const options = {
         preserveScroll: true,
-        onSuccess: () => (saved.value = JSON.stringify(draft.definition)),
+        onSuccess: () => (saved.value = submitted),
     };
     if (props.selected)
         draft.patch(`/admin/announcements/${props.selected.id}`, options);
@@ -120,9 +159,7 @@ function save() {
                 فقط حساب فعال با موبایل تأییدشده و یکی از نقش‌های انتخاب‌شده.
                 نام و اطلاعات خصوصی افراد را در پیام گروهی ننویسید.
             </p>
-            <button class="btn primary" :disabled="draft.processing">
-                ذخیره پیش‌نویس
-            </button>
+            <button class="btn primary" :disabled="busy">ذخیره پیش‌نویس</button>
         </form>
         <section
             v-if="selected"
@@ -182,11 +219,149 @@ function save() {
                 />متن ذخیره‌شده و نقش‌های مخاطب را بررسی کرده‌ام.</label
             ><button
                 class="btn primary"
-                :disabled="publish.processing || dirty || !estimated_audience"
+                :disabled="busy || dirty || !estimated_audience"
             >
-                انتشار و صف ارسال
+                {{
+                    pending_schedule
+                        ? "انتشار فوری و لغو زمان‌بندی"
+                        : "انتشار و صف ارسال"
+                }}
             </button>
         </form>
+        <section
+            v-if="selected?.status === 'draft'"
+            class="panel glass consultation-card consultation-section"
+            data-announcement-scheduling
+        >
+            <div
+                v-if="pending_schedule"
+                class="form-stack"
+                data-pending-announcement-schedule
+            >
+                <h2>زمان‌بندی فعال</h2>
+                <p>{{ dateTime(pending_schedule.scheduled_for) }}</p>
+                <button
+                    type="button"
+                    class="btn secondary"
+                    :disabled="busy"
+                    data-cancel-announcement-schedule
+                    @click="
+                        cancellation.post(
+                            `/admin/announcements/${selected.id}/schedules/${pending_schedule.id}/cancel`,
+                            { preserveScroll: true },
+                        )
+                    "
+                >
+                    لغو زمان‌بندی
+                </button>
+            </div>
+            <details>
+                <summary>
+                    {{
+                        pending_schedule
+                            ? "جایگزین‌کردن زمان‌بندی"
+                            : "زمان‌بندی برای بعد"
+                    }}
+                </summary>
+                <form
+                    @submit.prevent="
+                        scheduled.post(
+                            `/admin/announcements/${selected.id}/schedule`,
+                            { preserveScroll: true },
+                        )
+                    "
+                    class="stack-form"
+                    data-announcement-schedule
+                >
+                    <p class="muted">
+                        متن ذخیره‌شده و نقش‌ها ثابت می‌مانند. حساب‌های واجد
+                        شرایط در موعد اجرا انتخاب می‌شوند؛ تعداد فعلی تخمینی
+                        است. اگر مخاطبی نباشد یا دسترسی ادمین تأییدکننده لغو
+                        شود، برنامه متوقف می‌شود.
+                    </p>
+                    <p v-if="dirty">ابتدا تغییرات پیش‌نویس را ذخیره کنید.</p>
+                    <p class="muted">
+                        موعد را از یک دقیقه آینده تا یک سال انتخاب کنید.
+                    </p>
+                    <label
+                        >تاریخ ارسال<JalaliDateInput
+                            v-model="scheduled.date"
+                            label="ارسال اعلان"
+                            required
+                    /></label>
+                    <label
+                        >ساعت تهران<input
+                            type="time"
+                            name="announcement_schedule_time"
+                            v-model="scheduled.time"
+                            required
+                    /></label>
+                    <label
+                        ><input
+                            type="checkbox"
+                            name="announcement_schedule_reviewed"
+                            v-model="scheduled.reviewed"
+                            required
+                        />متن ذخیره‌شده، نقش‌ها و انتخاب مخاطبان در موعد اجرا را
+                        بررسی کرده‌ام.</label
+                    >
+                    <button
+                        class="btn primary"
+                        :disabled="busy || dirty || !scheduled.reviewed"
+                    >
+                        {{
+                            pending_schedule
+                                ? "ثبت برنامه جایگزین"
+                                : "ثبت زمان‌بندی"
+                        }}
+                    </button>
+                    <p
+                        v-for="error in scheduled.errors"
+                        :key="error"
+                        class="error"
+                    >
+                        {{ error }}
+                    </p>
+                </form>
+            </details>
+        </section>
+        <section
+            v-if="schedules?.data.length"
+            class="consultation-section"
+            data-announcement-schedule-history
+        >
+            <h2>سابقه زمان‌بندی و تأییدها</h2>
+            <article
+                v-for="item in schedules.data"
+                :key="item.id"
+                class="panel glass consultation-card consultation-section"
+                :data-announcement-schedule-history-row="item.id"
+            >
+                <h3>
+                    {{ scheduleLabels[item.status] }} ·
+                    {{ dateTime(item.scheduled_for) }}
+                </h3>
+                <p v-if="item.reason">
+                    {{ reasonLabels[item.reason] || "نیازمند بررسی" }}
+                </p>
+                <p v-if="item.closed_at">
+                    رسیدگی: {{ dateTime(item.closed_at) }}
+                </p>
+                <details>
+                    <summary>نسخه تأییدشده</summary>
+                    <h4>{{ item.definition.title }}</h4>
+                    <p class="preserve-lines">{{ item.definition.message }}</p>
+                    <p>
+                        {{
+                            item.definition.roles
+                                .map((role) => roles[role])
+                                .join("، ")
+                        }}
+                    </p>
+                </details>
+            </article>
+            <Pagination :links="schedules.links" />
+        </section>
         <form
             v-if="selected && ['sending', 'failed'].includes(selected.status)"
             @submit.prevent="
@@ -255,6 +430,12 @@ function save() {
                 class="panel glass consultation-card announcement-recipient"
             >
                 <h3>{{ row.title }}</h3>
+                <p
+                    v-if="row.next_scheduled_for"
+                    data-announcement-list-schedule
+                >
+                    زمان‌بندی فعال: {{ dateTime(row.next_scheduled_for) }}
+                </p>
                 <p>
                     {{ labels[row.status] }} ·
                     {{ fa(row.recipient_count) }} مخاطب

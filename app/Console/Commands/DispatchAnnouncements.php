@@ -13,8 +13,10 @@ class DispatchAnnouncements extends Command
 {
     public function handle(Announcements $service): int
     {
+        $scheduled = $service->processDueSchedules();
+        $this->info('Scheduled announcements prepared: '.$scheduled['published'].'; blocked: '.$scheduled['blocked'].'; failed: '.$scheduled['failed']);
         $this->info('Announcement batches queued: '.$service->dispatchPending());
 
-        return self::SUCCESS;
+        return $scheduled['failed'] > 0 ? self::FAILURE : self::SUCCESS;
     }
 }
