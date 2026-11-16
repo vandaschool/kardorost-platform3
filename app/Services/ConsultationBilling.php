@@ -63,6 +63,8 @@ class ConsultationBilling
 
         return DB::transaction(function () use ($user, $item) {
             [$item,$slot] = $this->locks($item);
+            $user = User::findOrFail($user->id);
+            abort_unless($user->id === $item->student_id && $user->is_active && $user->hasRole('student'), 403);
             if ($item->consultation_grant_id || $item->status !== 'pending_payment' || ! $item->expires_at || $item->expires_at->lte(now()) || $slot->starts_at->lte(now()) || ! $slot->coach->is_active || ! $slot->coach->hasRole('coach') || $item->amount <= 0) {
                 $this->fail('رزرو پولی معتبر و در مهلت پرداخت وجود ندارد.');
             }
