@@ -259,7 +259,10 @@ class OrganizationMembership
             } else {
                 $organization->members()->attach($member->id, ['kind' => 'manager', 'membership_key' => $key]);
             }
-            $member->roles()->syncWithoutDetaching([Role::where('key', 'org_admin')->value('id')]);
+            $roleChanges = $member->roles()->syncWithoutDetaching([Role::where('key', 'org_admin')->value('id')]);
+            if ($roleChanges['attached'] !== []) {
+                $member->increment('access_revision');
+            }
             AuditEvent::create(['actor_id' => $actor->id, 'action' => 'organization_membership.manager_assigned', 'subject_type' => 'user', 'subject_id' => $member->id, 'metadata' => ['organization_id' => $organization->id, 'organization_name' => $organization->name, 'member_id' => $member->id, 'member_name' => $member->name, 'membership_key' => $key, 'reason' => 'تعیین مدیر توسط ادمین']]);
         }, 3);
     }

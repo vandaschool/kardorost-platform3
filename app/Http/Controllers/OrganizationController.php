@@ -60,7 +60,10 @@ class OrganizationController extends Controller
             }
             $org = Organization::create(['name' => $data['name'], 'type' => $data['type']]);
             $org->members()->attach($manager->id, ['kind' => 'manager']);
-            $manager->roles()->syncWithoutDetaching([Role::where('key', 'org_admin')->value('id')]);
+            $roleChanges = $manager->roles()->syncWithoutDetaching([Role::where('key', 'org_admin')->value('id')]);
+            if ($roleChanges['attached'] !== []) {
+                $manager->increment('access_revision');
+            }
             AuditEvent::create(['actor_id' => $request->user()->id, 'action' => 'organization.created', 'subject_type' => 'organization', 'subject_id' => $org->id]);
         });
 

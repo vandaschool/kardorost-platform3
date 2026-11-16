@@ -24,9 +24,9 @@ class AccountAdministrationTest extends TestCase
     {
         $admin = $this->user('admin');
         $user = $this->user('student');
-        $this->actingAs($admin)->patch('/admin/users/'.$user->id, ['roles' => ['student', 'coach'], 'is_active' => true])->assertSessionHasNoErrors();
+        $this->actingAs($admin)->patch('/admin/users/'.$user->id, ['revision' => $user->fresh()->access_revision, 'roles' => ['student', 'coach'], 'is_active' => true])->assertSessionHasNoErrors();
         $this->assertTrue($user->hasRole('coach'));
-        $this->patch('/admin/users/'.$admin->id, ['roles' => ['student'], 'is_active' => false])->assertSessionHasErrors('roles');
+        $this->patch('/admin/users/'.$admin->id, ['revision' => $admin->fresh()->access_revision, 'roles' => ['student'], 'is_active' => false])->assertSessionHasErrors('roles');
         $this->assertTrue($admin->fresh()->hasRole('admin'));
         $this->assertTrue($admin->fresh()->is_active);
     }
