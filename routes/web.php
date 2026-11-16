@@ -128,6 +128,7 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::get('/refunds/{refund}/file', [RefundController::class, 'file'])->name('refunds.file');
     Route::post('/refunds/{refund}/review', [RefundController::class, 'review'])->middleware('panel.role:admin');
     Route::post('/refunds/{refund}/complete', [RefundController::class, 'complete'])->middleware(['panel.role:admin', 'throttle:10,1']);
+    Route::get('/assessment-attempts/{attempt}/export', [AssessmentController::class, 'export'])->middleware('throttle:10,1')->name('assessments.export');
     Route::get('/assessment-attempts/{attempt}/report', [AssessmentController::class, 'report'])->name('assessments.report');
     Route::get('/survey-responses/{response}', [SurveyController::class, 'response'])->name('surveys.response');
     Route::get('/survey-publications/{publication}/report', [SurveyController::class, 'report'])->name('surveys.report');

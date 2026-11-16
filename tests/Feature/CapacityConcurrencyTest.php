@@ -3227,4 +3227,68 @@ CODE;
     {
         $this->concurrentAccountRevisionWrites(true);
     }
+
+    private function assessmentExportAfterAccessChange(string $mode): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Assessment report export races require PostgreSQL.');
+        }
+        $owner = User::factory()->create();
+        $owner->roles()->attach(Role::where('key', 'student')->value('id'));
+        $actor = $mode === 'owner' ? $owner : User::factory()->create();
+        if ($mode !== 'owner') {
+            $actor->roles()->attach(Role::where('key', $mode === 'admin' ? 'admin' : 'org_admin')->value('id'));
+        }
+        $organization = $mode === 'organization' ? Organization::factory()->create(['status' => 'active']) : null;
+        if ($organization) {
+            $organization->members()->attach($actor->id, ['kind' => 'manager']);
+            $organization->members()->attach($owner->id, ['kind' => 'member']);
+        }
+        $version = AssessmentVersion::factory()->create();
+        $result = app(AssessmentService::class)->score($version->definition, ['q1' => 5, 'q2' => 5]);
+        $attempt = AssessmentAttempt::factory()->create(['user_id' => $owner->id, 'assessment_version_id' => $version->id, 'status' => 'completed', 'result' => $result, 'completed_at' => now()]);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$attempt=\App\Models\AssessmentAttempt::findOrFail((int)$argv[2]);$organization=$argv[3]!=='0'?\App\Models\Organization::findOrFail((int)$argv[3]):null;\Illuminate\Support\Facades\DB::listen(function($query)use($argv){if($argv[4]==='admin'&&str_contains($query->sql,'roles')&&in_array('admin',$query->bindings,true)){echo "CHECKED
+";flush();}elseif($argv[4]!=='admin'&&str_contains($query->sql,'"assessment_attempts"')&&!str_contains($query->sql,'for share')){echo "PEEKED
+";flush();}});try{$prepared=app(\App\Services\AssessmentReportExports::class)->prepare($actor,$attempt,$organization);fclose($prepared['stream']);echo 'EXPORTED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $actor->id, (string) $attempt->id, (string) ($organization?->id ?? 0), $mode], base_path(), null, null, 20);
+        DB::transaction(function () use ($actor, $owner, $organization, $mode, $process) {
+            if ($organization) {
+                Organization::whereKey($organization->id)->lockForUpdate()->firstOrFail();
+            } else {
+                User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+            }
+            $process->start();
+            $marker = $mode === 'admin' ? 'CHECKED' : 'PEEKED';
+            $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, $marker)));
+            if ($organization) {
+                $key = $organization->members()->where('users.id', $owner->id)->firstOrFail()->pivot->membership_key;
+                app(OrganizationMembership::class)->endMembership($owner, $organization, $owner, $key, 'Synthetic departure during private assessment export', 'leave');
+            } elseif ($mode === 'admin') {
+                $actor->roles()->detach();
+            } else {
+                $actor->forceFill(['is_active' => false])->save();
+            }
+        });
+        $process->wait();
+        $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+        $this->assertStringEndsWith('403', $process->getOutput());
+        $this->assertSame(0, AuditEvent::where('action', 'assessment.report_exported')->count());
+    }
+
+    public function test_waiting_assessment_export_rechecks_owner_deactivation(): void
+    {
+        $this->assessmentExportAfterAccessChange('owner');
+    }
+
+    public function test_waiting_assessment_export_rechecks_previously_authorized_admin_role(): void
+    {
+        $this->assessmentExportAfterAccessChange('admin');
+    }
+
+    public function test_waiting_assessment_export_rechecks_current_organization_membership(): void
+    {
+        $this->assessmentExportAfterAccessChange('organization');
+    }
 }

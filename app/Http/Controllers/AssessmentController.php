@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Assessment;
 use App\Models\AssessmentAttempt;
 use App\Models\AuditEvent;
+use App\Services\AssessmentReportExports;
 use App\Services\AssessmentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AssessmentController extends Controller
 {
@@ -65,6 +67,20 @@ class AssessmentController extends Controller
         return redirect()->route('assessments.report', $item);
     }
 
+    public function export(Request $request, AssessmentAttempt $attempt, AssessmentReportExports $exports): StreamedResponse
+    {
+        $organization = $request->user()->hasRole('org_admin') ? app(OrganizationController::class)->selected($request) : null;
+        $prepared = $exports->prepare($request->user(), $attempt, $organization);
+
+        return response()->streamDownload(function () use ($prepared): void {
+            try {
+                fpassthru($prepared['stream']);
+            } finally {
+                fclose($prepared['stream']);
+            }
+        }, $prepared['filename'], ['Content-Type' => 'text/csv; charset=UTF-8', 'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff', 'X-Robots-Tag' => 'noindex, nofollow']);
+    }
+
     public function report(Request $r, AssessmentAttempt $attempt): Response
     {
         $user = $r->user();
@@ -80,7 +96,7 @@ class AssessmentController extends Controller
             AuditEvent::create(['actor_id' => $user->id, 'action' => 'assessment.report_viewed', 'subject_type' => 'assessment_attempt', 'subject_id' => $attempt->id, 'metadata' => ['organization_id' => $organization?->id]]);
         }
 
-        return Inertia::render('AssessmentReport', ['attempt' => $attempt->only('id', 'completed_at'), 'title' => $attempt->edition->definition['title'], 'source' => $attempt->edition->definition['source'], 'number' => $attempt->edition->number, 'result' => $attempt->result, 'student_name' => $attempt->user->name, 'role' => $admin ? 'admin' : ($organization ? 'org_admin' : $r->session()->get('panel_role', $user->roleKeys()[0] ?? 'student'))]);
+        return Inertia::render('AssessmentReport', ['export_url' => route('assessments.export', $attempt), 'attempt' => $attempt->only('id', 'completed_at'), 'title' => $attempt->edition->definition['title'], 'source' => $attempt->edition->definition['source'], 'number' => $attempt->edition->number, 'result' => $attempt->result, 'student_name' => $attempt->user->name, 'role' => $admin ? 'admin' : ($organization ? 'org_admin' : $r->session()->get('panel_role', $user->roleKeys()[0] ?? 'student'))]);
     }
 
     public function admin(Request $r): Response

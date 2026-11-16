@@ -1,5 +1,5 @@
 {
-  "phase": "private-organization-attendance-and-submission-version-csv",
+  "phase": "private-final-assessment-report-csv",
   "completed": [
     "phone-verification",
     "password-login",
@@ -380,17 +380,21 @@
     "private-organization-member-recorded-attendance-csv",
     "private-organization-member-all-submission-versions-current-score-csv",
     "cohort-source-bound-organization-learning-report-records",
-    "shared-responsive-three-dataset-organization-export-links"
+    "shared-responsive-three-dataset-organization-export-links",
+    "private-completed-assessment-subscale-report-csv",
+    "locked-current-owner-admin-selected-manager-assessment-export-access",
+    "stored-likert-report-shape-math-and-cipher-failure-closed-export",
+    "independent-subscale-percent-disclosure-no-answers-or-recalculation"
   ],
   "tests": {
     "postgresql": {
-      "passed": 1026,
-      "assertions": 8261
+      "passed": 1042,
+      "assertions": 8365
     },
     "sqlite": {
-      "passed": 879,
-      "skipped": 147,
-      "assertions": 7442
+      "passed": 892,
+      "skipped": 150,
+      "assertions": 7534
     },
     "javascript": {
       "passed": 6
@@ -654,7 +658,11 @@
     "access-revision-form-320-390-768-1440",
     "org-member-real-attendance-and-submission-csv-27-each-zero-null-and-all-versions",
     "full-admin-two-detail-csv-downloads-and-real-departure-revocation",
-    "org-detail-exports-private-headers-and-responsive-three-links-320-390-768-1440"
+    "org-detail-exports-private-headers-and-responsive-three-links-320-390-768-1440",
+    "software-only-two-dimension-final-report-private-csv-owner-admin-manager",
+    "new-assessment-publication-keeps-prior-completed-csv-bytes",
+    "actual-organization-departure-revokes-manager-keeps-independent-owner-admin-report-access",
+    "assessment-report-csv-private-headers-no-answer-content-and-320-390-768-1440"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -731,9 +739,9 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase51_detailed_organization_learning_exports_verified_ready_for_pr_private_final_assessment_report_csv_next",
+    "current_work": "phase52_private_final_assessment_report_csv_verified_ready_for_pr_private_coach_credential_uploads_next",
     "next_groups": [
-      "private_final_assessment_report_csv_without_invented_instruments",
+      "private_coach_uploaded_credentials_and_internal_admin_review_no_official_claim",
       "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
       "career_and_assessment_extensions_without_invented_instruments",
       "coach_settlement_and_organization_benefits_requiring_business_terms",
@@ -859,5 +867,7 @@
   "organization_member_detailed_attendance_submission_exports_complete": true,
   "admin_account_access_optimistic_revision_scope": "required_account_access_revision_under_existing_ordered_actor_target_locks_each_accepted_admin_save_advances_once_actual_org_and_console_role_grants_advance_on_new_role_initial_account_one_direct_external_db_changes_not_tracked",
   "organization_member_detailed_attendance_submission_exports_scope": "current_selected_member_recorded_same_cohort_attendance_twelve_columns_all_same_cohort_submission_versions_current_status_score_and_assignment_max_sixteen_columns_no_body_feedback_file_name_private_url_phone_finance",
-  "organization_member_submission_review_history_csv_complete": false
+  "organization_member_submission_review_history_csv_complete": false,
+  "assessment_report_csv_complete": true,
+  "assessment_report_csv_scope": "likert_sum_v1_stored_completed_dimensions_fourteen_columns_current_owner_name_frozen_edition_source_scores_no_questions_answers_phone_combined_score_or_official_validity_claim_owner_or_current_admin_or_selected_active_org_manager_current_member"
 }
