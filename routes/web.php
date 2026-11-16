@@ -24,6 +24,7 @@ use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\LearningController;
 use App\Http\Controllers\LearningRewardController;
+use App\Http\Controllers\LinkedInGuideController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OperationalReadinessController;
 use App\Http\Controllers\OperationalReportController;
@@ -90,6 +91,8 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::post('/career/resumes/{resume}/archive', [CareerController::class, 'archive']);
     Route::get('/career/resumes/{resume}/versions/{version}', [CareerController::class, 'version'])->name('career.versions.show');
     Route::get('/career/resumes/{resume}/versions/{version}/print', [CareerController::class, 'print'])->name('career.versions.print');
+    Route::get('/career/resumes/{resume}/versions/{version}/linkedin', [LinkedInGuideController::class, 'show'])->name('career.linkedin');
+    Route::get('/career/resumes/{resume}/versions/{version}/linkedin/download', [LinkedInGuideController::class, 'download'])->middleware('throttle:10,1')->name('career.linkedin.download');
     Route::post('/career/resumes/{resume}/versions/{version}/checks', [CareerController::class, 'check'])->middleware('throttle:20,1');
     Route::get('/career/checks/{check}', [CareerController::class, 'report'])->name('career.checks.show');
     Route::get('/support', [SupportController::class, 'index'])->name('support');
