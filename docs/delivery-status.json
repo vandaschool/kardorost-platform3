@@ -1,5 +1,5 @@
 {
-  "phase": "private-organization-member-learning-summary-csv",
+  "phase": "optimistic-account-access-revisions",
   "completed": [
     "phone-verification",
     "password-login",
@@ -372,17 +372,21 @@
     "private-current-organization-member-learning-summary-csv",
     "full-admin-current-organization-member-learning-export",
     "prebuilt-private-learning-csv-current-role-and-membership-locks",
-    "utf8-formula-safe-multibatch-learning-export-with-metadata-only-audit"
+    "utf8-formula-safe-multibatch-learning-export-with-metadata-only-audit",
+    "versioned-admin-account-access-forms-reject-stale-overwrites",
+    "aba-safe-monotonic-account-access-revision",
+    "organization-and-console-role-grants-advance-account-access-revision",
+    "actual-stale-form-discard-and-current-role-review-refresh"
   ],
   "tests": {
     "postgresql": {
-      "passed": 1004,
-      "assertions": 7967
+      "passed": 1016,
+      "assertions": 8079
     },
     "sqlite": {
-      "passed": 859,
-      "skipped": 145,
-      "assertions": 7166
+      "passed": 869,
+      "skipped": 147,
+      "assertions": 7260
     },
     "javascript": {
       "passed": 6
@@ -640,7 +644,10 @@
     "admin-directory-and-cohort-announcement-full-browser-regression-after-current-authorization-locks",
     "organization-member-learning-export-27-enrollments-fourteen-columns-real-admin-and-manager-downloads",
     "organization-learning-export-real-self-departure-revokes-both-routes",
-    "organization-learning-export-private-bom-headers-progress-attendance-320-390-768-1440"
+    "organization-learning-export-private-bom-headers-progress-attendance-320-390-768-1440",
+    "two-real-admin-tabs-stale-form-no-overwrite-or-extra-audit",
+    "real-discard-and-refresh-review-before-revision-three-save",
+    "access-revision-form-320-390-768-1440"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -717,9 +724,9 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase49_organization_member_learning_summary_csv_verified_ready_for_pr_stale_admin_access_form_conflict_guard_next",
+    "current_work": "phase50_account_access_revisions_verified_ready_for_pr_detailed_organization_learning_exports_next",
     "next_groups": [
-      "optimistic_account_access_revision_stale_admin_form_protection",
+      "private_organization_member_detailed_attendance_and_submission_csv",
       "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
       "career_and_assessment_extensions_without_invented_instruments",
       "coach_settlement_and_organization_benefits_requiring_business_terms",
@@ -839,8 +846,9 @@
   "admin_user_directory_scope": "active_full_admin_twenty_five_per_page_literal_name_substring_normalized_exact_phone_id_role_activity_verification_filters_existing_access_edit_no_password_email_token_or_role_pivot_in_rows",
   "admin_account_mutation_current_authorization_complete": true,
   "admin_account_mutation_current_authorization_scope": "actor_and_target_accounts_locked_by_id_current_active_admin_before_write_course_parent_before_accounts_for_assignment_current_candidate_coach_role_and_activity_course_audit_same_transaction",
-  "admin_account_access_optimistic_revision_complete": false,
+  "admin_account_access_optimistic_revision_complete": true,
   "organization_member_learning_summary_csv_complete": true,
   "organization_member_learning_summary_csv_scope": "current_selected_org_manager_or_explicit_full_admin_current_member_personal_and_sponsored_enrollments_published_lesson_self_reported_progress_recorded_attendance_counts_certificate_status_fourteen_columns_no_phone_finance_answers_body_or_private_urls",
-  "organization_member_detailed_attendance_submission_exports_complete": false
+  "organization_member_detailed_attendance_submission_exports_complete": false,
+  "admin_account_access_optimistic_revision_scope": "required_account_access_revision_under_existing_ordered_actor_target_locks_each_accepted_admin_save_advances_once_actual_org_and_console_role_grants_advance_on_new_role_initial_account_one_direct_external_db_changes_not_tracked"
 }

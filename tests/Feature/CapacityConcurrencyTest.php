@@ -3032,7 +3032,7 @@ CODE;
         $coach->roles()->attach(Role::where('key', 'coach')->value('id'));
         $course = Course::factory()->create(['coach_id' => null]);
         $code = <<<'CODE'
-require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$assignment=$argv[4]==='assign';$data=$assignment?['coach_id'=>(int)$argv[5]]:['roles'=>['student','coach'],'is_active'=>true];$request=\Illuminate\Http\Request::create('/admin/synthetic','PATCH',$data);$request->setUserResolver(fn()=>$actor);try{(new \App\Http\Middleware\EnsurePanelRole)->handle($request,function($request)use($assignment,$argv){echo "READY\n";flush();$controller=app(\App\Http\Controllers\AdminUserController::class);return $assignment?$controller->assignCoach($request,\App\Models\Course::findOrFail((int)$argv[3])):$controller->update($request,\App\Models\User::findOrFail((int)$argv[2]));},'admin');echo 'UPDATED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}catch(\Illuminate\Validation\ValidationException){echo 'INVALID_COACH';}
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$assignment=$argv[4]==='assign';$data=$assignment?['coach_id'=>(int)$argv[5]]:['revision'=>\App\Models\User::findOrFail((int)$argv[2])->access_revision,'roles'=>['student','coach'],'is_active'=>true];$request=\Illuminate\Http\Request::create('/admin/synthetic','PATCH',$data);$request->setUserResolver(fn()=>$actor);try{(new \App\Http\Middleware\EnsurePanelRole)->handle($request,function($request)use($assignment,$argv){echo "READY\n";flush();$controller=app(\App\Http\Controllers\AdminUserController::class);return $assignment?$controller->assignCoach($request,\App\Models\Course::findOrFail((int)$argv[3])):$controller->update($request,\App\Models\User::findOrFail((int)$argv[2]));},'admin');echo 'UPDATED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}catch(\Illuminate\Validation\ValidationException){echo 'INVALID_COACH';}
 CODE;
         $process = new Process([PHP_BINARY, '-r', $code, (string) $admin->id, (string) $student->id, (string) $course->id, $assignment ? 'assign' : 'access', (string) $coach->id], base_path(), null, null, 20);
         DB::transaction(function () use ($admin, $coach, $course, $process, $assignment, $change, $changeCoach) {
@@ -3092,7 +3092,7 @@ CODE;
             $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
         }
         $code = <<<'CODE'
-require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$request=\Illuminate\Http\Request::create('/admin/synthetic','PATCH',['roles'=>['student'],'is_active'=>true]);$request->setUserResolver(fn()=>$actor);try{(new \App\Http\Middleware\EnsurePanelRole)->handle($request,function($request)use($argv){echo "READY\n";flush();return app(\App\Http\Controllers\AdminUserController::class)->update($request,\App\Models\User::findOrFail((int)$argv[2]));},'admin');echo 'UPDATED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$request=\Illuminate\Http\Request::create('/admin/synthetic','PATCH',['revision'=>\App\Models\User::findOrFail((int)$argv[2])->access_revision,'roles'=>['student'],'is_active'=>true]);$request->setUserResolver(fn()=>$actor);try{(new \App\Http\Middleware\EnsurePanelRole)->handle($request,function($request)use($argv){echo "READY\n";flush();return app(\App\Http\Controllers\AdminUserController::class)->update($request,\App\Models\User::findOrFail((int)$argv[2]));},'admin');echo 'UPDATED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}
 CODE;
         $processes = [new Process([PHP_BINARY, '-r', $code, (string) $first->id, (string) $second->id], base_path(), null, null, 20), new Process([PHP_BINARY, '-r', $code, (string) $second->id, (string) $first->id], base_path(), null, null, 20)];
         DB::transaction(function () use ($first, $second, $processes) {
@@ -3168,5 +3168,63 @@ CODE;
     public function test_waiting_organization_learning_export_rechecks_admin_role_revocation(): void
     {
         $this->organizationLearningExportAfterAccessChange(false, true);
+    }
+
+    private function concurrentAccountRevisionWrites(bool $consoleGrant): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Account access revision races require PostgreSQL.');
+        }
+        $first = User::factory()->create();
+        $second = User::factory()->create();
+        foreach ([$first, $second] as $admin) {
+            $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        }
+        $target = User::factory()->create();
+        $target->roles()->attach(Role::where('key', 'student')->value('id'));
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$target=\App\Models\User::findOrFail((int)$argv[2]);if($argv[3]==='grant'){echo "READY\n";flush();$result=\Illuminate\Support\Facades\Artisan::call('platform:grant-role',['phone'=>$target->phone,'role'=>'coach']);echo $result===0?'GRANTED':'FAILED';return;}$request=\Illuminate\Http\Request::create('/admin/synthetic','PATCH',['revision'=>1,'roles'=>$argv[3]==='coach'?['student','coach']:['student'],'is_active'=>$argv[3]!=='deactivate']);$request->setUserResolver(fn()=>$actor);try{(new \App\Http\Middleware\EnsurePanelRole)->handle($request,function($request)use($target){echo "READY\n";flush();return app(\App\Http\Controllers\AdminUserController::class)->update($request,$target);},'admin');echo 'UPDATED';}catch(\Illuminate\Validation\ValidationException $e){echo array_key_exists('revision',$e->errors())?'STALE':'INVALID';}
+CODE;
+        $processes = [new Process([PHP_BINARY, '-r', $code, (string) $first->id, (string) $target->id, $consoleGrant ? 'grant' : 'coach'], base_path(), null, null, 20), new Process([PHP_BINARY, '-r', $code, (string) $second->id, (string) $target->id, 'deactivate'], base_path(), null, null, 20)];
+        DB::transaction(function () use ($first, $second, $target, $processes) {
+            User::whereIn('id', [$first->id, $second->id, $target->id])->orderBy('id')->lockForUpdate()->get();
+            foreach ($processes as $process) {
+                $process->start();
+            }
+            foreach ($processes as $process) {
+                $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'READY')));
+            }
+        });
+        $results = [];
+        foreach ($processes as $process) {
+            $process->wait();
+            $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+            $results[] = $process->getOutput();
+        }
+        sort($results);
+        if ($consoleGrant) {
+            $this->assertContains($results, [["READY\nGRANTED", "READY\nSTALE"], ["READY\nGRANTED", "READY\nUPDATED"]]);
+            $adminSaved = in_array("READY\nUPDATED", $results, true);
+            $this->assertTrue($target->hasRole('coach'));
+            $this->assertSame($adminSaved ? 3 : 2, $target->fresh()->access_revision);
+            $this->assertSame(! $adminSaved, $target->fresh()->is_active);
+            $this->assertSame($adminSaved ? 1 : 0, AuditEvent::where('action', 'user.access_updated')->count());
+            $this->assertSame(1, AuditEvent::where('action', 'role.granted')->count());
+        } else {
+            $this->assertSame(["READY\nSTALE", "READY\nUPDATED"], $results);
+            $this->assertSame(2, $target->fresh()->access_revision);
+            $this->assertSame($target->hasRole('coach'), $target->fresh()->is_active);
+            $this->assertSame(1, AuditEvent::where('action', 'user.access_updated')->count());
+        }
+    }
+
+    public function test_two_stale_admin_access_forms_apply_only_one_revision(): void
+    {
+        $this->concurrentAccountRevisionWrites(false);
+    }
+
+    public function test_console_role_grant_racing_stale_admin_form_is_never_silently_removed(): void
+    {
+        $this->concurrentAccountRevisionWrites(true);
     }
 }

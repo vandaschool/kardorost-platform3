@@ -118,7 +118,7 @@ class AdminUserDirectoryTest extends TestCase
         $wanted = $this->user('student', ['name' => 'Directory edit']);
         DB::table('sessions')->insert(['id' => 'directory-user-session', 'user_id' => $wanted->id, 'payload' => 'synthetic', 'last_activity' => time()]);
         $url = '/admin/users?q=Directory&role=student&status=active';
-        $this->actingAs($this->admin)->from($url)->patch('/admin/users/'.$wanted->id, ['roles' => ['student', 'coach'], 'is_active' => false])->assertRedirect($url);
+        $this->actingAs($this->admin)->from($url)->patch('/admin/users/'.$wanted->id, ['revision' => $wanted->access_revision, 'roles' => ['student', 'coach'], 'is_active' => false])->assertRedirect($url);
         $this->assertFalse($wanted->fresh()->is_active);
         $this->assertTrue($wanted->hasRole('coach'));
         $this->assertDatabaseMissing('sessions', ['id' => 'directory-user-session']);

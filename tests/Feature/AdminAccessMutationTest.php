@@ -53,7 +53,7 @@ class AdminAccessMutationTest extends TestCase
         } else {
             $admin->roles()->detach();
         }
-        $request = $this->request($actor, $assignment ? ['coach_id' => $coach->id] : ['roles' => ['student', 'coach'], 'is_active' => true]);
+        $request = $this->request($actor, $assignment ? ['coach_id' => $coach->id] : ['revision' => $student->access_revision, 'roles' => ['student', 'coach'], 'is_active' => true]);
         try {
             $controller = app(AdminUserController::class);
             if ($assignment) {

@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from "vue";
-import { Head, Link, useForm } from "@inertiajs/vue3";
+import { Head, Link, router, useForm } from "@inertiajs/vue3";
 import Shell from "../Layouts/Shell.vue";
 import Empty from "../Components/Empty.vue";
 import Pagination from "../Components/Pagination.vue";
@@ -14,7 +14,7 @@ const roleLabels = {
 };
 const filters = useForm({ ...props.filters });
 const selected = ref(null);
-const access = useForm({ roles: [], is_active: true });
+const access = useForm({ roles: [], is_active: true, revision: null });
 function apply() {
     filters.get("/admin/users", { preserveScroll: true, preserveState: false });
 }
@@ -22,7 +22,14 @@ function edit(user) {
     selected.value = user;
     access.roles = user.roles.map((r) => r.key);
     access.is_active = user.is_active;
+    access.revision = user.access_revision;
     access.clearErrors();
+}
+function refresh() {
+    router.visit(window.location.href, {
+        preserveState: false,
+        preserveScroll: true,
+    });
 }
 function save() {
     access.patch("/admin/users/" + selected.value.id, {
@@ -149,6 +156,16 @@ function save() {
             <p v-for="error in access.errors" :key="error" class="field-error">
                 {{ error }}
             </p>
+            <button
+                v-if="access.errors.revision"
+                type="button"
+                class="btn secondary"
+                @click="refresh"
+                :disabled="access.processing"
+                data-testid="refresh-user-access"
+            >
+                تازه‌سازی فهرست و بررسی دوباره
+            </button>
             <div class="user-actions">
                 <button class="btn primary" :disabled="access.processing">
                     ذخیره دسترسی</button

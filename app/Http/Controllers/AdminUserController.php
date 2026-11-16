@@ -54,8 +54,8 @@ class AdminUserController extends Controller
         if ($filters['verification'] !== 'all') {
             $query->whereNull('phone_verified_at', not: $filters['verification'] === 'verified');
         }
-        $users = $query->orderByDesc('id')->paginate(25, ['id', 'name', 'phone', 'is_active', 'phone_verified_at'])->appends(array_filter($filters, fn ($value) => $value !== '' && $value !== 'all'))->through(fn ($user) => [
-            'id' => $user->id, 'name' => $user->name, 'phone' => $user->phone, 'is_active' => $user->is_active, 'phone_verified' => $user->phone_verified_at !== null,
+        $users = $query->orderByDesc('id')->paginate(25, ['id', 'name', 'phone', 'is_active', 'phone_verified_at', 'access_revision'])->appends(array_filter($filters, fn ($value) => $value !== '' && $value !== 'all'))->through(fn ($user) => [
+            'id' => $user->id, 'name' => $user->name, 'phone' => $user->phone, 'is_active' => $user->is_active, 'phone_verified' => $user->phone_verified_at !== null, 'access_revision' => $user->access_revision,
             'roles' => $user->roles->map(fn ($role) => $role->only('key', 'name'))->all(),
         ]);
 
@@ -70,7 +70,7 @@ class AdminUserController extends Controller
 
     public function update(Request $request, User $user): RedirectResponse
     {
-        $data = $request->validate(['roles' => 'required|array|min:1|max:4', 'roles.*' => 'required|distinct|in:student,coach,org_admin,admin', 'is_active' => 'required|boolean']);
+        $data = $request->validate(['revision' => 'required|integer|min:1', 'roles' => 'required|array|min:1|max:4', 'roles.*' => 'required|distinct|in:student,coach,org_admin,admin', 'is_active' => 'required|boolean']);
         $actorId = $request->user()?->id;
         abort_unless($actorId, 403);
         DB::transaction(function () use ($user, $data, $actorId) {
@@ -78,15 +78,18 @@ class AdminUserController extends Controller
             $this->authorizeAdmin($accounts->get($actorId));
             $user = $accounts->get($user->id);
             abort_unless($user, 404);
+            if ($user->access_revision !== (int) $data['revision']) {
+                throw ValidationException::withMessages(['revision' => 'دسترسی این حساب تغییر کرده است؛ فهرست را تازه کنید و دوباره بررسی کنید.']);
+            }
             if ($user->id === $actorId && (! in_array('admin', $data['roles'], true) || ! $data['is_active'])) {
                 throw ValidationException::withMessages(['roles' => 'نمی‌توانید دسترسی مدیریت یا فعالیت حساب خودتان را حذف کنید.']);
             }
             $user->roles()->sync(Role::whereIn('key', $data['roles'])->pluck('id'));
-            $user->forceFill(['is_active' => $data['is_active']])->save();
+            $user->forceFill(['is_active' => $data['is_active'], 'access_revision' => $user->access_revision + 1])->save();
             if (! $data['is_active']) {
                 DB::table('sessions')->where('user_id', $user->id)->delete();
             }
-            AuditEvent::create(['actor_id' => $actorId, 'action' => 'user.access_updated', 'subject_type' => 'user', 'subject_id' => $user->id, 'metadata' => $data]);
+            AuditEvent::create(['actor_id' => $actorId, 'action' => 'user.access_updated', 'subject_type' => 'user', 'subject_id' => $user->id, 'metadata' => ['roles' => $data['roles'], 'is_active' => $data['is_active'], 'access_revision' => $user->access_revision]]);
         }, 3);
 
         return back()->with('success', 'دسترسی و وضعیت کاربر به‌روز شد.');
