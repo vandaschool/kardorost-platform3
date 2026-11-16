@@ -6,6 +6,7 @@ use App\Models\ContentPage;
 use App\Models\Course;
 use App\Services\CoachProfiles;
 use App\Services\CohortCapacity;
+use App\Services\PublicMentorDirectory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -58,11 +59,15 @@ class PublicSiteController extends Controller
         return $this->render('contact', 'ارتباط با کاردرست', 'ثبت درخواست آموزش، مشاوره و همکاری سازمان یا دانشگاه با کاردرست.', ['requestKey' => (string) Str::uuid(), 'audience' => $data['audience'] ?? 'individual']);
     }
 
-    public function mentors(CoachProfiles $service): Response
+    public function mentors(Request $request, PublicMentorDirectory $directory): Response
     {
-        $profiles = $service->visible()->orderByDesc('public_published_at')->orderByDesc('id')->paginate(12);
+        $data = $directory->search($request->only('q', 'city', 'focus', 'language', 'page'));
+        $response = $this->render('mentors', 'مربیان کاردرست', 'پروفایل‌های منتشرشده مربیان کاردرست و زمینه‌های فعالیت معرفی‌شده آن‌ها.', [...$data, 'noindex' => $data['filtered']]);
+        if ($data['filtered']) {
+            $response->headers->set('X-Robots-Tag', 'noindex, follow');
+        }
 
-        return $this->render('mentors', 'مربیان کاردرست', 'پروفایل‌های منتشرشده مربیان کاردرست و زمینه‌های فعالیت معرفی‌شده آن‌ها.', compact('profiles'));
+        return $response;
     }
 
     public function mentor(string $slug, CoachProfiles $service): Response

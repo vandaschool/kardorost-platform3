@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{{ $title }} | کاردرست</title><meta name="description" content="{{ $description }}">
+@if($noindex ?? false)<meta name="robots" content="noindex, follow">@endif
 <link rel="canonical" href="{{ $canonical }}"><meta name="theme-color" content="#0f1b3d">
 <meta property="og:title" content="{{ $title }} | کاردرست"><meta property="og:description" content="{{ $description }}"><meta property="og:url" content="{{ $canonical }}"><meta property="og:type" content="{{ ($page->kind ?? '') === 'article' ? 'article' : 'website' }}"><meta property="og:locale" content="fa_IR">
 <link rel="icon" href="/brand/favicon.svg" type="image/svg+xml">

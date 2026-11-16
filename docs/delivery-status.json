@@ -1,5 +1,5 @@
 {
-  "phase": "private-survey-csv-exports",
+  "phase": "public-mentor-search-and-filters",
   "completed": [
     "phone-verification",
     "password-login",
@@ -329,17 +329,22 @@
     "thresholded-single-question-nonidentified-comment-csv",
     "disclosure-bound-identified-survey-response-csv",
     "transactional-private-csv-preparation-current-access-recheck",
-    "survey-csv-formula-privacy-and-metadata-only-audit"
+    "survey-csv-formula-privacy-and-metadata-only-audit",
+    "current-public-mentor-keyword-search",
+    "combined-public-focus-city-language-filters",
+    "persian-arabic-diacritic-joiner-search-normalization",
+    "public-only-search-facets-and-private-copy-exclusion",
+    "filtered-mentor-pagination-canonical-and-noindex"
   ],
   "tests": {
     "postgresql": {
-      "passed": 877,
-      "assertions": 6956
+      "passed": 887,
+      "assertions": 7010
     },
     "sqlite": {
-      "passed": 759,
+      "passed": 769,
       "skipped": 118,
-      "assertions": 6297
+      "assertions": 6351
     },
     "javascript": {
       "passed": 6
@@ -564,7 +569,12 @@
     "survey-full-fifteen-comment-csv-independent-of-pagination",
     "survey-csv-threshold-and-disclosure-mode-enforcement",
     "survey-csv-utf8-formula-headers-and-role-isolation",
-    "survey-csv-320-390-768-1440"
+    "survey-csv-320-390-768-1440",
+    "public-four-filter-mentor-search",
+    "mentor-fourteen-match-pagination-and-filter-preservation",
+    "mentor-persian-arabic-joiner-case-normalization",
+    "mentor-private-drafts-ineligible-facets-and-escaped-empty-search",
+    "mentor-filtered-canonical-noindex-and-320-1440"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -641,7 +651,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase40_survey_csv_verified_ready_for_pr_phase41_public_mentor_search_next",
+    "current_work": "phase41_public_mentor_search_verified_ready_for_pr_phase42_recovery_snapshot_reconciliation_boundary_then_scheduled_internal_announcements",
     "next_groups": [
       "organization_contract_installments_and_lifecycle",
       "remaining_purchase_cancellation_refunds_awaiting_policy",
@@ -720,7 +730,7 @@
   "public_coach_profiles_scope": "self_authored_plain_text_consented_snapshot_current_admin_review_current_active_verified_coach_role",
   "public_coach_photos_complete": false,
   "coach_uploaded_credentials_complete": false,
-  "public_coach_specialty_search_complete": false,
+  "public_coach_specialty_search_complete": true,
   "public_coach_specific_availability_link_complete": true,
   "coach_official_credentials_automatically_verified": false,
   "public_anonymous_contact_leads_scope": "unverified_contact_phone_explicit_follow_up_consent_encrypted_pii_idempotent_form_private_admin_manual_follow_up",
@@ -745,5 +755,7 @@
   "backup_retention_complete": false,
   "independent_production_secret_store_complete": false,
   "public_deployment_inputs": "asked_owner_for_domain_and_available_server_provider_public_ip_no_secrets",
-  "survey_csv_exports_scope": "active_admin_or_current_course_coach_full_selected_publication_summary_or_thresholded_single_question_comments_or_originally_identified_final_responses_no_phone_account_enrollment_ids"
+  "survey_csv_exports_scope": "active_admin_or_current_course_coach_full_selected_publication_summary_or_thresholded_single_question_comments_or_originally_identified_final_responses_no_phone_account_enrollment_ids",
+  "public_coach_specialty_search_scope": "current_eligible_reviewed_public_snapshots_all_query_terms_exact_normalized_focus_city_language_filters_twelve_per_page",
+  "public_coach_search_index": "no_plaintext_index_bounded_memory_linear_encrypted_snapshot_scan_large_catalog_index_and_load_acceptance_pending"
 }
