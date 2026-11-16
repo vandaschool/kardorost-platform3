@@ -1,8 +1,9 @@
 <script setup>
-import { Head, Link, useForm } from "@inertiajs/vue3";
+import { Head, Link, useForm, usePage } from "@inertiajs/vue3";
 import Shell from "../Layouts/Shell.vue";
 import Pagination from "../Components/Pagination.vue";
 import { dateTime, fa } from "../dates";
+const page = usePage();
 const props = defineProps({
     resume: Object,
     version: Object,
@@ -16,6 +17,9 @@ const form = useForm({ job_text: "" });
         ><Link class="text-link" :href="'/career/resumes/' + resume.id"
             >بازگشت به پیش‌نویس ←</Link
         >
+        <p v-if="page.props.errors?.guide" class="field-error" role="alert">
+            {{ page.props.errors.guide }}
+        </p>
         <section class="page-intro">
             <div>
                 <h1>{{ resume.title }} · نسخه {{ fa(version.number) }}</h1>
@@ -34,6 +38,25 @@ const form = useForm({ job_text: "" });
                 class="btn primary"
                 data-resume-print
                 >چاپ / ذخیره PDF</a
+            >
+        </section>
+        <section class="glass panel-card consultation-section">
+            <h2>آماده‌سازی پروفایل لینکدین</h2>
+            <p>
+                متن همین نسخه را بخش‌بندی و پیش از کپی در پروفایل خودتان بازبینی
+                کنید.
+            </p>
+            <Link
+                class="btn secondary"
+                :href="
+                    '/career/resumes/' +
+                    resume.id +
+                    '/versions/' +
+                    version.id +
+                    '/linkedin'
+                "
+                data-linkedin-guide
+                >راهنمای لینکدین این نسخه</Link
             >
         </section>
         <section class="glass panel-card consultation-section">

@@ -94,6 +94,7 @@ use App\Services\OrganizationPaymentSchedule;
 use App\Services\PackageBilling;
 use App\Services\ReceiptService;
 use App\Services\RefundService;
+use App\Services\ResumeBuilder;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Http\UploadedFile;
@@ -3387,5 +3388,49 @@ CODE;
         $this->assertStringEndsWith('403', $process->getOutput());
         $this->assertSame(0, CoachCredential::count());
         $this->assertSame([], Storage::disk('learning')->allFiles());
+    }
+
+    private function linkedInGuideAfterAccessChange(bool $asAdmin): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Private LinkedIn guide access races require PostgreSQL.');
+        }
+        $owner = User::factory()->create();
+        $owner->roles()->attach(Role::where('key', 'student')->value('id'));
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $builder = app(ResumeBuilder::class);
+        $resume = $builder->create($owner, 'Synthetic LinkedIn access race');
+        $version = $builder->snapshot($owner, $resume, 1);
+        $actor = $asAdmin ? $admin : $owner;
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$resume=\App\Models\CareerResume::findOrFail((int)$argv[2]);$version=\App\Models\ResumeVersion::findOrFail((int)$argv[3]);$request=\Illuminate\Http\Request::create('/career/resumes/'.$resume->id.'/versions/'.$version->id.'/linkedin/download','GET');$request->setUserResolver(fn()=>$actor);try{(new \App\Http\Middleware\EnsureAccountActive)->handle($request,function()use($actor,$resume,$version){echo 'READY'.PHP_EOL;flush();app(\App\Services\LinkedInGuide::class)->prepare($actor,$resume,$version,true);return new \Symfony\Component\HttpFoundation\Response('EXPORTED');});echo 'EXPORTED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $actor->id, (string) $resume->id, (string) $version->id], base_path(), null, null, 20);
+        DB::transaction(function () use ($actor, $asAdmin, $process) {
+            User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+            $process->start();
+            $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'READY')));
+            if ($asAdmin) {
+                $actor->roles()->detach();
+            } else {
+                $actor->forceFill(['is_active' => false])->save();
+                $this->assertFalse($actor->fresh()->is_active);
+            }
+        });
+        $process->wait();
+        $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+        $this->assertStringEndsWith('403', $process->getOutput());
+        $this->assertSame(0, AuditEvent::where('action', 'like', 'resume.linkedin_%')->count());
+    }
+
+    public function test_waiting_linkedin_guide_export_rechecks_owner_deactivation_after_middleware(): void
+    {
+        $this->linkedInGuideAfterAccessChange(false);
+    }
+
+    public function test_waiting_linkedin_guide_export_rechecks_admin_role_after_middleware(): void
+    {
+        $this->linkedInGuideAfterAccessChange(true);
     }
 }
