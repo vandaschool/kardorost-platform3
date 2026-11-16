@@ -7,6 +7,7 @@ import FeedbackHistory from "../Components/FeedbackHistory.vue";
 import { fa, dateTime, submissionStatuses, attendanceStatuses } from "../dates";
 defineProps({
     member: Object,
+    learning_export_url: String,
     organization: Object,
     enrollments: Array,
     learningReports: Object,
@@ -51,6 +52,18 @@ defineProps({
         </section>
         <section class="glass panel-card">
             <h2>ثبت‌نام‌های آموزشی</h2>
+            <a
+                :href="learning_export_url"
+                class="btn secondary"
+                data-testid="member-learning-export"
+                >دانلود خلاصه یادگیری (CSV)</a
+            >
+            <p class="muted caption">
+                تکمیل درس، ثبت خوداظهاری دانشجو است و مشاهده واقعی ویدیو یا
+                مهارت را اثبات نمی‌کند. شمار درس‌های منتشرشده مستقل از زمان
+                بازشدن آن‌هاست؛ حضور فقط وضعیت‌های ثبت‌شده را می‌شمارد. متن
+                تکلیف، پاسخ آزمون و اطلاعات مالی در این خروجی نیستند.
+            </p>
             <Empty
                 v-if="!enrollments.length"
                 icon="BookOpen"
@@ -68,7 +81,12 @@ defineProps({
                     ><small>{{ e.cohort.title }}</small>
                 </div>
                 <span class="badge teal">{{
-                    e.status === "active" ? "فعال" : "در انتظار پرداخت"
+                    {
+                        active: "فعال",
+                        pending_payment: "در انتظار پرداخت",
+                        expired: "منقضی‌شده",
+                        cancelled: "لغوشده",
+                    }[e.status] || e.status
                 }}</span>
                 <div class="member-learning-details">
                     <p

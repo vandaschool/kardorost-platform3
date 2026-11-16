@@ -207,6 +207,7 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/organization', [OrganizationController::class, 'index'])->name('panel.org_admin');
         Route::post('/organization/switch', [OrganizationController::class, 'switch']);
         Route::post('/organization/members', [OrganizationController::class, 'addMember'])->middleware('throttle:20,1');
+        Route::get('/organization/members/{member}/learning-export', [OrganizationController::class, 'exportLearning'])->middleware('throttle:10,1')->name('organization.members.learning-export');
         Route::get('/organization/members/{member}', [OrganizationController::class, 'report']);
     });
     Route::middleware('panel.role:admin')->group(function () {
@@ -286,6 +287,7 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::patch('/admin/organization-invoices/{invoice}', [OrganizationInvoiceController::class, 'update']);
         Route::post('/admin/organization-invoices/{invoice}/issue', [OrganizationInvoiceController::class, 'issue']);
         Route::post('/admin/organization-invoices/{invoice}/void', [OrganizationInvoiceController::class, 'void']);
+        Route::get('/admin/organizations/{organization}/members/{member}/learning-export', [OrganizationController::class, 'adminExportLearning'])->middleware('throttle:10,1')->name('admin.organization-members.learning-export');
         Route::get('/admin/users', [AdminUserController::class, 'index'])->name('admin.users');
         Route::get('/admin/activity', [AuditEventController::class, 'index'])->name('admin.activity');
         Route::get('/admin/{section}', [PanelController::class, 'admin']);

@@ -1,5 +1,5 @@
 {
-  "phase": "current-admin-access-and-course-coach-mutation-authorization",
+  "phase": "private-organization-member-learning-summary-csv",
   "completed": [
     "phone-verification",
     "password-login",
@@ -368,17 +368,21 @@
     "locked-current-admin-authorization-for-account-and-course-coach-mutations",
     "deterministically-ordered-cross-admin-access-revocation",
     "transactional-course-coach-assignment-and-audit-rollback",
-    "explicit-null-only-course-coach-clearing"
+    "explicit-null-only-course-coach-clearing",
+    "private-current-organization-member-learning-summary-csv",
+    "full-admin-current-organization-member-learning-export",
+    "prebuilt-private-learning-csv-current-role-and-membership-locks",
+    "utf8-formula-safe-multibatch-learning-export-with-metadata-only-audit"
   ],
   "tests": {
     "postgresql": {
-      "passed": 991,
-      "assertions": 7893
+      "passed": 1004,
+      "assertions": 7967
     },
     "sqlite": {
-      "passed": 849,
-      "skipped": 142,
-      "assertions": 7104
+      "passed": 859,
+      "skipped": 145,
+      "assertions": 7166
     },
     "javascript": {
       "passed": 6
@@ -633,7 +637,10 @@
     "admin-user-directory-combined-29-record-search-preserved-pages-multi-role",
     "admin-user-directory-actual-coach-grant-deactivation-persian-phone-self-lockout-guard",
     "admin-user-directory-private-escaped-rows-other-role-denial-and-320-390-768-1440",
-    "admin-directory-and-cohort-announcement-full-browser-regression-after-current-authorization-locks"
+    "admin-directory-and-cohort-announcement-full-browser-regression-after-current-authorization-locks",
+    "organization-member-learning-export-27-enrollments-fourteen-columns-real-admin-and-manager-downloads",
+    "organization-learning-export-real-self-departure-revokes-both-routes",
+    "organization-learning-export-private-bom-headers-progress-attendance-320-390-768-1440"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -710,9 +717,9 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase48_current_admin_authorization_verified_ready_for_pr_organization_member_learning_csv_next",
+    "current_work": "phase49_organization_member_learning_summary_csv_verified_ready_for_pr_stale_admin_access_form_conflict_guard_next",
     "next_groups": [
-      "private_organization_member_learning_summary_csv",
+      "optimistic_account_access_revision_stale_admin_form_protection",
       "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
       "career_and_assessment_extensions_without_invented_instruments",
       "coach_settlement_and_organization_benefits_requiring_business_terms",
@@ -832,5 +839,8 @@
   "admin_user_directory_scope": "active_full_admin_twenty_five_per_page_literal_name_substring_normalized_exact_phone_id_role_activity_verification_filters_existing_access_edit_no_password_email_token_or_role_pivot_in_rows",
   "admin_account_mutation_current_authorization_complete": true,
   "admin_account_mutation_current_authorization_scope": "actor_and_target_accounts_locked_by_id_current_active_admin_before_write_course_parent_before_accounts_for_assignment_current_candidate_coach_role_and_activity_course_audit_same_transaction",
-  "admin_account_access_optimistic_revision_complete": false
+  "admin_account_access_optimistic_revision_complete": false,
+  "organization_member_learning_summary_csv_complete": true,
+  "organization_member_learning_summary_csv_scope": "current_selected_org_manager_or_explicit_full_admin_current_member_personal_and_sponsored_enrollments_published_lesson_self_reported_progress_recorded_attendance_counts_certificate_status_fourteen_columns_no_phone_finance_answers_body_or_private_urls",
+  "organization_member_detailed_attendance_submission_exports_complete": false
 }

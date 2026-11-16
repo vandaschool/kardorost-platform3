@@ -3115,4 +3115,58 @@ CODE;
         $this->assertSame(1, User::where('is_active', true)->whereHas('roles', fn ($roles) => $roles->where('key', 'admin'))->count());
         $this->assertSame(1, AuditEvent::where('action', 'user.access_updated')->count());
     }
+
+    private function organizationLearningExportAfterAccessChange(bool $departMember, bool $asAdmin = false): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Organization learning export races require PostgreSQL.');
+        }
+        $actor = User::factory()->create();
+        $actor->roles()->attach(Role::where('key', $asAdmin ? 'admin' : 'org_admin')->value('id'));
+        $member = User::factory()->create();
+        $member->roles()->attach(Role::where('key', 'student')->value('id'));
+        $organization = Organization::factory()->create(['status' => 'active']);
+        if (! $asAdmin) {
+            $organization->members()->attach($actor->id, ['kind' => 'manager']);
+        }
+        $organization->members()->attach($member->id, ['kind' => 'member']);
+        $key = $organization->members()->where('users.id', $member->id)->firstOrFail()->pivot->membership_key;
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$organization=\App\Models\Organization::findOrFail((int)$argv[2]);$member=\App\Models\User::findOrFail((int)$argv[3]);echo "READY\n";flush();try{$prepared=app(\App\Services\OrganizationLearningExports::class)->prepare($actor,$organization,$member,$argv[4]==='admin');fclose($prepared['stream']);echo 'EXPORTED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $actor->id, (string) $organization->id, (string) $member->id, $asAdmin ? 'admin' : 'manager'], base_path(), null, null, 20);
+        DB::transaction(function () use ($actor, $member, $organization, $key, $departMember, $process) {
+            if ($departMember) {
+                Organization::whereKey($organization->id)->lockForUpdate()->firstOrFail();
+            } else {
+                User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+            }
+            $process->start();
+            $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'READY')));
+            if ($departMember) {
+                app(OrganizationMembership::class)->endMembership($member, $organization, $member, $key, 'Synthetic departure during export preparation', 'leave');
+            } else {
+                $actor->roles()->detach();
+            }
+        });
+        $process->wait();
+        $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+        $this->assertSame("READY\n403", $process->getOutput());
+        $this->assertSame(0, AuditEvent::where('action', 'organization.learning_exported')->count());
+    }
+
+    public function test_waiting_organization_learning_export_rechecks_member_departure(): void
+    {
+        $this->organizationLearningExportAfterAccessChange(true);
+    }
+
+    public function test_waiting_organization_learning_export_rechecks_manager_role_revocation(): void
+    {
+        $this->organizationLearningExportAfterAccessChange(false);
+    }
+
+    public function test_waiting_organization_learning_export_rechecks_admin_role_revocation(): void
+    {
+        $this->organizationLearningExportAfterAccessChange(false, true);
+    }
 }
