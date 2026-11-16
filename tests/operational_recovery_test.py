@@ -150,6 +150,36 @@ class OperationalRecoveryTest(unittest.TestCase):
                 recovery.read_archive(path, target, 1024)
             self.assertEqual(list(target.iterdir()), [])
 
+    def timing_manifest(self):
+        return {'format': 2, 'quiesced_at': '2026-11-16T01:00:00+00:00',
+                'external_reconciliation_from': '2026-11-16T01:00:00+00:00',
+                'snapshot_completed_at': '2026-11-16T01:00:05+00:00',
+                'source_restart_acknowledged_at': '2026-11-16T01:00:10+00:00',
+                'created_at': '2026-11-16T01:00:20+00:00'}
+
+    def test_reconciliation_begins_at_quiescence_instead_of_later_archive_creation(self):
+        manifest = self.timing_manifest()
+        window = recovery.reconciliation_window(manifest)
+        self.assertEqual(window['external_reconciliation_from_utc'], manifest['quiesced_at'])
+        self.assertNotEqual(window['external_reconciliation_from_utc'], manifest['created_at'])
+        manifest['snapshot_completed_at'] = '2026-11-16T04:30:05+03:30'
+        self.assertEqual(recovery.reconciliation_window(manifest)['snapshot_completed_at_utc'], '2026-11-16T01:00:05+00:00')
+
+    def test_recovery_rejects_missing_naive_reversed_or_shifted_snapshot_boundaries(self):
+        for field, value in [('format', 3), ('format', True), ('quiesced_at', None), ('snapshot_completed_at', '2026-11-16T01:00:05'),
+                             ('source_restart_acknowledged_at', '2026-11-16T00:00:00+00:00'),
+                             ('external_reconciliation_from', '2026-11-16T01:00:20+00:00'),
+                             ('created_at', 'not-a-date')]:
+            with self.subTest(field=field):
+                manifest = self.timing_manifest();manifest[field] = value
+                with self.assertRaises(recovery.RecoveryError):
+                    recovery.reconciliation_window(manifest)
+
+    def test_legacy_archive_has_no_invented_safe_reconciliation_cutoff(self):
+        window = recovery.reconciliation_window({'format': 1, 'created_at': '2026-11-16T01:00:20+00:00'})
+        self.assertIsNone(window['external_reconciliation_from_utc'])
+        self.assertIsNone(window['snapshot_completed_at_utc'])
+
     def test_failed_database_snapshot_restarts_exact_previously_running_source_services(self):
         class BrokenSource:
             settings = {'DB_DATABASE': 'synthetic'}

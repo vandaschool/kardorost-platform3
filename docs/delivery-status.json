@@ -1,5 +1,5 @@
 {
-  "phase": "public-mentor-search-and-filters",
+  "phase": "recovery-snapshot-reconciliation-boundaries",
   "completed": [
     "phone-verification",
     "password-login",
@@ -334,7 +334,10 @@
     "combined-public-focus-city-language-filters",
     "persian-arabic-diacritic-joiner-search-normalization",
     "public-only-search-facets-and-private-copy-exclusion",
-    "filtered-mentor-pagination-canonical-and-noindex"
+    "filtered-mentor-pagination-canonical-and-noindex",
+    "authenticated-quiesced-external-reconciliation-cutoff",
+    "snapshot-completion-and-source-start-timing-metadata",
+    "legacy-snapshot-recovery-without-invented-cutoff"
   ],
   "tests": {
     "postgresql": {
@@ -354,7 +357,7 @@
       "passed": 6
     },
     "operational_recovery_python": {
-      "passed": 13
+      "passed": 16
     }
   },
   "browser_qa": true,
@@ -651,7 +654,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase41_public_mentor_search_verified_ready_for_pr_phase42_recovery_snapshot_reconciliation_boundary_then_scheduled_internal_announcements",
+    "current_work": "phase42_recovery_snapshot_boundaries_verified_ready_for_pr_scheduled_internal_announcements_next",
     "next_groups": [
       "organization_contract_installments_and_lifecycle",
       "remaining_purchase_cancellation_refunds_awaiting_policy",
@@ -757,5 +760,8 @@
   "public_deployment_inputs": "asked_owner_for_domain_and_available_server_provider_public_ip_no_secrets",
   "survey_csv_exports_scope": "active_admin_or_current_course_coach_full_selected_publication_summary_or_thresholded_single_question_comments_or_originally_identified_final_responses_no_phone_account_enrollment_ids",
   "public_coach_specialty_search_scope": "current_eligible_reviewed_public_snapshots_all_query_terms_exact_normalized_focus_city_language_filters_twelve_per_page",
-  "public_coach_search_index": "no_plaintext_index_bounded_memory_linear_encrypted_snapshot_scan_large_catalog_index_and_load_acceptance_pending"
+  "public_coach_search_index": "no_plaintext_index_bounded_memory_linear_encrypted_snapshot_scan_large_catalog_index_and_load_acceptance_pending",
+  "encrypted_backup_format": 2,
+  "external_reconciliation_boundary": "confirmed_all_writers_quiesced_at_not_later_archive_creation_time",
+  "legacy_backup_reconciliation_policy": "format_1_restorable_but_requires_separately_confirmed_earlier_reconciliation_boundary"
 }
