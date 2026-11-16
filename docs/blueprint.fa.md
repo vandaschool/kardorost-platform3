@@ -629,3 +629,12 @@ Chromium با انتظار تا سررسید واقعی و اجرای زمان�
 - حفظ status/Allow/Retry-After/rate headers/HEAD و قرارداد API/JSON/validation/redirect/debug5xx؛ no-store/noindex/no-referrer/nosniff/DENY. زمان انتظار فقط عدد معتبر محدود، تاریخ HTTP بدون تفسیر ساختگی.
 - ۱۱ آزمون تازه، ۲۸ مرتبط؛ PostgreSQL ۱۱۴۱/۹۶۲۸، SQLite ۹۷۹ موفق/۱۶۲ کنارگذاشته‌شده/۸۷۳۴ assertion؛ شش تاریخ، Pint و build موفق. Chromium نشست دانشجو روی لینک قدیمی ادمین→403 واقعی Inertia→پنل صحیح، 404 روشن/تیره، فرم cross-origin واقعی بدون توکن→419، سهمیه واقعی عمومی→429/Retry-After، عرض ۳۲۰ تا ۱۴۴۰ موفق. 500/503 با debug=false در PHPUnit؛ debug بومی حفظ شد.
 - schema/وابستگی تغییر نکرد. image قبلی فقط b399cf5 است؛ پذیرش تازه ۵۸/۵۹ مرحله بعد و هنوز اعلام‌نشده است.
+
+
+## پیشرفت تحویل شصتم
+
+- build واقعی application/web از Dockerfile کد 0fd3924/PHP8.4.27 و کپی اعتبارسنجی VFS با ۹۹۴۰/۲۳۴۱ موجودیت و تنظیمات runtime برابر؛ PG17/bootstrap هم‌hash، بدون انتشار registry.
+- ارتقای همان volume/کلیدها ۵۳→۵۳ migration بدون reseed، ۴۹۷ فایل منبع برابر و حفظ ciphertext/فایل‌های خصوصی و دو fixture قبلی؛ harness کد بدون migration و baseline جدا را پشتیبانی می‌کند.
+- مرورگر تولیدی چهار نقش/مدرک/اشتراک و header خصوصی و خطاهای واقعی403/404/419/429؛ ۱۰ دانلود→429، اقدام دیگر422 بدون رکورد تازه و حفظ همان429. بدون پاک‌کردن سهمیه، عرض۳۲۰ تا۱۴۴۰.
+- بازیابی مستقل GPG/PG17/فایل با حفاظت‌های قبلی و حفظ ciphertext/hash/منبع رضایت؛ worker متوقف و سپس سه heartbeat واقعی. هر سه گروه مرورگر پیش backup، پس restore بدون worker و پس worker پاس شدند. revision مقصد از label واقعی image.
+- شش محیط، ۱۶ بازیابی، شش تاریخ، syntax و build موفق؛ PHP محصول بدون تغییر و پایهٔ ۱۱۴۱/۹۶۲۸ PostgreSQL و ۹۷۹ موفق/۱۶۲ کنارگذاشته‌شده/۸۷۳۴ SQLite. تطابق کانتینر فعلی=true؛ public deployment/live/offserver/load ادعا نمی‌شود. مبنای تسویه مربی از مالک پرسیده و بی‌پاسخ است.

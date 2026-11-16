@@ -38,7 +38,8 @@ revision = os.environ['CONTAINER_TARGET_REVISION']
 assert source_file.is_relative_to('/tmp') and destination.is_relative_to('/tmp')
 assert destination.name.startswith('kardorost-compose-upgraded')
 reuse = os.environ.get('CONTAINER_UPGRADE_REUSE') == '1'
-journal = Path('/tmp/kardorost-container-upgrade-baseline.json')
+journal = Path(os.environ.get('CONTAINER_UPGRADE_BASELINE_FILE', '/tmp/kardorost-container-upgrade-baseline.json')).resolve()
+assert journal.is_relative_to('/tmp') and journal.name.startswith('kardorost-container-upgrade-baseline')
 assert not destination.exists() or reuse
 assert re.fullmatch(r'[a-zA-Z0-9_.-]+', tag) and re.fullmatch(r'[a-f0-9]{40}', revision)
 source = recovery.Composition(source_file)
@@ -75,7 +76,7 @@ run(target, ['exec', '-T', 'app', 'php', 'artisan', 'migrate', '--force', '--no-
 after = json.loads(run(target, ['exec', '-T', 'app', 'php', '-r', probe]))
 assert {k: v for k, v in after.items() if k != 'migration_count'} == {k: v for k, v in before.items() if k != 'migration_count'}
 expected_migrations = len(list((ROOT / 'database/migrations').glob('*.php')))
-assert after['migration_count'] == expected_migrations and after['migration_count'] > before['migration_count']
+assert after['migration_count'] == expected_migrations and after['migration_count'] >= before['migration_count']
 # Compare the exact tracked application, route, schema, view and configuration files in the new runtime.
 files = subprocess.check_output(['git', 'ls-files', '-z', 'app', 'bootstrap', 'config', 'database', 'routes', 'resources', 'composer.json', 'composer.lock', 'artisan'], cwd=ROOT).decode().split('\0')
 # The Compose cache tmpfs hides its tracked placeholder in the running container.
@@ -93,7 +94,7 @@ else:
 
 run(target, ['up', '-d', '--no-build', '--wait', '--wait-timeout', '120', 'web', 'worker-default', 'worker-sms', 'scheduler'])
 assert target.running() == {'postgres', 'app', 'web', 'worker-default', 'worker-sms', 'scheduler'}
-report = {'result': 'passed', 'scope': 'owned_loopback_four_synthetic_users_same_project_volumes_and_keys', 'before_migrations': before['migration_count'], 'after_migrations': after['migration_count'], 'tracked_source_files_matched': len(files), 'checks': ['existing_encrypted_lead_ciphertext_and_plaintext_preserved', 'existing_private_support_file_hash_preserved', 'all_pending_migrations_applied_without_reseeding', 'exact_checked_out_application_source_in_non_development_image', 'new_encrypted_coach_credential_and_original_private_file', 'new_owner_consented_source_bound_resume_share', 'six_services_started_with_external_effects_disabled']}
+report = {'result': 'passed', 'scope': 'owned_loopback_four_synthetic_users_same_project_volumes_and_keys', 'before_migrations': before['migration_count'], 'upgrade_kind': 'schema_and_code' if after['migration_count'] > before['migration_count'] else 'code_only', 'after_migrations': after['migration_count'], 'tracked_source_files_matched': len(files), 'checks': ['existing_encrypted_lead_ciphertext_and_plaintext_preserved', 'existing_private_support_file_hash_preserved', 'all_pending_migrations_applied_without_reseeding', 'exact_checked_out_application_source_in_non_development_image', 'new_encrypted_coach_credential_and_original_private_file', 'new_owner_consented_source_bound_resume_share', 'six_services_started_with_external_effects_disabled']}
 heartbeat()
 Path('/tmp/kardorost-container-upgrade-acceptance.json').write_text(json.dumps(report))
 print(json.dumps(report))
