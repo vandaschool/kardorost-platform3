@@ -36,6 +36,14 @@ with tempfile.TemporaryDirectory(prefix='kardorost-recovery-acceptance-') as tem
     key = private / 'backup.key';backup = private / 'snapshot.gpg'
     invoke('generate-key', '--output', key)
     invoke('backup', '--env-file', source_file, '--passphrase-file', key, '--output', backup)
+    with tempfile.TemporaryDirectory(prefix='kardorost-snapshot-window-') as inspection:
+        inspected = Path(inspection)
+        recovery.gpg(backup, inspected / 'snapshot.tar', key, decrypt=True)
+        manifest = recovery.read_archive(inspected / 'snapshot.tar', inspected, recovery.DEFAULT_LIMIT)
+        assert manifest['format'] == 2
+        window = recovery.reconciliation_window(manifest)
+        assert window['external_reconciliation_from_utc'] is not None
+        assert manifest['quiesced_at'] <= manifest['snapshot_completed_at'] <= manifest['source_restart_acknowledged_at'] <= manifest['created_at']
     assert source.running().issuperset({'app', 'web', 'postgres', 'worker-default', 'worker-sms', 'scheduler'})
     before = recovery.digest(backup)
     invoke('backup', '--env-file', source_file, '--passphrase-file', key, '--output', backup, expected=1)
@@ -84,13 +92,14 @@ with tempfile.TemporaryDirectory(prefix='kardorost-recovery-acceptance-') as tem
     assert after_refusal == restored
     target.run(['up', '-d', '--no-build', '--wait', '--wait-timeout', '120', 'app', 'web'])
     # Save only the synthetic private destination environment for separate browser acceptance.
-    destination = Path('/tmp/kardorost-compose-restored.env')
+    destination = Path(os.environ.get('RECOVERY_DESTINATION_ENV_FILE', '/tmp/kardorost-compose-restored.env')).absolute()
+    assert destination.is_relative_to('/tmp') and destination.name.startswith('kardorost-compose-restored')
     assert not destination.exists(), 'Preserve any prior destination environment instead of overwriting it.'
     descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(descriptor, 'w') as output:
         output.write(contents)
     report = {'result': 'passed', 'local_storage_mode': 'vfs_flattened_filesystem_and_verified_runtime_config',
-              'checks': ['real-quiesced-encrypted-postgresql-and-private-storage-snapshot', 'source-running-state-restored',
+              'checks': ['real-quiesced-encrypted-postgresql-and-private-storage-snapshot', 'authenticated-quiesced-reconciliation-boundary-and-snapshot-restart-times', 'source-running-state-restored',
                          'existing-backup-preserved', 'wrong-app-key-wrong-backup-key-live-effects-refused-before-db-start',
                          'nonempty-private-storage-refused-with-empty-db-preserved', 'separate-target-project-volumes-db-passwords',
                          'real-postgresql-transactional-restore', 'encrypted-pii-decryption-and-private-file-hash',

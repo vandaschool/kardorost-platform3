@@ -141,14 +141,40 @@ def read_archive(path, directory, limit):
         manifest = json.loads((directory / 'manifest.json').read_text())
     except (ValueError, UnicodeError):
         raise RecoveryError('Backup manifest is invalid.') from None
-    require(isinstance(manifest, dict) and manifest.get('format') == 1 and manifest.get('postgres_major') == 17,
+    require(isinstance(manifest, dict) and type(manifest.get('format')) is int and manifest.get('format') in (1, 2) and manifest.get('postgres_major') == 17,
             'Backup format or PostgreSQL version is unsupported.')
+    reconciliation_window(manifest)
     for name in ('database.dump', 'storage.tar'):
         require(manifest.get('sha256', {}).get(name) == digest(directory / name), 'Backup content hash does not match.')
     require(manifest.get('files') == storage_index(directory / 'storage.tar', limit), 'Private storage hashes do not match.')
     with open(directory / 'database.dump', 'rb') as dump:
         require(dump.read(5) == b'PGDMP', 'Database backup is not PostgreSQL custom format.')
     return manifest
+
+
+def reconciliation_window(manifest):
+    require(type(manifest.get('format')) is int and manifest.get('format') in (1, 2), 'Snapshot format is unsupported.')
+    if manifest.get('format') == 1:
+        return {'external_reconciliation_from_utc': None, 'snapshot_completed_at_utc': None,
+                'source_restart_acknowledged_at_utc': None}
+    fields = ('quiesced_at', 'snapshot_completed_at', 'source_restart_acknowledged_at', 'created_at')
+    timestamps = []
+    for field in fields:
+        value = manifest.get(field)
+        require(isinstance(value, str) and len(value) <= 64, 'Snapshot timing metadata is incomplete.')
+        try:
+            timestamp = datetime.fromisoformat(value)
+        except ValueError:
+            raise RecoveryError('Snapshot timing metadata is invalid.') from None
+        require(timestamp.tzinfo is not None and timestamp.utcoffset() is not None,
+                'Snapshot timing metadata must include a timezone.')
+        timestamps.append(timestamp.astimezone(timezone.utc))
+    require(timestamps == sorted(timestamps), 'Snapshot timing boundaries are inconsistent.')
+    require(manifest.get('external_reconciliation_from') == manifest['quiesced_at'],
+            'External reconciliation must begin at the quiesced snapshot boundary.')
+    return {'external_reconciliation_from_utc': timestamps[0].isoformat(),
+            'snapshot_completed_at_utc': timestamps[1].isoformat(),
+            'source_restart_acknowledged_at_utc': timestamps[2].isoformat()}
 
 
 class Composition:
@@ -243,20 +269,26 @@ def backup(args):
         try:
             composition.run(['stop', '--timeout', '70'] + [service for service in SERVICES if service in running])
             require(not composition.running().intersection(SERVICES), 'Application writers did not stop; backup aborted.')
+            quiesced_at = datetime.now(timezone.utc).isoformat()
             with open(directory / 'database.dump', 'xb') as output:
                 composition.pg(['pg_dump', '-U', 'postgres', '-d', composition.settings['DB_DATABASE'],
                                 '--format=custom', '--no-owner', '--no-acl'], output=output)
             with open(directory / 'storage.tar', 'xb') as output:
                 composition.run(['run', '--rm', '--no-deps', '--entrypoint', 'tar', 'app', '-C',
                                  '/var/www/html/storage/app', '-cf', '-', '.'], output=output)
+            snapshot_completed_at = datetime.now(timezone.utc).isoformat()
         finally:
             composition.run(['start'] + [service for service in SERVICES if service in running])
+            source_restart_acknowledged_at = datetime.now(timezone.utc).isoformat()
         require(sum((directory / name).stat().st_size for name in ('database.dump', 'storage.tar')) <= args.max_bytes,
                 'Snapshot exceeds the configured byte limit.')
-        manifest = {'format': 1, 'postgres_major': 17, 'created_at': datetime.now(timezone.utc).isoformat(),
+        manifest = {'format': 2, 'postgres_major': 17, 'created_at': datetime.now(timezone.utc).isoformat(),
+                    'quiesced_at': quiesced_at, 'external_reconciliation_from': quiesced_at,
+                    'snapshot_completed_at': snapshot_completed_at, 'source_restart_acknowledged_at': source_restart_acknowledged_at,
                     'application_image_id': composition.image_id, 'application_key_sha256': composition.key_hash,
                     'sha256': {name: digest(directory / name) for name in ('database.dump', 'storage.tar')},
                     'files': storage_index(directory / 'storage.tar', args.max_bytes)}
+        reconciliation_window(manifest)
         (directory / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False))
         required_space = sum((directory / name).stat().st_size for name in ('database.dump', 'storage.tar', 'manifest.json'))
         require(shutil.disk_usage(directory).free >= required_space * 2 + 64 * 1024 ** 2, 'Insufficient temporary disk space for the encrypted snapshot.')
@@ -274,6 +306,7 @@ def backup(args):
                 os.fsync(directory_fd)
             finally:
                 os.close(directory_fd)
+    print('External reconciliation begins at quiesced UTC boundary: ' + quiesced_at)
     print('Encrypted snapshot created. Previously running source services were restarted. Store keys separately and copy the backup off-server.')
 
 
@@ -318,6 +351,11 @@ def restore(args):
         require(storage_index(directory / 'restored-storage.tar', args.max_bytes) == manifest['files'], 'Restored private file verification failed; keep target stopped.')
         # Restored queue probes must not falsely attest to a running destination worker.
         composition.php("require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\\Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap();foreach(['scheduler','queue.default','queue.sms'] as $key){\\Illuminate\\Support\\Facades\\Cache::forget('platform:operations:heartbeat:v1:'.$key);}echo 'verified';")
+    timing = reconciliation_window(manifest)
+    if timing['external_reconciliation_from_utc'] is None:
+        print('Legacy snapshot has no quiesced cutoff. Establish an earlier confirmed external reconciliation boundary before starting workers.')
+    else:
+        print('External reconciliation begins at quiesced UTC boundary: ' + timing['external_reconciliation_from_utc'])
     print('Empty-target restore and private file hashes verified. Application services remain stopped; reconcile external payments/messages before starting workers.')
 
 
