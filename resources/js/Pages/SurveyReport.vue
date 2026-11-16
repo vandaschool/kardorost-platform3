@@ -37,6 +37,51 @@ function question(key) {
                     }}
                 </p>
             </div>
+            <div v-if="report.unlocked" class="form-stack" data-survey-exports>
+                <a
+                    class="btn secondary"
+                    :href="
+                        '/survey-publications/' +
+                        publication.id +
+                        '/export?dataset=summary'
+                    "
+                    >خروجی آمار CSV</a
+                >
+                <a
+                    v-if="publication.definition.mode === 'identified'"
+                    class="btn secondary"
+                    :href="
+                        '/survey-publications/' +
+                        publication.id +
+                        '/export?dataset=responses'
+                    "
+                    >خروجی پاسخ‌ها با نام CSV</a
+                >
+                <a
+                    v-else-if="
+                        selected_question &&
+                        report.questions.some(
+                            (q) =>
+                                q.key === selected_question &&
+                                q.type === 'text' &&
+                                q.unlocked,
+                        )
+                    "
+                    class="btn secondary"
+                    :href="
+                        '/survey-publications/' +
+                        publication.id +
+                        '/export?dataset=comments&question=' +
+                        encodeURIComponent(selected_question)
+                    "
+                    >خروجی متن‌های پرسش منتخب CSV</a
+                >
+                <p class="muted">
+                    فایل خروجی خصوصی است. فقط آن را در اختیار افراد مجاز قرار
+                    دهید. متن آزاد ممکن است اطلاعاتی داشته باشد که خود
+                    پاسخ‌دهنده نوشته است.
+                </p>
+            </div>
         </section>
         <p v-if="!report.unlocked" class="glass panel-card">
             هنوز حداقل {{ fa(publication.definition.minimum_responses) }} پاسخ

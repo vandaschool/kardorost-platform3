@@ -9,11 +9,13 @@ use App\Models\SurveyPublication;
 use App\Models\SurveyResponse;
 use App\Services\CourseSurveys;
 use App\Services\LearningAccess;
+use App\Services\SurveyExports;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SurveyController extends Controller
 {
@@ -122,6 +124,20 @@ class SurveyController extends Controller
         unset($report['comments'], $report['comment_count']);
 
         return Inertia::render('SurveyReport', ['role' => $request->user()->hasRole('admin') ? 'admin' : 'coach', 'publication' => [...$publication->only('id', 'number'), 'definition' => $publication->definition], 'course_title' => $publication->survey->cohort->course->title, 'cohort_title' => $publication->survey->cohort->title, 'report' => $report, 'identified_rows' => $rows, 'comments' => $comments, 'selected_question' => $key]);
+    }
+
+    public function export(Request $request, SurveyPublication $publication, SurveyExports $exports): StreamedResponse
+    {
+        $data = $request->validate(['dataset' => 'required|in:summary,comments,responses', 'question' => 'nullable|string|max:40']);
+        $prepared = $exports->prepare($request->user(), $publication, $data['dataset'], $data['question'] ?? null);
+
+        return response()->streamDownload(function () use ($prepared): void {
+            try {
+                fpassthru($prepared['stream']);
+            } finally {
+                fclose($prepared['stream']);
+            }
+        }, $prepared['filename'], ['Content-Type' => 'text/csv; charset=UTF-8', 'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff', 'X-Robots-Tag' => 'noindex, nofollow']);
     }
 
     public function teaching(Request $request, Cohort $cohort): Response
