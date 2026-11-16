@@ -44,7 +44,10 @@ class ConsultationService
         $start = $start->setTimezone(config('app.timezone'));
 
         return DB::transaction(function () use ($actor, $coach, $start, $minutes, $provider, $url, $price) {
-            $this->people([$coach->id]);
+            $this->people([$actor->id, $coach->id]);
+            $actor = User::findOrFail($actor->id);
+            abort_unless($actor->is_active && ($actor->hasRole('admin') || ($actor->hasRole('coach') && $actor->id === $coach->id)), 403);
+            abort_unless($price === 0 || $actor->hasRole('admin'), 403);
             $coach->refresh();
             if (! $coach->is_active || ! $coach->hasRole('coach') || $start->lte(now()) || $start->gt(now()->addYear())) {
                 $this->fail('مربی فعال و زمان آینده تا یک سال را انتخاب کنید.');
@@ -147,8 +150,10 @@ class ConsultationService
     {
         abort_unless($actor->hasRole('admin') || $actor->id === $item->student_id, 403);
         DB::transaction(function () use ($actor, $item, $version, $reason) {
-            $this->people([$item->student_id]);
+            $this->people([$actor->id, $item->student_id]);
+            $actor = User::findOrFail($actor->id);
             $item = ConsultationRequest::whereKey($item->id)->lockForUpdate()->firstOrFail();
+            abort_unless($actor->is_active && ($actor->hasRole('admin') || $actor->id === $item->student_id), 403);
             if ($item->status !== 'pending' || $item->version !== $version) {
                 $this->fail('این درخواست قبلاً تعیین تکلیف شده است.');
             }
@@ -166,9 +171,14 @@ class ConsultationService
             $this->manager($actor, $slot);
         }
         DB::transaction(function () use ($actor, $item, $slot, $version, $action, $reason, $summary) {
-            $this->people([$item->student_id, $slot->coach_id]);
+            $this->people([$actor->id, $item->student_id, $slot->coach_id]);
+            $actor = User::findOrFail($actor->id);
             $slot = ConsultationSlot::whereKey($slot->id)->lockForUpdate()->firstOrFail();
             $item = Consultation::whereKey($item->id)->lockForUpdate()->firstOrFail();
+            abort_unless($actor->is_active, 403);
+            if ($actor->id !== $item->student_id || $action !== 'cancel') {
+                $this->manager($actor, $slot);
+            }
             if (! in_array($item->status, ['confirmed', 'pending_payment'], true) || $item->version !== $version) {
                 $this->fail('وضعیت جلسه تغییر کرده است؛ صفحه را تازه کنید.');
             }
@@ -204,8 +214,10 @@ class ConsultationService
     {
         $this->manager($actor, $slot);
         DB::transaction(function () use ($actor, $slot, $published) {
-            $this->people([$slot->coach_id]);
+            $this->people([$actor->id, $slot->coach_id]);
+            $actor = User::findOrFail($actor->id);
             $slot = ConsultationSlot::whereKey($slot->id)->lockForUpdate()->firstOrFail();
+            $this->manager($actor, $slot);
             if ($slot->booked || $slot->starts_at->lte(now())) {
                 $this->fail('زمان رزروشده یا گذشته قابل تغییر نیست.');
             }
@@ -218,7 +230,10 @@ class ConsultationService
     {
         $this->manager($actor, $slot);
         DB::transaction(function () use ($actor, $slot, $url) {
+            $this->people([$actor->id, $slot->coach_id]);
+            $actor = User::findOrFail($actor->id);
             $slot = ConsultationSlot::whereKey($slot->id)->lockForUpdate()->firstOrFail();
+            $this->manager($actor, $slot);
             if ($slot->ends_at->lte(now())) {
                 $this->fail('جلسه پایان یافته است.');
             }
