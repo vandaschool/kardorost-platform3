@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\ActionThrottleRequests;
 use App\Http\Middleware\EnsureAccountActive;
 use App\Http\Middleware\EnsurePanelRole;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -17,7 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_X_FORWARDED_PORT);
         $middleware->web(append: [HandleInertiaRequests::class]);
-        $middleware->alias(['account.active' => EnsureAccountActive::class, 'panel.role' => EnsurePanelRole::class]);
+        $middleware->alias(['throttle' => ActionThrottleRequests::class, 'account.active' => EnsureAccountActive::class, 'panel.role' => EnsurePanelRole::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
