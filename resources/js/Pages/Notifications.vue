@@ -80,7 +80,11 @@ const form = useForm({});
                 <div class="grow">
                     <h3>{{ n.data.title }}</h3>
                     <p v-if="n.data.audience_label" class="muted caption">
-                        مجموعه: {{ n.data.audience_label }}
+                        {{
+                            n.data.audience_type === "cohort"
+                                ? "نوبت آموزشی"
+                                : "مجموعه"
+                        }}: {{ n.data.audience_label }}
                     </p>
                     <p class="muted caption preserve-lines">
                         {{ n.data.text }}
