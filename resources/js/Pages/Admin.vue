@@ -11,14 +11,12 @@ const props = defineProps({
     courses: Array,
     users: Array,
     organizations: Array,
-    events: Array,
     coaches: Array,
 });
 const labels = {
     courses: "مدیریت دوره‌ها",
     users: "کاربران",
     organizations: "دانشگاه‌ها و شرکت‌ها",
-    activity: "سابقه فعالیت",
 };
 const open = ref(false);
 const editUser = ref(null);
@@ -67,21 +65,6 @@ function save() {
     );
 }
 const fa = (n) => new Intl.NumberFormat("fa-IR").format(n);
-const action = {
-    "account.registered": "ثبت حساب جدید",
-    "password.reset": "بازیابی رمز",
-    "password.changed": "تغییر رمز",
-    "course.created": "ساخت دوره",
-    "enrollment.created": "ثبت درخواست دوره",
-    "organization.created": "ساخت سازمان",
-    "organization.member_added": "افزودن عضو سازمان",
-    "organization.report_viewed": "مشاهده گزارش عضو",
-    "payment.paid": "پرداخت تأییدشده",
-    "payment.review_required": "پرداخت نیازمند بررسی",
-    "role.granted": "اعطای نقش",
-    "user.access_updated": "تغییر دسترسی کاربر",
-    "course.coach_assigned": "تخصیص مربی دوره",
-};
 </script>
 <template>
     <Head :title="labels[section]" /><Shell
@@ -382,28 +365,6 @@ const action = {
                     </div>
                     <span class="badge teal">{{
                         o.status === "active" ? "فعال" : "معلق"
-                    }}</span>
-                </div></template
-            >
-            <template v-else
-                ><Empty
-                    v-if="!events.length"
-                    icon="History"
-                    title="هنوز رویدادی ثبت نشده"
-                    text="فعالیت‌های مهم در این بخش ثبت می‌شوند."
-                />
-                <div v-for="e in events" :key="e.id" class="simple-row">
-                    <Icon name="Activity" />
-                    <div class="grow">
-                        <strong>{{ action[e.action] || e.action }}</strong
-                        ><small>شناسه رویداد {{ fa(e.id) }}</small>
-                    </div>
-                    <span class="muted caption">{{
-                        new Intl.DateTimeFormat("fa-IR", {
-                            dateStyle: "short",
-                            timeStyle: "short",
-                            timeZone: "Asia/Tehran",
-                        }).format(new Date(e.created_at))
                     }}</span>
                 </div></template
             >
