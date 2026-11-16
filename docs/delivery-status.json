@@ -1,5 +1,5 @@
 {
-  "phase": "current-consultation-write-authorization",
+  "phase": "current-consultation-financial-authorization",
   "completed": [
     "phone-verification",
     "password-login",
@@ -414,17 +414,19 @@
     "actual-latest-production-container-build-and-code-only-upgrade-with-497-source-files-matched",
     "latest-container-restore-four-panels-error-pages-and-isolated-action-budgets-before-and-after-workers",
     "consultation-slot-create-publish-meeting-booking-change-request-close-current-actor-under-sorted-account-locks",
-    "consultation-admin-price-permission-owner-withdrawal-and-role-activity-races-verified"
+    "consultation-admin-price-permission-owner-withdrawal-and-role-activity-races-verified",
+    "manual-consultation-grant-current-admin-authorization-under-sorted-actor-participant-locks",
+    "consultation-payment-initiation-and-pending-reuse-current-owner-activity-and-role-after-locks"
   ],
   "tests": {
     "postgresql": {
-      "passed": 1157,
-      "assertions": 9742
+      "passed": 1169,
+      "assertions": 9828
     },
     "sqlite": {
-      "passed": 987,
-      "skipped": 170,
-      "assertions": 8778
+      "passed": 993,
+      "skipped": 176,
+      "assertions": 8817
     },
     "javascript": {
       "passed": 6
@@ -719,7 +721,8 @@
     "phase59-standalone404-light-dark-real-cross-origin419-and-public429-retry-after-320-1440",
     "phase60-upgraded-production-nginx-fpm-pg-four-panels-private-credential-consented-share-and-error403-404-419-429",
     "phase60-independent-restore-same-checks-workers-stopped-then-running-with-three-real-heartbeats-and-isolated-action-budgets",
-    "phase61-real-coach-free-jalali-slot-form-hide-publish-meeting-student-book-cancel-own-request-withdraw-admin-close-peer403-320-1440"
+    "phase61-real-coach-free-jalali-slot-form-hide-publish-meeting-student-book-cancel-own-request-withdraw-admin-close-peer403-320-1440",
+    "phase62-admin-real-manual-grant-form-jalali-expiry-create-edit-stop-owner-view-source-reference-private-peer-isolation-no-payment-created-320-1440"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -796,9 +799,9 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase62_current_manual_grant_payment_authorization_6_features_6_pg_races_45_related_browser_pint_dates_build_sqlite993_passed_pg_full_running_logs_tmp_kardorost_consult_financial_full_pg_log_commit_checkpoint_then_prepare_phase63_latest_container_build_without_claiming_acceptance",
+    "current_work": "phase62_verified_ready_to_merge_then_phase63_current_container_build_running_at_tmp_kardorost_phase63_app_build_log_source_checkpoint_6726a92_private_backup_before_upgrade_retained_source_phase60_volumes_stopped",
     "next_groups": [
-      "manual_consultation_grant_configuration_and_payment_initiation_current_actor_authorization_then_refresh_container_acceptance",
+      "phase63_current_container_build_upgrade_restore_acceptance_for_phase61_and_phase62_then_package_product_management_authorization_review",
       "career_and_assessment_extensions_without_invented_instruments",
       "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
       "coach_settlement_and_organization_benefits_requiring_business_terms",
@@ -948,5 +951,7 @@
   "persian_error_recovery_pages_complete": true,
   "persian_error_recovery_pages_scope": "403/404/405/419/429/500/503 HTML private no-store noindex no-referrer, minimal Inertia props without session/database shares, standalone inline CSS with no asset dependency, Retry-After/Allow/rate headers and HEAD preserved; API/JSON/validation/redirect/debug5xx contracts unchanged; fixed GET recovery without replay, history or reload",
   "consultation_management_current_authorization_complete": true,
-  "consultation_management_current_authorization_scope": "createSlot/resolve/change/publish/meeting lock sorted actor and participants before slot/booking/request, reload actor and recheck current activity/role/ownership and admin-only paid-price permission before writes/audit/notifications; active owner cancellation/withdrawal remains after student-role loss; eight PostgreSQL races; grant configuration/payment-attempt current-actor review is next and not included"
+  "consultation_management_current_authorization_scope": "createSlot/resolve/change/publish/meeting lock sorted actor and participants before slot/booking/request, reload actor and recheck current activity/role/ownership and admin-only paid-price permission before writes/audit/notifications; active owner cancellation/withdrawal remains after student-role loss; eight PostgreSQL races; grant configuration/payment-attempt current-actor review is next and not included",
+  "consultation_manual_grant_payment_current_authorization_complete": true,
+  "consultation_manual_grant_payment_current_authorization_scope": "ConsultationPackages.configure includes current admin in sorted account locks and rechecks current activity/admin role before grant change/audit/notification; ConsultationBilling.attempt reloads current account and rechecks owner/activity/student role after participant locks before creating or returning pending charge; received-money capture independent existing behavior unchanged; six native feature cases and six PG races; package-product purchase management separate scope"
 }
