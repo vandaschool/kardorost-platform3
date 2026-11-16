@@ -1,5 +1,5 @@
 {
-  "phase": "latest-container-upgrade-and-recovery-acceptance",
+  "phase": "isolated-implicit-action-rate-budgets",
   "completed": [
     "phone-verification",
     "password-login",
@@ -405,17 +405,20 @@
     "same-volume-upgrade-forty-seven-to-fifty-three-migrations-without-reseed",
     "four-hundred-ninety-three-tracked-runtime-source-file-match",
     "proxy-preserves-stricter-application-referrer-policy-with-static-fallback",
-    "latest-private-credential-and-consented-resume-share-backup-restore-acceptance"
+    "latest-private-credential-and-consented-resume-share-backup-restore-acceptance",
+    "implicit-numeric-http-throttle-budget-isolation-by-route-template-and-methods",
+    "original-account-ip-identity-count-duration-and-phone-auth-guards-preserved",
+    "explicit-prefix-and-named-shared-limiter-contracts-preserved"
   ],
   "tests": {
     "postgresql": {
-      "passed": 1122,
-      "assertions": 9351
+      "passed": 1130,
+      "assertions": 9431
     },
     "sqlite": {
-      "passed": 960,
+      "passed": 968,
       "skipped": 162,
-      "assertions": 8457
+      "assertions": 8537
     },
     "javascript": {
       "passed": 6
@@ -703,7 +706,9 @@
     "current-nondevelopment-container-four-panels-roles-readiness-encrypted-lead-320-390-768-1440",
     "container-owner-admin-private-credential-original-hash-and-resume-sharing-owner-consent-boundary",
     "single-no-referrer-on-anonymous-resume-and-strict-default-on-ordinary-public-page",
-    "current-image-real-restore-private-credential-and-consented-resume-share-before-after-real-worker-heartbeats"
+    "current-image-real-restore-private-credential-and-consented-resume-share-before-after-real-worker-heartbeats",
+    "ten-real-coach-resume-creates-eleventh-429-independent-private-document-upload-success",
+    "original-action-remains-429-after-other-action-no-disabled-limiter-or-cache-flush-320-390-768-1440"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -780,9 +785,9 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase57_verified_current_Dockerfile_builds_proxy_referrer_fix_upgrade_data_preservation_latest_recovery_and_six_browser_runs_ready_to_merge_then_review_remaining_cross_action_throttle_collision",
+    "current_work": "phase58_verified_eight_new_41_targeted_full_pg1130_sqlite968_and_real_browser_independent_rate_budgets_ready_to_merge_then_continue_error_recovery_experience",
     "next_groups": [
-      "review_global_numeric_throttle_cross_action_budget_collision_without_changing_existing_limits",
+      "persian_access_and_error_recovery_pages_without_leaking_details_or_replaying_mutations",
       "career_and_assessment_extensions_without_invented_instruments",
       "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
       "coach_settlement_and_organization_benefits_requiring_business_terms",
@@ -923,5 +928,9 @@
   "container_local_acceptance_code_revision": "b399cf5",
   "latest_container_upgrade_acceptance_complete": true,
   "latest_container_restore_acceptance_complete": true,
-  "container_current_production_images_published": false
+  "container_current_production_images_published": false,
+  "implicit_action_rate_budgets_isolated": true,
+  "implicit_action_rate_budgets_scope": "throttle_alias_numeric_or_unnamed_limits_without_explicit_prefix_normalized_route_template_and_declared_methods_no_query_or_record_id_variation_original_framework_identity_counts_durations_storage_named_limiters_and_explicit_shared_prefix_unchanged",
+  "container_acceptance_matches_current_application_code": false,
+  "container_acceptance_pending_changes": "phase58_new_middleware_and_bootstrap_alias_native_full_suites_and_browser_verified_last_container_code_b399cf5"
 }
