@@ -73,11 +73,12 @@ with tempfile.TemporaryDirectory(prefix='kardorost-recovery-acceptance-') as tem
     assert before == recovery.digest(backup)
     # Remove source containers, retaining its database/storage volumes, to fit the local VFS driver.
     source.run(['down', '--timeout', '70'])
+    source_revision = source.docker(['image', 'inspect', '--format', '{{index .Config.Labels \"org.opencontainers.image.revision\"}}', source.image]).strip()
     target_file = private / 'target.env'
     project = 'kardorost-validation-restore-' + secrets.token_hex(4)
     subprocess.run(['python3', 'resources/operations/initialize-environment.py', '--url', 'http://127.0.0.1:18089',
                     '--output', str(target_file), '--project', project, '--image-tag', source.image.split(':')[-1],
-                    '--revision', 'local-phase39-validation', '--local'], cwd=ROOT, check=True, stdout=subprocess.DEVNULL)
+                    '--revision', source_revision, '--local'], cwd=ROOT, check=True, stdout=subprocess.DEVNULL)
     target = GuardedComposition(target_file)
     common = ['--env-file', target_file, '--passphrase-file', key, '--backup', backup]
     # Wrong application key is rejected before even creating the target database container.
