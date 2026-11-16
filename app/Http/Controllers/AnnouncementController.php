@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Announcement;
 use App\Models\AnnouncementSchedule;
+use App\Models\Organization;
 use App\Services\Announcements;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -18,7 +19,7 @@ class AnnouncementController extends Controller
         $counts = $announcement?->recipients()->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status')->map(fn ($count) => (int) $count)->all();
         $recipients = $announcement?->recipients()->with('user:id,name')->latest('id')->paginate(20, ['id', 'user_id', 'status', 'failure_code', 'finished_at'], 'recipients_page')->through(fn ($row) => ['id' => $row->id, 'user_id' => $row->user_id, 'name' => $row->user->name, 'status' => $row->status, 'failure_code' => $row->failure_code, 'finished_at' => $row->finished_at]);
 
-        return Inertia::render('Announcements', ['announcements' => Announcement::withMin(['schedules as next_scheduled_for' => fn ($query) => $query->where('status', 'pending')], 'scheduled_for')->latest('id')->paginate(15)->through(fn ($row) => $row->only('id', 'title', 'status', 'recipient_count', 'published_at', 'created_at', 'next_scheduled_for')), 'selected' => $announcement?->only('id', 'title', 'message', 'roles', 'status', 'revision', 'recipient_count', 'published_at', 'finished_at', 'stop_reason'), 'pending_schedule' => $announcement?->schedules()->where('status', 'pending')->first()?->only('id', 'scheduled_for'), 'schedules' => $announcement?->schedules()->latest('id')->paginate(12, ['*'], 'schedules_page')->withQueryString()->through(fn ($schedule) => $schedule->only('id', 'status', 'reason', 'scheduled_for', 'created_at', 'closed_at', 'definition')), 'counts' => $counts, 'recipients' => $recipients, 'estimated_audience' => $announcement?->status === 'draft' ? $service->audience($announcement->roles)->count() : null]);
+        return Inertia::render('Announcements', ['organization_choices' => Organization::where('status', 'active')->orderBy('name')->get(['id', 'name', 'type']), 'announcements' => Announcement::withMin(['schedules as next_scheduled_for' => fn ($query) => $query->where('status', 'pending')], 'scheduled_for')->latest('id')->paginate(15)->through(fn ($row) => $row->only('id', 'title', 'status', 'recipient_count', 'published_at', 'created_at', 'next_scheduled_for', 'audience')), 'selected' => $announcement?->only('id', 'title', 'message', 'roles', 'status', 'revision', 'recipient_count', 'published_at', 'finished_at', 'stop_reason', 'audience'), 'pending_schedule' => $announcement?->schedules()->where('status', 'pending')->first()?->only('id', 'scheduled_for'), 'schedules' => $announcement?->schedules()->latest('id')->paginate(12, ['*'], 'schedules_page')->withQueryString()->through(fn ($schedule) => $schedule->only('id', 'status', 'reason', 'scheduled_for', 'created_at', 'closed_at', 'definition')), 'counts' => $counts, 'recipients' => $recipients, 'estimated_audience' => $announcement?->status === 'draft' ? $service->audience($announcement->roles, $announcement->audience)->count() : null]);
     }
 
     public function index(Announcements $service): Response

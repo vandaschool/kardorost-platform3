@@ -43,17 +43,19 @@ class Announcements
         return $actor;
     }
 
-    private function definition(array $input): array
+    private function definition(array $input, bool $stored = false): array
     {
-        $data = Validator::make($input, ['title' => 'required|string|min:3|max:160', 'message' => 'required|string|min:3|max:3000', 'roles' => 'required|array|list|min:1|max:4', 'roles.*' => 'required|distinct|in:student,coach,org_admin,admin'])->validate();
+        $data = Validator::make($input, ['title' => 'required|string|min:3|max:160', 'message' => 'required|string|min:3|max:3000', 'roles' => 'required|array|list|min:1|max:4', 'roles.*' => 'required|distinct|in:student,coach,org_admin,admin', 'audience' => 'nullable|array'])->validate();
         foreach (['title', 'message'] as $key) {
             if (! mb_check_encoding($data[$key], 'UTF-8')) {
                 throw ValidationException::withMessages([$key => 'متن معتبر وارد کنید.']);
             }
         }
         sort($data['roles']);
+        $audience = app(AnnouncementAudience::class)->normalize($data['audience'] ?? null, $data['roles'], $stored);
+        unset($data['audience']);
 
-        return $data;
+        return [...$data, ...($audience === null ? [] : ['audience' => $audience])];
     }
 
     private function hash(array $definition, AnnouncementSchedule $schedule): string
@@ -73,12 +75,13 @@ class Announcements
 
     private function publishLocked(User $actor, Announcement $announcement, ?int $scheduleId = null): void
     {
-        $snapshot = $this->audience($announcement->roles)->selectRaw('? as announcement_id, users.id as user_id, ? as status, ? as created_at, ? as updated_at', [$announcement->id, 'pending', now()->toDateTimeString(), now()->toDateTimeString()]);
+        $snapshot = $this->audience($announcement->roles, $announcement->audience)->selectRaw('? as announcement_id, users.id as user_id, ? as status, ? as created_at, ? as updated_at', [$announcement->id, 'pending', now()->toDateTimeString(), now()->toDateTimeString()]);
         DB::table('announcement_recipients')->insertUsing(['announcement_id', 'user_id', 'status', 'created_at', 'updated_at'], $snapshot->toBase());
         $count = $announcement->recipients()->count();
         if ($count === 0) {
             throw ValidationException::withMessages(['announcement' => 'مخاطب فعال با موبایل تأییدشده برای این نقش‌ها وجود ندارد.']);
         }
+        app(AnnouncementAudience::class)->freeze($announcement);
         $announcement->update(['status' => 'sending', 'recipient_count' => $count, 'published_at' => now(), 'revision' => $announcement->revision + 1]);
         $this->audit('published', $announcement, $actor->id, $scheduleId ? ['schedule_id' => $scheduleId, 'source' => 'scheduled'] : []);
     }
@@ -91,12 +94,12 @@ class Announcements
         }
 
         return DB::transaction(function () use ($actor, $announcement, $revision, $at) {
-            $announcement = Announcement::whereKey($announcement->id)->lockForUpdate()->firstOrFail();
+            $announcement = app(AnnouncementAudience::class)->lock($announcement->id);
             $actor = $this->lockedActor($actor);
             if ($announcement->status !== 'draft' || $announcement->revision !== $revision) {
                 $this->fail();
             }
-            $definition = $this->definition($announcement->only('title', 'message', 'roles'));
+            $definition = $this->definition($announcement->only('title', 'message', 'roles', 'audience'), true);
             $this->cancelPending($actor, $announcement, 'replaced');
             $announcement->update(['revision' => $revision + 1]);
             $schedule = $announcement->schedules()->make(['created_by' => $actor->id, 'source_revision' => $revision, 'announcement_revision' => $announcement->revision, 'definition' => $definition, 'scheduled_for' => $at]);
@@ -111,7 +114,7 @@ class Announcements
     public function cancelSchedule(User $actor, Announcement $announcement, int $revision, AnnouncementSchedule $schedule): void
     {
         DB::transaction(function () use ($actor, $announcement, $revision, $schedule): void {
-            $announcement = Announcement::whereKey($announcement->id)->lockForUpdate()->firstOrFail();
+            $announcement = app(AnnouncementAudience::class)->lock($announcement->id);
             $actor = $this->lockedActor($actor);
             $schedule = $announcement->schedules()->whereKey($schedule->id)->lockForUpdate()->firstOrFail();
             if ($announcement->status !== 'draft' || $announcement->revision !== $revision || $schedule->status !== 'pending') {
@@ -125,7 +128,7 @@ class Announcements
     public function processSchedule(AnnouncementSchedule $input): string
     {
         return DB::transaction(function () use ($input) {
-            $announcement = Announcement::whereKey($input->announcement_id)->lockForUpdate()->firstOrFail();
+            $announcement = app(AnnouncementAudience::class)->lock($input->announcement_id);
             $schedule = AnnouncementSchedule::whereKey($input->id)->lockForUpdate()->firstOrFail();
             if ($schedule->status !== 'pending') {
                 return 'already_handled';
@@ -144,8 +147,8 @@ class Announcements
                 $reason = 'announcement_changed';
             } else {
                 try {
-                    $definition = $this->definition($schedule->definition);
-                    $current = $this->definition($announcement->only('title', 'message', 'roles'));
+                    $definition = $this->definition($schedule->definition, true);
+                    $current = $this->definition($announcement->only('title', 'message', 'roles', 'audience'), true);
                     if ($this->hash($definition, $schedule) !== $schedule->definition_hash || $this->hash($current, $schedule) !== $schedule->definition_hash) {
                         $reason = 'snapshot_changed';
                     } else {
@@ -191,9 +194,9 @@ class Announcements
         return $result;
     }
 
-    public function audience(array $roles): Builder
+    public function audience(array $roles, ?array $audience = null): Builder
     {
-        return User::where('is_active', true)->whereNotNull('phone_verified_at')->whereHas('roles', fn ($q) => $q->whereIn('key', $roles));
+        return app(AnnouncementAudience::class)->query($roles, $audience);
     }
 
     public function save(User $actor, array $input, ?Announcement $announcement = null, ?int $revision = null): Announcement
@@ -201,18 +204,21 @@ class Announcements
         $this->admin($actor);
         $data = $this->definition($input);
 
-        return DB::transaction(function () use ($actor, $data, $announcement, $revision) {
+        return DB::transaction(function () use ($actor, $input, $data, $announcement, $revision) {
             if ($announcement) {
-                $announcement = Announcement::lockForUpdate()->findOrFail($announcement->id);
+                $announcement = app(AnnouncementAudience::class)->lock($announcement->id, $data['audience'] ?? null);
                 $actor = $this->lockedActor($actor);
                 if ($announcement->status !== 'draft' || $announcement->revision !== $revision) {
                     $this->fail();
                 }
                 $this->cancelPending($actor, $announcement, 'draft_changed');
-                $announcement->update([...$data, 'revision' => $announcement->revision + 1]);
+                $data = $this->definition($input);
+                $announcement->update([...$data, 'audience' => $data['audience'] ?? null, 'revision' => $announcement->revision + 1]);
             } else {
+                app(AnnouncementAudience::class)->lockForCreate($data['audience'] ?? null);
                 $actor = $this->lockedActor($actor);
-                $announcement = Announcement::create([...$data, 'created_by' => $actor->id]);
+                $data = $this->definition($input);
+                $announcement = Announcement::create([...$data, 'audience' => $data['audience'] ?? null, 'created_by' => $actor->id]);
             }
             $this->audit('draft_saved', $announcement, $actor->id);
 
@@ -224,12 +230,12 @@ class Announcements
     {
         $this->admin($actor);
         DB::transaction(function () use ($actor, $announcement, $revision) {
-            $announcement = Announcement::lockForUpdate()->findOrFail($announcement->id);
+            $announcement = app(AnnouncementAudience::class)->lock($announcement->id);
             $actor = $this->lockedActor($actor);
             if ($announcement->status !== 'draft' || $announcement->revision !== $revision) {
                 $this->fail();
             }
-            $this->definition($announcement->only('title', 'message', 'roles'));
+            $this->definition($announcement->only('title', 'message', 'roles', 'audience'), true);
             $this->cancelPending($actor, $announcement, 'published_now');
             $this->publishLocked($actor, $announcement);
         }, 3);
@@ -240,7 +246,7 @@ class Announcements
         $this->admin($actor);
         Validator::make(['reason' => $reason], ['reason' => 'required|string|min:3|max:2000'])->validate();
         DB::transaction(function () use ($actor, $announcement, $revision, $reason) {
-            $announcement = Announcement::lockForUpdate()->findOrFail($announcement->id);
+            $announcement = app(AnnouncementAudience::class)->lock($announcement->id);
             $actor = $this->lockedActor($actor);
             if (! in_array($announcement->status, ['sending', 'failed'], true) || $announcement->revision !== $revision) {
                 $this->fail();
@@ -255,7 +261,7 @@ class Announcements
     {
         $this->admin($actor);
         DB::transaction(function () use ($actor, $announcement, $revision) {
-            $announcement = Announcement::lockForUpdate()->findOrFail($announcement->id);
+            $announcement = app(AnnouncementAudience::class)->lock($announcement->id);
             $actor = $this->lockedActor($actor);
             if ($announcement->status !== 'failed' || $announcement->revision !== $revision) {
                 $this->fail();
@@ -271,7 +277,7 @@ class Announcements
         $ids = Announcement::where('status', 'sending')->where(fn ($q) => $q->whereNull('dispatched_at')->orWhere('dispatched_at', '<=', now()->subMinutes(10)))->orderBy('id')->limit(100)->pluck('id');
         foreach ($ids as $id) {
             $count += (int) DB::transaction(function () use ($id) {
-                $announcement = Announcement::lockForUpdate()->findOrFail($id);
+                $announcement = app(AnnouncementAudience::class)->lock($id);
                 if ($announcement->status !== 'sending' || $announcement->dispatched_at?->gt(now()->subMinutes(10))) {
                     return false;
                 }
@@ -288,21 +294,28 @@ class Announcements
     public function deliver(int $id): int
     {
         return DB::transaction(function () use ($id) {
-            $announcement = Announcement::lockForUpdate()->findOrFail($id);
+            $announcement = app(AnnouncementAudience::class)->lock($id);
             if ($announcement->status !== 'sending') {
                 return 0;
             }
             $recipients = $announcement->recipients()->where('status', 'pending')->orderBy('id')->limit(100)->lockForUpdate()->get();
             $users = User::whereIn('id', $recipients->pluck('user_id'))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            $eligible = array_fill_keys($this->audience($announcement->roles, $announcement->audience)->whereIn('users.id', $users->keys())->pluck('users.id')->all(), true);
+            $members = app(AnnouncementAudience::class)->members($announcement, $users->keys()->all());
             $sent = 0;
             foreach ($recipients as $recipient) {
                 $user = $users->get($recipient->user_id);
-                if (! $user->is_active || ! $user->phone_verified_at || ! $user->roles()->whereIn('key', $announcement->roles)->exists()) {
+                if (! $user || ! isset($eligible[$recipient->user_id])) {
                     $recipient->update(['status' => 'skipped', 'failure_code' => 'recipient_unavailable', 'finished_at' => now()]);
 
                     continue;
                 }
-                $notification = new PlatformAnnouncement($id, $announcement->title, $announcement->message);
+                if (! app(AnnouncementAudience::class)->sameMembership($announcement, $recipient, $members)) {
+                    $recipient->update(['status' => 'skipped', 'failure_code' => 'scope_changed', 'finished_at' => now()]);
+
+                    continue;
+                }
+                $notification = new PlatformAnnouncement($id, $announcement->title, $announcement->message, $announcement->audience['label'] ?? null);
                 $notification->id = (string) Str::uuid();
                 $user->notify($notification);
                 $recipient->update(['status' => 'delivered', 'notification_id' => $notification->id, 'finished_at' => now()]);
@@ -321,7 +334,7 @@ class Announcements
     public function failed(int $id): void
     {
         DB::transaction(function () use ($id) {
-            $announcement = Announcement::lockForUpdate()->findOrFail($id);
+            $announcement = app(AnnouncementAudience::class)->lock($id);
             if ($announcement->status === 'sending') {
                 $announcement->update(['status' => 'failed', 'revision' => $announcement->revision + 1]);
                 $this->audit('delivery_failed', $announcement);

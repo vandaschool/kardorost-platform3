@@ -16,7 +16,7 @@ class Announcement extends Model
 
     protected function casts(): array
     {
-        return ['title' => 'encrypted', 'message' => 'encrypted', 'stop_reason' => 'encrypted', 'roles' => 'array', 'revision' => 'integer', 'recipient_count' => 'integer', 'published_at' => 'datetime', 'dispatched_at' => 'datetime', 'finished_at' => 'datetime', 'next_scheduled_for' => 'datetime'];
+        return ['audience' => 'encrypted:array', 'title' => 'encrypted', 'message' => 'encrypted', 'stop_reason' => 'encrypted', 'roles' => 'array', 'revision' => 'integer', 'recipient_count' => 'integer', 'published_at' => 'datetime', 'dispatched_at' => 'datetime', 'finished_at' => 'datetime', 'next_scheduled_for' => 'datetime'];
     }
 
     public function schedules(): HasMany

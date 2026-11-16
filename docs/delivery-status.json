@@ -1,5 +1,5 @@
 {
-  "phase": "reviewed-scheduled-internal-announcements",
+  "phase": "private-organization-targeted-internal-announcements",
   "completed": [
     "phone-verification",
     "password-login",
@@ -345,17 +345,26 @@
     "versioned-internal-schedule-cancellation-and-replacement-history",
     "bounded-due-announcement-processing-and-safe-failure-isolation",
     "current-admin-rechecks-inside-announcement-mutation-locks",
-    "inflight-announcement-draft-edit-preservation"
+    "inflight-announcement-draft-edit-preservation",
+    "organization-university-targeted-internal-announcements",
+    "selected-organization-student-member-and-manager-kind-guards",
+    "encrypted-announcement-audience-and-generation-bound-recipient-proofs",
+    "organization-before-announcement-account-scope-locking",
+    "membership-departure-rejoin-and-management-change-delivery-exclusion",
+    "recipient-bound-encrypted-targeted-inbox-payloads",
+    "owner-only-private-inbox-decoding-with-safe-corruption-fallback",
+    "legacy-global-announcement-schedule-and-inbox-compatibility",
+    "long-unbroken-notification-text-mobile-wrapping"
   ],
   "tests": {
     "postgresql": {
-      "passed": 910,
-      "assertions": 7140
+      "passed": 934,
+      "assertions": 7298
     },
     "sqlite": {
-      "passed": 786,
-      "skipped": 124,
-      "assertions": 6449
+      "passed": 804,
+      "skipped": 130,
+      "assertions": 6577
     },
     "javascript": {
       "passed": 6
@@ -591,7 +600,13 @@
     "inflight-announcement-save-keeps-new-text-unsaved",
     "actual-wall-clock-internal-announcement-scheduler-and-database-worker",
     "scheduled-announcement-two-one-time-student-deliveries-and-inbox-isolation",
-    "scheduled-announcement-320-390-768-1440"
+    "scheduled-announcement-320-390-768-1440",
+    "organization-scoped-student-and-actual-manager-announcement-selection",
+    "organization-announcement-real-departure-invitation-fresh-consent-rejoin",
+    "org-pending-generation-and-postpublication-member-exclusion",
+    "org-private-encrypted-inbox-worker-deliveries-once",
+    "org-other-manager-university-member-isolation",
+    "org-announcement-escaped-label-script-and-320-1440-inbox-wrap"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -668,7 +683,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase43_scheduled_internal_announcements_verified_ready_for_pr_organization_targeted_internal_announcements_next",
+    "current_work": "phase44_org_targeted_announcements_verified_ready_for_pr_cohort_targeted_internal_announcements_next",
     "next_groups": [
       "organization_and_cohort_targeted_internal_announcements",
       "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
@@ -778,5 +793,9 @@
   "encrypted_backup_format": 2,
   "external_reconciliation_boundary": "confirmed_all_writers_quiesced_at_not_later_archive_creation_time",
   "legacy_backup_reconciliation_policy": "format_1_restorable_but_requires_separately_confirmed_earlier_reconciliation_boundary",
-  "scheduled_announcements_scope": "reviewed_encrypted_role_based_internal_only_snapshot_hmac_content_actor_time_revisions_due_current_active_verified_audience_bounded_100_no_sms_email"
+  "scheduled_announcements_scope": "reviewed_encrypted_role_based_internal_only_snapshot_hmac_content_actor_time_revisions_due_current_active_verified_audience_bounded_100_no_sms_email",
+  "organization_targeted_internal_announcements_complete": true,
+  "cohort_targeted_internal_announcements_complete": false,
+  "organization_targeted_internal_announcements_scope": "admin_only_selected_active_organization_current_student_members_or_actual_managers_frozen_membership_generation_and_source_recipient_identity_no_sms_email",
+  "targeted_announcement_inbox_encryption": "organization_payload_v1_recipient_and_source_bound_owner_decoded_legacy_global_plaintext_format_retained"
 }

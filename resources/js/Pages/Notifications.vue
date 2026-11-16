@@ -79,6 +79,9 @@ const form = useForm({});
                 <span class="row-icon teal"><Icon name="Bell" /></span>
                 <div class="grow">
                     <h3>{{ n.data.title }}</h3>
+                    <p v-if="n.data.audience_label" class="muted caption">
+                        مجموعه: {{ n.data.audience_label }}
+                    </p>
                     <p class="muted caption preserve-lines">
                         {{ n.data.text }}
                     </p>
