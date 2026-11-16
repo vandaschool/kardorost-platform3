@@ -13,6 +13,7 @@ const props = defineProps({
     estimated_audience: Number,
     pending_schedule: Object,
     schedules: Object,
+    organization_choices: Array,
 });
 const roles = {
     student: "دانشجویان",
@@ -37,8 +38,30 @@ const draft = useForm({
         title: props.selected?.title || "",
         message: props.selected?.message || "",
         roles: props.selected?.roles || [],
+        audience: {
+            type: props.selected?.audience?.type || "all",
+            organization_id: props.selected?.audience?.organization_id || "",
+        },
     },
 });
+const availableRoles = computed(() =>
+    draft.definition.audience.type === "organization"
+        ? {
+              student: "دانشجویان عضو همان مجموعه",
+              org_admin: "مدیران همان مجموعه",
+          }
+        : roles,
+);
+watch(
+    () => draft.definition.audience.type,
+    (value) => {
+        draft.definition.audience.organization_id = "";
+        if (value === "organization")
+            draft.definition.roles = draft.definition.roles.filter((role) =>
+                ["student", "org_admin"].includes(role),
+            );
+    },
+);
 const saved = ref(JSON.stringify(draft.definition));
 const dirty = computed(() => JSON.stringify(draft.definition) !== saved.value);
 const publish = useForm({
@@ -144,9 +167,51 @@ function save() {
                     maxlength="3000"
                 ></textarea>
             </label>
+            <label
+                >محدوده مخاطب<select
+                    name="announcement_audience_type"
+                    v-model="draft.definition.audience.type"
+                >
+                    <option value="all">
+                        تمام حساب‌های واجد شرایط نقش‌های انتخاب‌شده
+                    </option>
+                    <option value="organization">یک سازمان یا دانشگاه</option>
+                </select></label
+            >
+            <label v-if="draft.definition.audience.type === 'organization'"
+                >مجموعه<select
+                    name="announcement_organization"
+                    v-model.number="draft.definition.audience.organization_id"
+                    required
+                >
+                    <option value="" disabled>مجموعه را انتخاب کنید</option>
+                    <option
+                        v-if="
+                            selected?.audience &&
+                            !organization_choices.some(
+                                (org) =>
+                                    org.id ===
+                                    selected.audience.organization_id,
+                            )
+                        "
+                        :value="selected.audience.organization_id"
+                        disabled
+                    >
+                        {{ selected.audience.label }} (غیرفعال یا حذف‌شده)
+                    </option>
+                    <option
+                        v-for="org in organization_choices"
+                        :key="org.id"
+                        :value="org.id"
+                    >
+                        {{ org.name }} ·
+                        {{ org.type === "university" ? "دانشگاه" : "سازمان" }}
+                    </option>
+                </select></label
+            >
             <fieldset>
                 <legend>مخاطبان</legend>
-                <label v-for="(label, key) in roles" :key="key"
+                <label v-for="(label, key) in availableRoles" :key="key"
                     ><input
                         type="checkbox"
                         :value="key"
@@ -159,6 +224,16 @@ function save() {
                 فقط حساب فعال با موبایل تأییدشده و یکی از نقش‌های انتخاب‌شده.
                 نام و اطلاعات خصوصی افراد را در پیام گروهی ننویسید.
             </p>
+            <p
+                v-if="draft.definition.audience.type === 'organization'"
+                class="muted"
+            >
+                گیرنده هنگام تحویل نیز باید همان عضویت و نقش را داشته باشد.
+                پایان عضویت، پیام‌های منتظر قبلی را متوقف می‌کند.
+            </p>
+            <p v-for="error in draft.errors" :key="error" class="field-error">
+                {{ error }}
+            </p>
             <button class="btn primary" :disabled="busy">ذخیره پیش‌نویس</button>
         </form>
         <section
@@ -167,6 +242,13 @@ function save() {
             data-testid="announcement-status"
         >
             <h2>{{ selected.title }}</h2>
+            <p data-announcement-audience>
+                محدوده:
+                {{
+                    selected.audience?.label ||
+                    "تمام حساب‌های واجد شرایط نقش‌های انتخاب‌شده"
+                }}
+            </p>
             <p class="preserve-lines">{{ selected.message }}</p>
             <p>
                 {{ labels[selected.status] }} · نسخه {{ fa(selected.revision) }}
@@ -216,7 +298,7 @@ function save() {
                     name="announcement_reviewed"
                     v-model="publish.reviewed"
                     required
-                />متن ذخیره‌شده و نقش‌های مخاطب را بررسی کرده‌ام.</label
+                />متن ذخیره‌شده، محدوده و نقش‌های مخاطب را بررسی کرده‌ام.</label
             ><button
                 class="btn primary"
                 :disabled="busy || dirty || !estimated_audience"
@@ -274,10 +356,10 @@ function save() {
                     data-announcement-schedule
                 >
                     <p class="muted">
-                        متن ذخیره‌شده و نقش‌ها ثابت می‌مانند. حساب‌های واجد
-                        شرایط در موعد اجرا انتخاب می‌شوند؛ تعداد فعلی تخمینی
-                        است. اگر مخاطبی نباشد یا دسترسی ادمین تأییدکننده لغو
-                        شود، برنامه متوقف می‌شود.
+                        متن ذخیره‌شده، محدوده و نقش‌ها ثابت می‌مانند. حساب‌های
+                        واجد شرایط در موعد اجرا انتخاب می‌شوند؛ تعداد فعلی
+                        تخمینی است. اگر مخاطبی نباشد یا دسترسی ادمین تأییدکننده
+                        لغو شود، برنامه متوقف می‌شود.
                     </p>
                     <p v-if="dirty">ابتدا تغییرات پیش‌نویس را ذخیره کنید.</p>
                     <p class="muted">
@@ -302,8 +384,8 @@ function save() {
                             name="announcement_schedule_reviewed"
                             v-model="scheduled.reviewed"
                             required
-                        />متن ذخیره‌شده، نقش‌ها و انتخاب مخاطبان در موعد اجرا را
-                        بررسی کرده‌ام.</label
+                        />متن ذخیره‌شده، محدوده، نقش‌ها و انتخاب مخاطبان در موعد
+                        اجرا را بررسی کرده‌ام.</label
                     >
                     <button
                         class="btn primary"
@@ -350,6 +432,13 @@ function save() {
                 <details>
                     <summary>نسخه تأییدشده</summary>
                     <h4>{{ item.definition.title }}</h4>
+                    <p>
+                        محدوده:
+                        {{
+                            item.definition.audience?.label ||
+                            "تمام حساب‌های واجد شرایط نقش‌های انتخاب‌شده"
+                        }}
+                    </p>
                     <p class="preserve-lines">{{ item.definition.message }}</p>
                     <p>
                         {{
@@ -415,6 +504,13 @@ function save() {
             >
                 <h3>{{ row.name }} · حساب {{ fa(row.user_id) }}</h3>
                 <p>{{ labels[row.status] }}</p>
+                <p v-if="row.failure_code" class="muted">
+                    {{
+                        row.failure_code === "scope_changed"
+                            ? "عضویت قبلی پایان یافته یا محدوده تغییر کرده است."
+                            : "حساب، نقش یا عضویت دیگر شرایط دریافت را ندارد."
+                    }}
+                </p>
                 <p v-if="row.finished_at">{{ dateTime(row.finished_at) }}</p>
             </article>
             <Pagination :links="recipients.links" />
@@ -430,6 +526,10 @@ function save() {
                 class="panel glass consultation-card announcement-recipient"
             >
                 <h3>{{ row.title }}</h3>
+                <p class="muted">
+                    محدوده:
+                    {{ row.audience?.label || "همه حساب‌های واجد شرایط" }}
+                </p>
                 <p
                     v-if="row.next_scheduled_for"
                     data-announcement-list-schedule

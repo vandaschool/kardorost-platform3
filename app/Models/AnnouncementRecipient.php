@@ -9,9 +9,11 @@ class AnnouncementRecipient extends Model
 {
     protected $guarded = [];
 
+    protected $hidden = ['scope_snapshot'];
+
     protected function casts(): array
     {
-        return ['finished_at' => 'datetime'];
+        return ['scope_snapshot' => 'encrypted:array', 'finished_at' => 'datetime'];
     }
 
     public function user(): BelongsTo

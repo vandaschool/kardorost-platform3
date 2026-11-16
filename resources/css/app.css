@@ -2240,6 +2240,9 @@ progress::-moz-progress-bar {
     border-bottom: 1px solid var(--line);
     border-radius: 13px;
 }
+.notification-row .grow {
+    overflow-wrap: anywhere;
+}
 .notification-row h3 {
     font-size: 14px;
 }

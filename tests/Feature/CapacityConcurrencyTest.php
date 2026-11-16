@@ -70,6 +70,7 @@ use App\Models\SurveyResponse;
 use App\Models\TicketEvent;
 use App\Models\TicketMessage;
 use App\Models\User;
+use App\Notifications\PlatformAnnouncement;
 use App\Services\Announcements;
 use App\Services\AssessmentService;
 use App\Services\BillingService;
@@ -359,6 +360,9 @@ CODE;
         if (Schema::hasTable('announcements')) {
             DB::table('announcement_recipients')->delete();
             DB::table('announcements')->delete();
+        }
+        if (Schema::hasTable('notifications')) {
+            DB::table('notifications')->where('type', PlatformAnnouncement::class)->delete();
         }
         if (Schema::hasTable('sms_deliveries')) {
             DB::table('event_reminders')->delete();
@@ -2782,5 +2786,122 @@ CODE;
         $this->assertStringEndsWith('403', $process->getOutput());
         $this->assertSame('pending', $schedule->fresh()->status);
         $this->assertSame(0, $announcement->recipients()->count());
+    }
+
+    private function organizationAnnouncementFixture(bool $publish = true): array
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Organization announcement races require PostgreSQL.');
+        }
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $manager = User::factory()->create();
+        $manager->roles()->attach(Role::where('key', 'org_admin')->value('id'));
+        $student = User::factory()->create();
+        $student->roles()->attach(Role::where('key', 'student')->value('id'));
+        $organization = Organization::factory()->create(['status' => 'active']);
+        $organization->members()->attach($manager->id, ['kind' => 'manager']);
+        $organization->members()->attach($student->id, ['kind' => 'member']);
+        $announcement = app(Announcements::class)->save($admin, ['title' => 'Private organization notice', 'message' => 'Private synthetic organization announcement', 'roles' => ['student'], 'audience' => ['type' => 'organization', 'organization_id' => $organization->id]]);
+        if ($publish) {
+            app(Announcements::class)->publish($admin, $announcement, 1);
+        }
+
+        return [$admin, $manager, $student, $organization, $announcement->fresh()];
+    }
+
+    public function test_two_scoped_announcement_workers_create_one_private_notification(): void
+    {
+        [$admin, $manager, $student, $organization, $announcement] = $this->organizationAnnouncementFixture();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();echo app(\App\Services\Announcements::class)->deliver((int)$argv[1]);
+CODE;
+        $this->assertSame(['0', '1'], $this->parallelFinance($code, [[$announcement->id], [$announcement->id]]));
+        $this->assertSame(1, DB::table('notifications')->where('type', PlatformAnnouncement::class)->count());
+        $this->assertSame('completed', $announcement->fresh()->status);
+    }
+
+    private function organizationDeliveryAfterMembershipChange(string $change): void
+    {
+        [$admin, $manager, $student, $organization, $announcement] = $this->organizationAnnouncementFixture();
+        $key = $organization->members()->where('users.id', $student->id)->firstOrFail()->pivot->membership_key;
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();\Illuminate\Support\Facades\DB::listen(function($query){if(str_contains($query->sql,'"announcements"')&&str_starts_with($query->sql,'select')&&!str_contains($query->sql,'for update')){echo "PEEKED\n";flush();}});echo app(\App\Services\Announcements::class)->deliver((int)$argv[1]);
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $announcement->id], base_path(), null, null, 20);
+        DB::transaction(function () use ($manager, $student, $organization, $process, $key, $change) {
+            Organization::whereKey($organization->id)->lockForUpdate()->firstOrFail();
+            $process->start();
+            $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'PEEKED')));
+            if ($change === 'inactive') {
+                $organization->update(['status' => 'inactive']);
+            } else {
+                $membership = app(OrganizationMembership::class);
+                $membership->endMembership($student, $organization, $student, $key, 'Synthetic concurrent departure', 'leave');
+                if ($change === 'rejoin') {
+                    $membership->invite($manager, $organization, $student->phone);
+                    $invitation = OrganizationInvitation::where('organization_id', $organization->id)->where('phone', $student->phone)->firstOrFail();
+                    $membership->respond($student, $invitation, 1, 'accept');
+                }
+            }
+        });
+        $process->wait();
+        $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+        $this->assertStringEndsWith("\n0", $process->getOutput());
+        $this->assertSame(0, DB::table('notifications')->where('type', PlatformAnnouncement::class)->count());
+        $this->assertSame('skipped', $announcement->recipients()->firstOrFail()->status);
+    }
+
+    public function test_waiting_organization_delivery_rechecks_departure(): void
+    {
+        $this->organizationDeliveryAfterMembershipChange('leave');
+    }
+
+    public function test_waiting_organization_delivery_rechecks_rejoined_membership_generation(): void
+    {
+        $this->organizationDeliveryAfterMembershipChange('rejoin');
+    }
+
+    public function test_waiting_organization_delivery_rechecks_organization_deactivation(): void
+    {
+        $this->organizationDeliveryAfterMembershipChange('inactive');
+    }
+
+    public function test_waiting_org_announcement_publication_does_not_snapshot_departed_members(): void
+    {
+        [$admin, $manager, $student, $organization, $announcement] = $this->organizationAnnouncementFixture(false);
+        $key = $organization->members()->where('users.id', $student->id)->firstOrFail()->pivot->membership_key;
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$announcement=\App\Models\Announcement::findOrFail((int)$argv[2]);\Illuminate\Support\Facades\DB::listen(function($query){if(str_contains($query->sql,'"announcements"')&&str_starts_with($query->sql,'select')&&!str_contains($query->sql,'for update')){echo "PEEKED\n";flush();}});try{app(\App\Services\Announcements::class)->publish($actor,$announcement,1);echo 'PUBLISHED';}catch(\Illuminate\Validation\ValidationException){echo 'NO_AUDIENCE';}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $admin->id, (string) $announcement->id], base_path(), null, null, 20);
+        DB::transaction(function () use ($student, $organization, $key, $process) {
+            Organization::whereKey($organization->id)->lockForUpdate()->firstOrFail();
+            $process->start();
+            $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'PEEKED')));
+            app(OrganizationMembership::class)->endMembership($student, $organization, $student, $key, 'Synthetic publication departure', 'leave');
+        });
+        $process->wait();
+        $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+        $this->assertStringEndsWith('NO_AUDIENCE', $process->getOutput());
+        $this->assertSame('draft', $announcement->fresh()->status);
+        $this->assertSame(0, $announcement->recipients()->count());
+    }
+
+    public function test_org_target_edit_racing_publication_cannot_publish_a_different_scope(): void
+    {
+        [$admin, $manager, $student, $organization, $announcement] = $this->organizationAnnouncementFixture(false);
+        $other = Organization::factory()->create(['status' => 'active']);
+        $otherStudent = User::factory()->create();
+        $otherStudent->roles()->attach(Role::where('key', 'student')->value('id'));
+        $other->members()->attach($otherStudent->id, ['kind' => 'member']);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$service=app(\App\Services\Announcements::class);$actor=\App\Models\User::findOrFail((int)$argv[1]);$announcement=\App\Models\Announcement::findOrFail((int)$argv[2]);try{if($argv[3]==='publish'){$service->publish($actor,$announcement,1);echo 'PUBLISHED';}else{$service->save($actor,['title'=>'Changed target','message'=>'Changed scoped private message','roles'=>['student'],'audience'=>['type'=>'organization','organization_id'=>(int)$argv[4]]],$announcement,1);echo 'EDITED';}}catch(\Illuminate\Validation\ValidationException){echo 'STALE';}
+CODE;
+        $result = $this->parallelFinance($code, [[$admin->id, $announcement->id, 'publish', $other->id], [$admin->id, $announcement->id, 'edit', $other->id]]);
+        $this->assertTrue(in_array($result, [['EDITED', 'STALE'], ['PUBLISHED', 'STALE']], true));
+        $published = in_array('PUBLISHED', $result, true);
+        $this->assertSame($published ? $organization->id : $other->id, $announcement->fresh()->audience['organization_id']);
+        $this->assertSame($published ? [$student->id] : [], $announcement->recipients()->pluck('user_id')->all());
     }
 }
