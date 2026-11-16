@@ -95,14 +95,14 @@ class OrganizationController extends Controller
     {
         $organization = $this->selected($request);
         abort_unless($organization, 403);
-        $data = $request->validate(['dataset' => 'nullable|string|in:summary,attendance,submissions']);
+        $data = $request->validate(['dataset' => 'nullable|string|in:summary,attendance,submissions,reviews']);
 
         return $this->downloadLearning($exports->prepare($request->user(), $organization, $member, false, $data['dataset'] ?? 'summary'));
     }
 
     public function adminExportLearning(Request $request, Organization $organization, User $member, OrganizationLearningExports $exports): StreamedResponse
     {
-        $data = $request->validate(['dataset' => 'nullable|string|in:summary,attendance,submissions']);
+        $data = $request->validate(['dataset' => 'nullable|string|in:summary,attendance,submissions,reviews']);
 
         return $this->downloadLearning($exports->prepare($request->user(), $organization, $member, true, $data['dataset'] ?? 'summary'));
     }

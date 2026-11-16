@@ -94,6 +94,11 @@ const actions = {
             </section>
             <section class="glass panel-card consultation-section">
                 <h2>اعضای فعلی</h2>
+                <p class="muted">
+                    خروجی سابقه ارزیابی، هر نوبت بررسی و بازخورد ثبت‌شده را جدا
+                    می‌آورد؛ سقف امتیاز، مقدار جاری تمرین است. فایل را فقط در
+                    اختیار افراد مجاز قرار دهید.
+                </p>
                 <article
                     v-for="member in members"
                     :key="member.id"
