@@ -1,5 +1,5 @@
 {
-  "phase": "private-linkedin-guide-from-saved-resume",
+  "phase": "private-organization-submission-review-history-csv",
   "completed": [
     "phone-verification",
     "password-login",
@@ -393,17 +393,20 @@
     "private-linkedin-copy-guide-from-exact-selected-resume-snapshot",
     "persian-english-source-preserving-sections-and-private-plain-text-download",
     "clipboard-copy-with-manual-selection-fallback-and-no-external-publication",
-    "locked-current-owner-admin-guide-access-and-source-hash-validation"
+    "locked-current-owner-admin-guide-access-and-source-hash-validation",
+    "private-current-organization-member-all-submission-review-revisions-csv",
+    "recorded-review-feedback-status-score-zero-null-and-current-assignment-max",
+    "four-responsive-organization-learning-exports-with-independent-admin-route"
   ],
   "tests": {
     "postgresql": {
-      "passed": 1079,
-      "assertions": 8861
+      "passed": 1094,
+      "assertions": 9039
     },
     "sqlite": {
-      "passed": 924,
-      "skipped": 155,
-      "assertions": 8000
+      "passed": 936,
+      "skipped": 158,
+      "assertions": 8166
     },
     "javascript": {
       "passed": 6
@@ -679,7 +682,10 @@
     "actual-resume-save-two-versions-linkedin-guide-six-sections-and-private-text-download",
     "actual-clipboard-copy-and-manual-fallback-with-no-html-execution",
     "unchanged-prior-linkedin-export-after-new-english-snapshot-and-empty-guide-no-fabrication",
-    "linkedin-owner-full-admin-teacher-org-manager-peer-isolation-and-320-390-768-1440"
+    "linkedin-owner-full-admin-teacher-org-manager-peer-isolation-and-320-390-768-1440",
+    "two-actual-teacher-feedback-revisions-and-27-row-19-column-history-csv",
+    "member-full-admin-history-csv-original-feedback-zero-null-formula-guard-and-private-headers",
+    "four-learning-export-links-320-390-768-1440-and-real-member-departure-revocation"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -756,7 +762,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase54_linkedin_guide_verified_full_suites_dates_pint_build_and_real_browser_ready_to_merge_then_continue_independent_module",
+    "current_work": "phase55_verified_all_review_history_private_csv_full_suites_dates_pint_build_and_real_browser_ready_to_merge_then_continue",
     "next_groups": [
       "career_and_assessment_extensions_without_invented_instruments",
       "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
@@ -883,11 +889,12 @@
   "organization_member_detailed_attendance_submission_exports_complete": true,
   "admin_account_access_optimistic_revision_scope": "required_account_access_revision_under_existing_ordered_actor_target_locks_each_accepted_admin_save_advances_once_actual_org_and_console_role_grants_advance_on_new_role_initial_account_one_direct_external_db_changes_not_tracked",
   "organization_member_detailed_attendance_submission_exports_scope": "current_selected_member_recorded_same_cohort_attendance_twelve_columns_all_same_cohort_submission_versions_current_status_score_and_assignment_max_sixteen_columns_no_body_feedback_file_name_private_url_phone_finance",
-  "organization_member_submission_review_history_csv_complete": false,
+  "organization_member_submission_review_history_csv_complete": true,
   "assessment_report_csv_complete": true,
   "assessment_report_csv_scope": "likert_sum_v1_stored_completed_dimensions_fourteen_columns_current_owner_name_frozen_edition_source_scores_no_questions_answers_phone_combined_score_or_official_validity_claim_owner_or_current_admin_or_selected_active_org_manager_current_member",
   "coach_uploaded_credentials_scope": "private_owner_and_current_full_admin_only_4mib_pdf_png_jpeg_encrypted_source_bound_metadata_original_hash_download_internal_review_revision_history_owner_terminal_withdrawal_no_public_or_official_verification",
   "coach_credential_publication_complete": false,
   "linkedin_assistance_scope": "private_owner_or_current_full_admin_selected_saved_resume_source_sections_fa_en_readonly_copy_or_utf8_text_contact_fields_and_links_omitted_free_text_requires_owner_review_no_ai_translation_external_connection_or_automatic_publication",
-  "linkedin_external_profile_connection_complete": false
+  "linkedin_external_profile_connection_complete": false,
+  "organization_member_submission_review_history_csv_scope": "current_selected_org_manager_or_independent_current_full_admin_current_member_nineteen_columns_every_recorded_same_cohort_submission_review_revision_original_score_status_feedback_current_assignment_max_not_historical_max_no_body_file_contact_finance_or_reviewer_account_identity"
 }

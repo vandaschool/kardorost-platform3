@@ -7,6 +7,7 @@ use App\Models\AuditEvent;
 use App\Models\Enrollment;
 use App\Models\Organization;
 use App\Models\Submission;
+use App\Models\SubmissionReview;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -91,10 +92,31 @@ class OrganizationLearningExports
         return $rows;
     }
 
+    /** @param resource $output */
+    private function reviews($output, array $common, Enrollment $enrollment, int $lastId): int
+    {
+        $rows = 0;
+        $query = SubmissionReview::where('id', '<=', $lastId)->whereHas('submission', fn ($submission) => $submission->where('enrollment_id', $enrollment->id)->whereHas('assignment', fn ($assignment) => $assignment->where('cohort_id', $enrollment->cohort_id)));
+        foreach ($query->with(['submission' => fn ($submission) => $submission->select('id', 'enrollment_id', 'assignment_id', 'version', 'created_at')->with('assignment:id,cohort_id,title,max_score')])->select('id', 'submission_id', 'revision', 'status', 'score', 'feedback', 'created_at')->lazyById(200) as $review) {
+            $submission = $review->submission;
+            $assignment = $submission?->assignment;
+            if (! $submission || ! $assignment || $submission->enrollment_id !== $enrollment->id || $assignment->cohort_id !== $enrollment->cohort_id) {
+                continue;
+            }
+            $status = match ($review->status) {
+                'reviewed' => 'بررسی‌شده', 'revision_requested' => 'نیازمند اصلاح', default => $review->status,
+            };
+            $this->row($output, [...$common, $assignment->id, $assignment->title, $submission->id, $submission->version, $review->id, $review->revision, $status, $review->score, $assignment->max_score, $review->feedback, $submission->created_at->timezone('Asia/Tehran')->toIso8601String(), $review->created_at->timezone('Asia/Tehran')->toIso8601String()]);
+            $rows++;
+        }
+
+        return $rows;
+    }
+
     /** @return array{stream: resource, filename: string} */
     public function prepare(User $actor, Organization $organization, User $member, bool $asAdmin = false, string $dataset = 'summary'): array
     {
-        if (! in_array($dataset, ['summary', 'attendance', 'submissions'], true)) {
+        if (! in_array($dataset, ['summary', 'attendance', 'submissions', 'reviews'], true)) {
             throw ValidationException::withMessages(['dataset' => 'نوع خروجی آموزشی معتبر نیست.']);
         }
         $output = tmpfile();
@@ -125,6 +147,7 @@ class OrganizationLearningExports
                 $headers = [...$headers, ...match ($dataset) {
                     'summary' => ['درس‌های منتشرشده', 'درس‌های تکمیل‌شده خوداظهاری', 'درصد تکمیل خوداظهاری', 'حضور ثبت‌شده', 'غیبت ثبت‌شده', 'غیبت موجه ثبت‌شده', 'وضعیت گواهی'],
                     'attendance' => ['شناسه جلسه', 'عنوان جلسه', 'شروع جلسه به وقت تهران', 'وضعیت حضور ثبت‌شده', 'آخرین ثبت وضعیت به وقت تهران'],
+                    'reviews' => ['شناسه تمرین', 'عنوان تمرین', 'شناسه پاسخ', 'نسخه ارسال', 'شناسه بررسی', 'نسخه بررسی', 'وضعیت همان بررسی', 'نمره همان بررسی در صورت وجود', 'سقف امتیاز جاری تمرین', 'بازخورد همان بررسی', 'زمان ارسال به وقت تهران', 'زمان ثبت بررسی به وقت تهران'],
                     'submissions' => ['شناسه تمرین', 'عنوان تمرین', 'شناسه پاسخ', 'نسخه ارسال', 'وضعیت ثبت‌شده', 'نمره ثبت‌شده در صورت وجود', 'سقف امتیاز جاری تمرین', 'زمان ارسال به وقت تهران', 'زمان بررسی به وقت تهران'],
                 }];
                 $this->row($output, $headers);
@@ -137,6 +160,7 @@ class OrganizationLearningExports
                     'summary' => 0,
                     'attendance' => Attendance::whereIn('enrollment_id', $recordIds)->max('id') ?? 0,
                     'submissions' => Submission::whereIn('enrollment_id', $recordIds)->max('id') ?? 0,
+                    'reviews' => SubmissionReview::whereHas('submission', fn ($submission) => $submission->whereIn('enrollment_id', $recordIds))->max('id') ?? 0,
                 };
                 $rows = 0;
                 foreach ($query->with('course:id,title', 'cohort:id,title')->select('id', 'user_id', 'course_id', 'cohort_id', 'status')->lazyById(200) as $enrollment) {
@@ -145,6 +169,7 @@ class OrganizationLearningExports
                         'summary' => $this->summary($output, $common, $enrollment),
                         'attendance' => $this->attendance($output, $common, $enrollment, (int) $lastRecord),
                         'submissions' => $this->submissions($output, $common, $enrollment, (int) $lastRecord),
+                        'reviews' => $this->reviews($output, $common, $enrollment, (int) $lastRecord),
                     };
                 }
                 AuditEvent::create(['actor_id' => $actor->id, 'action' => 'organization.learning_exported', 'subject_type' => 'user', 'subject_id' => $member->id, 'metadata' => ['organization_id' => $organization->id, 'dataset' => 'learning_'.$dataset.'_v1', 'rows' => $rows]]);

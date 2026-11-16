@@ -3124,7 +3124,7 @@ CODE;
         $this->assertSame(1, AuditEvent::where('action', 'user.access_updated')->count());
     }
 
-    private function organizationLearningExportAfterAccessChange(bool $departMember, bool $asAdmin = false): void
+    private function organizationLearningExportAfterAccessChange(bool $departMember, bool $asAdmin = false, ?string $dataset = null): void
     {
         if (DB::connection()->getDriverName() !== 'pgsql') {
             $this->markTestSkipped('Organization learning export races require PostgreSQL.');
@@ -3142,7 +3142,7 @@ CODE;
         $code = <<<'CODE'
 require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$organization=\App\Models\Organization::findOrFail((int)$argv[2]);$member=\App\Models\User::findOrFail((int)$argv[3]);echo "READY\n";flush();try{$prepared=app(\App\Services\OrganizationLearningExports::class)->prepare($actor,$organization,$member,$argv[4]==='admin',$argv[5]);fclose($prepared['stream']);echo 'EXPORTED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}
 CODE;
-        $process = new Process([PHP_BINARY, '-r', $code, (string) $actor->id, (string) $organization->id, (string) $member->id, $asAdmin ? 'admin' : 'manager', $departMember || $asAdmin ? 'attendance' : 'submissions'], base_path(), null, null, 20);
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $actor->id, (string) $organization->id, (string) $member->id, $asAdmin ? 'admin' : 'manager', $dataset ?? ($departMember || $asAdmin ? 'attendance' : 'submissions')], base_path(), null, null, 20);
         DB::transaction(function () use ($actor, $member, $organization, $key, $departMember, $process) {
             if ($departMember) {
                 Organization::whereKey($organization->id)->lockForUpdate()->firstOrFail();
@@ -3432,5 +3432,20 @@ CODE;
     public function test_waiting_linkedin_guide_export_rechecks_admin_role_after_middleware(): void
     {
         $this->linkedInGuideAfterAccessChange(true);
+    }
+
+    public function test_waiting_organization_review_history_export_rechecks_member_departure(): void
+    {
+        $this->organizationLearningExportAfterAccessChange(true, false, 'reviews');
+    }
+
+    public function test_waiting_organization_review_history_export_rechecks_manager_role(): void
+    {
+        $this->organizationLearningExportAfterAccessChange(false, false, 'reviews');
+    }
+
+    public function test_waiting_organization_review_history_export_rechecks_admin_role(): void
+    {
+        $this->organizationLearningExportAfterAccessChange(false, true, 'reviews');
     }
 }

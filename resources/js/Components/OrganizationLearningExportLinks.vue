@@ -7,6 +7,7 @@ const datasets = {
     summary: "خلاصه یادگیری (CSV)",
     attendance: "ریز حضور (CSV)",
     submissions: "نسخه‌های تکلیف (CSV)",
+    reviews: "سابقه ارزیابی تکلیف (CSV)",
 };
 </script>
 <template>
