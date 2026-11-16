@@ -4,6 +4,7 @@ import Shell from "../Layouts/Shell.vue";
 import { fa, dateTime } from "../dates";
 defineProps({
     attempt: Object,
+    export_url: String,
     title: String,
     source: String,
     number: Number,
@@ -37,6 +38,16 @@ defineProps({
                 >بازگشت به گزارش‌ها</Link
             >
         </section>
+        <a
+            :href="export_url"
+            class="btn secondary"
+            data-testid="assessment-report-export"
+            >دانلود جدول امتیازهای گزارش (CSV)</a
+        >
+        <p class="muted caption">
+            فایل، امتیازهای همین گزارش نهایی را دارد؛ پاسخ‌ها و متن پرسش‌ها در
+            آن نیست. نام صاحب گزارش، نام جاری حساب است.
+        </p>
         <p class="muted preserve-lines">منبع و روش: {{ source }}</p>
         <p class="muted">
             درصد زیر، جایگاه نمره در بازه ممکن همین مقیاس است؛ رتبه در جامعه،
