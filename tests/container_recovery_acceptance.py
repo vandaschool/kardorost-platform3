@@ -12,9 +12,23 @@ SPEC = importlib.util.spec_from_file_location('recovery', ROOT / 'resources/oper
 recovery = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(recovery)
 os.umask(0o077)
+
+
+def heartbeat():
+    owner = os.environ.get('KARDOROST_LEASE_OWNER')
+    if owner:
+        result = subprocess.run(['python3', os.environ.get('KARDOROST_LEASE_HELPER', '/workspace/work/kardorost-autonomy-lease.py'), 'touch', owner], stdout=subprocess.DEVNULL)
+        assert result.returncode == 0, 'Delivery ownership changed; stop the integration check.'
+
+
+class GuardedComposition(recovery.Composition):
+    def execute(self, *args, **kwargs):
+        heartbeat()
+        return super().execute(*args, **kwargs)
+
 source_file = Path(os.environ['CONTAINER_ENV_FILE']).resolve()
 assert source_file.is_relative_to('/tmp')
-source = recovery.Composition(source_file)
+source = GuardedComposition(source_file)
 assert source.config['name'].startswith('kardorost-validation-')
 assert source.settings['APP_URL'].startswith('http://127.0.0.1:')
 assert 'app' in source.running()
@@ -22,8 +36,17 @@ probe = r"""require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app-
 original = json.loads(source.run(['exec', '-T', 'app', 'php', '-r', probe]))
 assert original['users'] == original['synthetic'] == 4 and original['lead_ok'] and original['encrypted']
 
+latest_probe = r"""require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$credential=\App\Models\CoachCredential::sole();$service=app(\App\Services\CoachCredentials::class);$metadata=$service->metadata($credential);$fileHash=hash('sha256',\Illuminate\Support\Facades\Storage::disk('learning')->get($credential->file_path));$share=\App\Models\ResumeShare::sole();$sharing=app(\App\Services\ResumeSharing::class);$data=$sharing->metadata($share);$public=$sharing->publicPayload($data['token']);echo json_encode(['credential_source_valid'=>$metadata!==null&&$metadata['credential_id']===$credential->id&&$metadata['user_id']===$credential->user_id,'credential_cipher_hash'=>hash('sha256',$credential->getRawOriginal('definition')),'credential_hash'=>$metadata['sha256'],'original_file_hash'=>$fileHash,'credential_cipher_private'=>!str_contains($credential->getRawOriginal('definition'),'مدرک صرفاً آزمایشی'),'share_cipher_hash'=>hash('sha256',$share->getRawOriginal('definition')),'share_source_valid'=>$data['share_id']===$share->id&&$data['version_id']===$share->resume_version_id,'public_source_name'=>$public['definition']['name']==='نام نسخه آزمایشی کانتینر','public_contacts_omitted'=>$public['definition']['phone']===''&&$public['definition']['email']==='','token_encrypted'=>!str_contains($share->getRawOriginal('definition'),$data['token'])]);"""
+latest_original = None
+if os.environ.get('CONTAINER_EXPECT_LATEST_FIXTURES') == '1':
+    latest_original = json.loads(source.run(['exec', '-T', 'app', 'php', '-r', latest_probe]))
+    assert latest_original['credential_hash'] == latest_original['original_file_hash']
+    for name in ['credential_source_valid', 'credential_cipher_private', 'share_source_valid', 'public_source_name', 'public_contacts_omitted', 'token_encrypted']:
+        assert latest_original[name]
+
 
 def invoke(command, *args, expected=0):
+    heartbeat()
     result = subprocess.run(['python3', 'resources/operations/recovery.py', command, *map(str, args)],
                             cwd=ROOT, capture_output=True, text=True)
     # Do not print raw subprocess output or values from either environment.
@@ -55,7 +78,7 @@ with tempfile.TemporaryDirectory(prefix='kardorost-recovery-acceptance-') as tem
     subprocess.run(['python3', 'resources/operations/initialize-environment.py', '--url', 'http://127.0.0.1:18089',
                     '--output', str(target_file), '--project', project, '--image-tag', source.image.split(':')[-1],
                     '--revision', 'local-phase39-validation', '--local'], cwd=ROOT, check=True, stdout=subprocess.DEVNULL)
-    target = recovery.Composition(target_file)
+    target = GuardedComposition(target_file)
     common = ['--env-file', target_file, '--passphrase-file', key, '--backup', backup]
     # Wrong application key is rejected before even creating the target database container.
     invoke('restore', *common, expected=1)
@@ -64,7 +87,7 @@ with tempfile.TemporaryDirectory(prefix='kardorost-recovery-acceptance-') as tem
     old_key = target.settings['APP_KEY']
     contents = contents.replace('APP_KEY=' + old_key, 'APP_KEY=' + source.settings['APP_KEY'])
     target_file.write_text(contents)
-    target = recovery.Composition(target_file)
+    target = GuardedComposition(target_file)
     assert target.settings['DB_PASSWORD'] != source.settings['DB_PASSWORD']
     assert target.config['services']['postgres']['environment']['POSTGRES_PASSWORD'] != source.config['services']['postgres']['environment']['POSTGRES_PASSWORD']
     # Enabled external effects must fail closed before database startup.
@@ -86,6 +109,8 @@ with tempfile.TemporaryDirectory(prefix='kardorost-recovery-acceptance-') as tem
     restored = json.loads(target.php(probe))
     assert {key: value for key, value in restored.items() if key != 'queue_probes'} == {key: value for key, value in original.items() if key != 'queue_probes'}
     assert restored['queue_probes'] == [False, False, False]
+    if latest_original is not None:
+        assert json.loads(target.php(latest_probe)) == latest_original
     invoke('restore', *common, expected=1)
     assert target.running() == {'postgres'}
     after_refusal = json.loads(target.php(probe))
@@ -104,5 +129,8 @@ with tempfile.TemporaryDirectory(prefix='kardorost-recovery-acceptance-') as tem
                          'nonempty-private-storage-refused-with-empty-db-preserved', 'separate-target-project-volumes-db-passwords',
                          'real-postgresql-transactional-restore', 'encrypted-pii-decryption-and-private-file-hash',
                          'stale-source-heartbeats-cleared', 'nonempty-db-refused-with-data-preserved', 'restored-workers-remain-stopped']}
+    if latest_original is not None:
+        report['checks'].append('latest_private_credential_original_bytes_encrypted_source_and_consented_resume_share_restored')
+    heartbeat()
     Path('/tmp/kardorost-recovery-acceptance.json').write_text(json.dumps(report))
     print(json.dumps(report))
