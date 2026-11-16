@@ -1,5 +1,5 @@
 {
-  "phase": "mentor-bound-private-consultation-coordination",
+  "phase": "container-deployment-and-local-acceptance",
   "completed": [
     "phone-verification",
     "password-login",
@@ -309,22 +309,32 @@
     "admin-request-focused-compatible-slot-pagination",
     "selected-request-visible-independent-of-general-pagination",
     "current-locked-admin-booking-authorization-recheck",
-    "concurrent-selected-mentor-request-exclusion"
+    "concurrent-selected-mentor-request-exclusion",
+    "production-multistage-container-build",
+    "nonroot-readonly-six-service-runtime",
+    "restricted-postgresql-application-role",
+    "private-nonoverwriting-environment-initializer",
+    "explicit-trusted-proxy-boundaries",
+    "real-worker-scheduler-container-healthchecks",
+    "four-panel-container-recreation-persistence-acceptance"
   ],
   "tests": {
     "postgresql": {
-      "passed": 857,
-      "assertions": 6800
+      "passed": 865,
+      "assertions": 6823
     },
     "sqlite": {
-      "passed": 741,
+      "passed": 749,
       "skipped": 116,
-      "assertions": 6149
+      "assertions": 6172
     },
     "javascript": {
       "passed": 6
     },
-    "production_build": true
+    "production_build": true,
+    "operational_javascript": {
+      "passed": 6
+    }
   },
   "browser_qa": true,
   "deployed": false,
@@ -524,7 +534,12 @@
     "wrong-coach-booking-api-rejection",
     "coordination-package-consumed-only-at-actual-confirmation",
     "second-free-mentor-coordination-and-admin-slot-page-two",
-    "mentor-coordination-peer-isolation-and-320-1440-layouts"
+    "mentor-coordination-peer-isolation-and-320-1440-layouts",
+    "container-four-panel-logins-and-role-isolation",
+    "container-actual-scheduler-default-sms-heartbeats",
+    "container-encrypted-database-private-file-persistence-after-recreation",
+    "container-trusted-https-forwarding-with-host-prefix-protection",
+    "container-private-path-isolation-and-320-1440-layouts"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -601,7 +616,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase37_verified_ready_for_merge_then_deployment_preparation",
+    "current_work": "phase38_container_acceptance_verified_ready_for_pr_phase39_encrypted_backup_restore_next",
     "next_groups": [
       "organization_contract_installments_and_lifecycle",
       "remaining_purchase_cancellation_refunds_awaiting_policy",
@@ -695,5 +710,8 @@
   "offserver_backup_complete": false,
   "backup_restore_acceptance_complete": false,
   "public_scheduled_publishing_scope": "immutable_reviewed_home_article_page_snapshots_tehran_minute_1_minute_to_1_year_fresh_active_admin_at_actual_execution",
-  "mentor_specific_coordination_scope": "student_selected_current_public_profile_fixed_coach_encrypted_snapshot_optional_matching_grant_admin_human_agreed_booking"
+  "mentor_specific_coordination_scope": "student_selected_current_public_profile_fixed_coach_encrypted_snapshot_optional_matching_grant_admin_human_agreed_booking",
+  "container_deployment_package_complete": true,
+  "container_local_acceptance_complete": true,
+  "container_local_acceptance_scope": "locally_built_images_filesystem_runtime_config_verified_flattened_vfs_copies_no_public_tls_or_provider_acceptance"
 }

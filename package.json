@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test:dates": "node --test tests/js/finance-dates.test.mjs"
+    "test:dates": "node --test tests/js/finance-dates.test.mjs",
+    "test:operations": "node --test tests/js/operational-environment.test.mjs"
   },
   "dependencies": {
     "@inertiajs/vue3": "^3.0.0",

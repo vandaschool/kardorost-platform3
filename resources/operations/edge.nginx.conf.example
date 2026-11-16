@@ -1,0 +1,52 @@
+# Replace kardorost.example.com and certificate paths with the actual HTTPS host.
+# Keep the container web listener bound to loopback. Forwarded headers are overwritten here.
+server {
+    listen 80 default_server;
+    server_name _;
+    return 444;
+}
+
+server {
+    listen 80;
+    server_name kardorost.example.com;
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+    }
+    location / {
+        return 301 https://kardorost.example.com$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl default_server;
+    server_name _;
+    ssl_reject_handshake on;
+    return 444;
+}
+
+server {
+    listen 443 ssl;
+    server_name kardorost.example.com;
+    ssl_certificate /etc/letsencrypt/live/kardorost.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/kardorost.example.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    client_max_body_size 25m;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options nosniff always;
+
+    location / {
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Port $server_port;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Prefix "";
+        proxy_set_header Forwarded "";
+        proxy_set_header Proxy "";
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 70s;
+        proxy_pass http://127.0.0.1:8080;
+    }
+}
