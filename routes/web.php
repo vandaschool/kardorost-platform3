@@ -130,6 +130,7 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::get('/assessment-attempts/{attempt}/report', [AssessmentController::class, 'report'])->name('assessments.report');
     Route::get('/survey-responses/{response}', [SurveyController::class, 'response'])->name('surveys.response');
     Route::get('/survey-publications/{publication}/report', [SurveyController::class, 'report'])->name('surveys.report');
+    Route::get('/survey-publications/{publication}/export', [SurveyController::class, 'export'])->middleware('throttle:10,1')->name('surveys.export');
     Route::get('/cohorts/{cohort}/survey-reports', [SurveyController::class, 'teaching'])->name('surveys.teaching');
     Route::get('/discussions', [DiscussionController::class, 'hub'])->name('discussions');
     Route::get('/cohorts/{cohort}/discussions', [DiscussionController::class, 'index'])->name('discussions.index');

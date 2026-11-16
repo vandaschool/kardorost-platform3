@@ -2626,4 +2626,52 @@ CODE;
         $this->assertFalse($slot->fresh()->booked);
         $this->assertSame('pending', $request->fresh()->status);
     }
+
+    private function surveyExportAfterAccessChange(bool $changeCoach): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Survey export access races require PostgreSQL.');
+        }
+        $response = SurveyResponse::factory()->create();
+        $publication = $response->publication;
+        $publication->update(['definition' => [...$publication->definition, 'mode' => 'identified', 'minimum_responses' => 1]]);
+        $response->update(['status' => 'submitted', 'submitted_at' => now(), 'respondent_name' => 'Synthetic snapshot', 'answers' => ['quality' => 4]]);
+        $course = $publication->survey->cohort->course;
+        $actor = $changeCoach ? User::findOrFail($course->coach_id) : User::factory()->create();
+        if (! $changeCoach) {
+            $actor->roles()->attach(Role::where('key', 'admin')->value('id'));
+        }
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$publication=\App\Models\SurveyPublication::findOrFail((int)$argv[2]);echo "READY\n";flush();try{$prepared=app(\App\Services\SurveyExports::class)->prepare($actor,$publication,'responses');fclose($prepared['stream']);echo 'EXPORTED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $actor->id, (string) $publication->id], base_path(), null, null, 20);
+        DB::transaction(function () use ($actor, $course, $process, $changeCoach) {
+            if ($changeCoach) {
+                Course::whereKey($course->id)->lockForUpdate()->firstOrFail();
+            } else {
+                User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+            }
+            $process->start();
+            $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'READY')));
+            if ($changeCoach) {
+                $course->update(['coach_id' => null]);
+            } else {
+                $actor->roles()->detach();
+            }
+        });
+        $process->wait();
+        $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+        $this->assertSame("READY\n403", $process->getOutput());
+        $this->assertSame(0, AuditEvent::where('action', 'survey.exported')->count());
+    }
+
+    public function test_waiting_survey_export_rechecks_revoked_admin_role(): void
+    {
+        $this->surveyExportAfterAccessChange(false);
+    }
+
+    public function test_waiting_survey_export_rechecks_reassigned_course_coach(): void
+    {
+        $this->surveyExportAfterAccessChange(true);
+    }
 }
