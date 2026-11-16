@@ -38,6 +38,7 @@ use App\Http\Controllers\PanelController;
 use App\Http\Controllers\PublicSiteController;
 use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\RefundController;
+use App\Http\Controllers\ResumeShareController;
 use App\Http\Controllers\SubmissionController;
 use App\Http\Controllers\SupportController;
 use App\Http\Controllers\SurveyController;
@@ -49,6 +50,7 @@ Route::get('/verify/certificates/{token}', [CertificateController::class, 'verif
 Route::get('/', [PublicSiteController::class, 'home'])->name('home');
 Route::get('/contact', [PublicSiteController::class, 'contact'])->name('public.contact');
 Route::post('/contact', [ContactLeadController::class, 'store'])->middleware('throttle:5,60');
+Route::get('/resume-shares/{token}', [ResumeShareController::class, 'show'])->where('token', '[a-f0-9]{64}')->middleware('throttle:60,1,resume-share-public:')->name('public.resume');
 Route::get('/mentors', [PublicSiteController::class, 'mentors'])->name('public.mentors');
 Route::get('/mentors/{slug}', [PublicSiteController::class, 'mentor'])->whereUuid('slug')->name('public.mentor');
 Route::get('/catalog', [PublicSiteController::class, 'catalog'])->name('public.catalog');
@@ -94,6 +96,9 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::get('/career/resumes/{resume}/versions/{version}/linkedin', [LinkedInGuideController::class, 'show'])->name('career.linkedin');
     Route::get('/career/resumes/{resume}/versions/{version}/linkedin/download', [LinkedInGuideController::class, 'download'])->middleware('throttle:10,1')->name('career.linkedin.download');
     Route::post('/career/resumes/{resume}/versions/{version}/checks', [CareerController::class, 'check'])->middleware('throttle:20,1');
+    Route::get('/career/resumes/{resume}/versions/{version}/shares', [ResumeShareController::class, 'index'])->name('career.shares');
+    Route::post('/career/resumes/{resume}/versions/{version}/shares', [ResumeShareController::class, 'publish'])->middleware('throttle:10,1,resume-share-publish:');
+    Route::post('/career/shares/{share}/revoke', [ResumeShareController::class, 'revoke'])->middleware('throttle:20,1,resume-share-revoke:');
     Route::get('/career/checks/{check}', [CareerController::class, 'report'])->name('career.checks.show');
     Route::get('/support', [SupportController::class, 'index'])->name('support');
     Route::post('/support', [SupportController::class, 'create'])->middleware('throttle:10,1');

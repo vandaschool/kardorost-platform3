@@ -6,7 +6,7 @@ $labels = $english ? ['summary'=>'Profile', 'experience'=>'Experience', 'educati
 <style>
 @page { size:A4; margin:16mm 17mm; }
 body { background:#eef0f3; color:#172033; margin:0; }
-.resume-tools { padding:18px; display:flex; justify-content:center; gap:15px; }
+.resume-tools { padding:18px; display:flex; justify-content:center; flex-wrap:wrap; gap:15px; overflow-wrap:anywhere; }
 .resume-paper { background:white; width:min(210mm,calc(100% - 32px)); padding:16mm 17mm; margin:0 auto 40px; color:#172033; font-family:Vazirmatn,Arial,sans-serif; font-size:11pt; line-height:1.8; overflow-wrap:anywhere; }
 .resume-paper h1, .resume-paper h2, .resume-paper h3 { font-family:inherit; font-weight:700; }
 [lang="en"] .resume-paper { font-family:Arial,"Liberation Sans",sans-serif; }
@@ -25,7 +25,7 @@ body { background:#eef0f3; color:#172033; margin:0; }
  .resume-paper { width:auto; padding:0; margin:0; box-shadow:none; border:0; }
  a { text-decoration:none!important; }
 }
-</style></head><body><div class="resume-tools"><button class="btn primary" onclick="window.print()">{{ $english ? 'Print / Save PDF' : 'چاپ / ذخیره PDF' }}</button><span>{{ $english ? 'Private snapshot' : 'نسخه خصوصی ثابت' }} {{ $version }}</span></div><main class="resume-paper">
+</style></head><body><div class="resume-tools"><button class="btn primary" onclick="window.print()">{{ $english ? 'Print / Save PDF' : 'چاپ / ذخیره PDF' }}</button><span>{{ ($shared ?? false) ? ($english ? 'Shared resume snapshot' : 'نسخه اشتراکی رزومه') : ($english ? 'Private snapshot' : 'نسخه خصوصی ثابت') }} {{ $version }} @if($shared ?? false) · {{ $english ? 'Link expires: ' : 'مهلت لینک: ' }} <bdi>{{ $expires_at }}</bdi>@endif</span></div><main class="resume-paper">
 <header><h1>{{ $definition['name'] }}</h1>@if($definition['headline'])<p>{{ $definition['headline'] }}</p>@endif<div class="resume-contact">@foreach(['email','phone','city'] as $field)@if($definition[$field])<span @if(in_array($field,['email','phone'])) dir="ltr" @endif>{{ $definition[$field] }}</span>@endif @endforeach</div></header>
 @if($definition['summary'])<section><h2>{{ $labels['summary'] }}</h2><p>{{ $definition['summary'] }}</p></section>@endif
 @foreach(['experience','education','projects'] as $section)@if(count($definition[$section]))<section><h2>{{ $labels[$section] }}</h2>@foreach($definition[$section] as $entry)<article class="resume-item"><h3>{{ $entry['title'] ?? $entry['degree'] ?? '' }}@if($entry['employer'] ?? $entry['institution'] ?? '') · {{ $entry['employer'] ?? $entry['institution'] }}@endif</h3>@if($entry['period'] ?? '')<p class="resume-period">{{ $entry['period'] }}</p>@endif @if($entry['description'] ?? '')<p>{{ $entry['description'] }}</p>@endif</article>@endforeach</section>@endif @endforeach

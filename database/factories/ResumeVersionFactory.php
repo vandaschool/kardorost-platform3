@@ -13,6 +13,6 @@ class ResumeVersionFactory extends Factory
     {
         $definition = app(ResumeBuilder::class)->emptyDefinition('نام آزمایشی');
 
-        return ['career_resume_id' => CareerResume::factory(), 'created_by' => User::factory(), 'number' => 1, 'definition' => $definition, 'content_hash' => hash('sha256', json_encode($definition))];
+        return ['career_resume_id' => CareerResume::factory(), 'created_by' => User::factory(), 'number' => 1, 'definition' => $definition, 'content_hash' => hash('sha256', json_encode($definition, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES))];
     }
 }

@@ -53,6 +53,20 @@ class ResumeBuilder
         return $result;
     }
 
+    public function snapshotDefinition(ResumeVersion $version): array
+    {
+        try {
+            $definition = $version->definition;
+            if (! is_array($definition) || $version->number < 1 || $this->definition($definition) !== $definition || ! hash_equals($version->content_hash, hash('sha256', json_encode($definition, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)))) {
+                $this->fail('نسخه ثابت رزومه برای این عملیات معتبر نیست.');
+            }
+
+            return $definition;
+        } catch (\Throwable) {
+            $this->fail('نسخه ثابت رزومه برای این عملیات معتبر نیست؛ با پشتیبانی پیگیری کنید.');
+        }
+    }
+
     private function accounts(User $actor, int $ownerId): User
     {
         User::whereIn('id', [$actor->id, $ownerId])->orderBy('id')->lockForUpdate()->get();
@@ -139,6 +153,9 @@ class ResumeBuilder
             $resume = $this->locked($actor, $resume);
             $this->version($resume, $revision, false);
             $resume->update(['archived' => $archived, 'revision' => $resume->revision + 1]);
+            if ($archived) {
+                app(ResumeSharing::class)->revokeForArchive($actor, $resume);
+            }
             $this->audit($actor, $resume, $archived ? 'archived' : 'restored');
         });
     }

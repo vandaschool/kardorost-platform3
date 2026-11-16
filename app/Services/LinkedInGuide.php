@@ -24,16 +24,7 @@ class LinkedInGuide
     private function definition(ResumeVersion $version): array
     {
         try {
-            $definition = $version->definition;
-            if (! is_array($definition) || $version->number < 1 || $this->builder->definition($definition) !== $definition) {
-                $this->fail();
-            }
-            $hash = hash('sha256', json_encode($definition, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
-            if (! hash_equals($version->content_hash, $hash)) {
-                $this->fail();
-            }
-
-            return $definition;
+            return $this->builder->snapshotDefinition($version);
         } catch (Throwable) {
             $this->fail();
         }

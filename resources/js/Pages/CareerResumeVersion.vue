@@ -41,6 +41,25 @@ const form = useForm({ job_text: "" });
             >
         </section>
         <section class="glass panel-card consultation-section">
+            <h2>اشتراک اختیاری رزومه</h2>
+            <p>
+                اطلاعات قابل نمایش را پیش‌نمایش کنید و با رضایت خودتان لینک
+                زمان‌دار بسازید؛ لینک‌ها از همین‌جا قابل قطع‌اند.
+            </p>
+            <Link
+                class="btn secondary"
+                :href="
+                    '/career/resumes/' +
+                    resume.id +
+                    '/versions/' +
+                    version.id +
+                    '/shares'
+                "
+                data-resume-sharing
+                >مدیریت اشتراک این نسخه</Link
+            >
+        </section>
+        <section class="glass panel-card consultation-section">
             <h2>آماده‌سازی پروفایل لینکدین</h2>
             <p>
                 متن همین نسخه را بخش‌بندی و پیش از کپی در پروفایل خودتان بازبینی

@@ -60,6 +60,7 @@ use App\Models\ReceiptClaim;
 use App\Models\Refund;
 use App\Models\RefundEvent;
 use App\Models\ResumeCheck;
+use App\Models\ResumeShare;
 use App\Models\ResumeVersion;
 use App\Models\Role;
 use App\Models\SmsDelivery;
@@ -95,6 +96,7 @@ use App\Services\PackageBilling;
 use App\Services\ReceiptService;
 use App\Services\RefundService;
 use App\Services\ResumeBuilder;
+use App\Services\ResumeSharing;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Http\UploadedFile;
@@ -377,6 +379,9 @@ CODE;
             DB::table('invitation_sms')->update(['sms_delivery_id' => null]);
             DB::table('sms_delivery_attempts')->delete();
             DB::table('sms_deliveries')->delete();
+        }
+        if (Schema::hasTable('resume_shares')) {
+            DB::table('resume_shares')->delete();
         }
         if (Schema::hasTable('career_resumes')) {
             DB::table('resume_checks')->delete();
@@ -3447,5 +3452,91 @@ CODE;
     public function test_waiting_organization_review_history_export_rechecks_admin_role(): void
     {
         $this->organizationLearningExportAfterAccessChange(false, true, 'reviews');
+    }
+
+    private function resumeShareRaceFixture(): array
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Resume sharing races require PostgreSQL.');
+        }
+        $owner = User::factory()->create();
+        $owner->roles()->attach(Role::where('key', 'student')->value('id'));
+        $builder = app(ResumeBuilder::class);
+        $resume = $builder->create($owner, 'Synthetic consented sharing race');
+        $version = $builder->snapshot($owner, $resume, 1);
+
+        return [$owner, $resume->fresh(), $version];
+    }
+
+    public function test_concurrent_resume_share_publications_create_one_current_link(): void
+    {
+        [$owner, $resume, $version] = $this->resumeShareRaceFixture();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$resume=\App\Models\CareerResume::findOrFail((int)$argv[2]);$version=\App\Models\ResumeVersion::findOrFail((int)$argv[3]);try{app(\App\Services\ResumeSharing::class)->publish($actor,$resume,$version,['revision'=>2,'request_key'=>$argv[4],'duration_days'=>7,'include_contacts'=>false,'reviewed'=>true,'consent'=>true]);echo 'PUBLISHED';}catch(\Illuminate\Validation\ValidationException){echo 'BLOCKED';}
+CODE;
+        $results = $this->parallelFinance($code, [[$owner->id, $resume->id, $version->id, (string) Str::uuid()], [$owner->id, $resume->id, $version->id, (string) Str::uuid()]]);
+        $this->assertSame(['BLOCKED', 'PUBLISHED'], $results);
+        $this->assertDatabaseCount('resume_shares', 1);
+        $this->assertSame(1, AuditEvent::where('action', 'resume_share.published')->count());
+        $share = ResumeShare::sole();
+        $token = app(ResumeSharing::class)->metadata($share)['token'];
+        $this->assertSame(1, app(ResumeSharing::class)->publicPayload($token)['version']);
+    }
+
+    public function test_concurrent_resume_archive_and_publication_never_leave_a_visible_link(): void
+    {
+        [$owner, $resume, $version] = $this->resumeShareRaceFixture();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$resume=\App\Models\CareerResume::findOrFail((int)$argv[2]);$version=\App\Models\ResumeVersion::findOrFail((int)$argv[3]);try{if($argv[4]==='archive'){app(\App\Services\ResumeBuilder::class)->archive($actor,$resume,2,true);echo 'ARCHIVED';}else{app(\App\Services\ResumeSharing::class)->publish($actor,$resume,$version,['revision'=>2,'request_key'=>$argv[5],'duration_days'=>7,'include_contacts'=>false,'reviewed'=>true,'consent'=>true]);echo 'PUBLISHED';}}catch(\Illuminate\Validation\ValidationException){echo 'BLOCKED';}
+CODE;
+        $results = $this->parallelFinance($code, [[$owner->id, $resume->id, $version->id, 'archive', (string) Str::uuid()], [$owner->id, $resume->id, $version->id, 'publish', (string) Str::uuid()]]);
+        $this->assertContains($results, [['ARCHIVED', 'BLOCKED'], ['ARCHIVED', 'PUBLISHED']]);
+        $this->assertTrue($resume->fresh()->archived);
+        $this->assertSame(0, ResumeShare::whereNull('revoked_at')->count());
+        $this->assertSame(ResumeShare::count(), AuditEvent::where('action', 'resume_share.revoked')->count());
+    }
+
+    public function test_waiting_resume_share_admin_revocation_rechecks_lost_role(): void
+    {
+        [$owner, $resume, $version] = $this->resumeShareRaceFixture();
+        $share = app(ResumeSharing::class)->publish($owner, $resume, $version, ['revision' => 2, 'request_key' => (string) Str::uuid(), 'duration_days' => 7, 'include_contacts' => false, 'reviewed' => true, 'consent' => true]);
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$share=\App\Models\ResumeShare::findOrFail((int)$argv[2]);$request=\Illuminate\Http\Request::create('/career/shares/'.$share->id.'/revoke','POST');$request->setUserResolver(fn()=>$actor);try{(new \App\Http\Middleware\EnsurePanelRole)->handle($request,function()use($actor,$share){echo 'READY'.PHP_EOL;flush();app(\App\Services\ResumeSharing::class)->revoke($actor,$share,['revision'=>1,'reason'=>'Synthetic admin decision']);return new \Symfony\Component\HttpFoundation\Response('REVOKED');},'admin');echo 'REVOKED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $admin->id, (string) $share->id], base_path(), null, null, 20);
+        DB::transaction(function () use ($admin, $process) {
+            User::whereKey($admin->id)->lockForUpdate()->firstOrFail();
+            $process->start();
+            $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'READY')));
+            $admin->roles()->detach();
+        });
+        $process->wait();
+        $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+        $this->assertStringEndsWith('403', $process->getOutput());
+        $this->assertNull($share->fresh()->revoked_at);
+        $this->assertSame(0, AuditEvent::where('action', 'resume_share.revoked')->count());
+    }
+
+    public function test_waiting_public_resume_share_read_rechecks_owner_deactivation(): void
+    {
+        [$owner, $resume, $version] = $this->resumeShareRaceFixture();
+        $share = app(ResumeSharing::class)->publish($owner, $resume, $version, ['revision' => 2, 'request_key' => (string) Str::uuid(), 'duration_days' => 7, 'include_contacts' => false, 'reviewed' => true, 'consent' => true]);
+        $token = app(ResumeSharing::class)->metadata($share)['token'];
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$share=\App\Models\ResumeShare::findOrFail((int)$argv[1]);$token=app(\App\Services\ResumeSharing::class)->metadata($share)['token'];echo 'READY'.PHP_EOL;flush();try{app(\App\Services\ResumeSharing::class)->publicPayload($token);echo 'VISIBLE';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $share->id], base_path(), null, null, 20);
+        DB::transaction(function () use ($owner, $process) {
+            User::whereKey($owner->id)->lockForUpdate()->firstOrFail();
+            $process->start();
+            $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'READY')));
+            $owner->forceFill(['is_active' => false])->save();
+        });
+        $process->wait();
+        $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+        $this->assertStringEndsWith('404', $process->getOutput());
+        $this->assertNull($share->fresh()->revoked_at);
     }
 }
