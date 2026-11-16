@@ -1,5 +1,5 @@
 {
-  "phase": "owner-consented-expiring-revocable-resume-sharing",
+  "phase": "latest-container-upgrade-and-recovery-acceptance",
   "completed": [
     "phone-verification",
     "password-login",
@@ -400,7 +400,12 @@
     "private-by-default-owner-reviewed-consented-resume-snapshot-sharing",
     "source-bound-encrypted-expiring-bearer-links-with-default-contact-omission",
     "terminal-owner-or-full-admin-revocation-and-atomic-archive-revocation",
-    "shared-source-validation-and-independent-publication-privacy-revocation-rate-budgets"
+    "shared-source-validation-and-independent-publication-privacy-revocation-rate-budgets",
+    "actual-current-application-and-web-production-dockerfile-builds",
+    "same-volume-upgrade-forty-seven-to-fifty-three-migrations-without-reseed",
+    "four-hundred-ninety-three-tracked-runtime-source-file-match",
+    "proxy-preserves-stricter-application-referrer-policy-with-static-fallback",
+    "latest-private-credential-and-consented-resume-share-backup-restore-acceptance"
   ],
   "tests": {
     "postgresql": {
@@ -694,7 +699,11 @@
     "public-resume-default-contact-omission-optin-escaped-html-headers-and-print-pdf",
     "frozen-shared-source-after-new-version-owner-admin-revocation-and-actual-archive-restore",
     "consistent-past-clock-expired-share-fixture-and-new-active-english-share",
-    "resume-share-management-teacher-same-org-manager-peer-isolation-and-320-390-768-1440"
+    "resume-share-management-teacher-same-org-manager-peer-isolation-and-320-390-768-1440",
+    "current-nondevelopment-container-four-panels-roles-readiness-encrypted-lead-320-390-768-1440",
+    "container-owner-admin-private-credential-original-hash-and-resume-sharing-owner-consent-boundary",
+    "single-no-referrer-on-anonymous-resume-and-strict-default-on-ordinary-public-page",
+    "current-image-real-restore-private-credential-and-consented-resume-share-before-after-real-worker-heartbeats"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -771,9 +780,9 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase56_fully_verified_24_feature_4_pg_races_browser_complete_full_pg1122_sqlite960_ready_to_merge_then_latest_container_upgrade_and_recovery_acceptance",
+    "current_work": "phase57_verified_current_Dockerfile_builds_proxy_referrer_fix_upgrade_data_preservation_latest_recovery_and_six_browser_runs_ready_to_merge_then_review_remaining_cross_action_throttle_collision",
     "next_groups": [
-      "latest_container_code_upgrade_and_recovery_acceptance_without_claiming_public_deployment",
+      "review_global_numeric_throttle_cross_action_budget_collision_without_changing_existing_limits",
       "career_and_assessment_extensions_without_invented_instruments",
       "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
       "coach_settlement_and_organization_benefits_requiring_business_terms",
@@ -868,8 +877,8 @@
   "mentor_specific_coordination_scope": "student_selected_current_public_profile_fixed_coach_encrypted_snapshot_optional_matching_grant_admin_human_agreed_booking",
   "container_deployment_package_complete": true,
   "container_local_acceptance_complete": true,
-  "container_local_acceptance_scope": "locally_built_images_filesystem_runtime_config_verified_flattened_vfs_copies_no_public_tls_or_provider_acceptance",
-  "backup_restore_acceptance_scope": "local_synthetic_data_independent_compose_project_volumes_db_passwords_exact_application_image_key_encrypted_pii_private_file_hash_four_panels_workers",
+  "container_local_acceptance_scope": "actual_Dockerfile_application_web_builds_code_b399cf5_full_filesystem_and_essential_runtime_config_verified_local_flattened_vfs_copies_existing_postgresql17_image_bootstrap_source_hash_verified_same_volume_upgrade47to53_migrations493_source_files_four_panels_latest_private_credentials_and_consented_resume_shares_recovery_before_after_workers_no_public_tls_or_live_provider_acceptance",
+  "backup_restore_acceptance_scope": "local_synthetic_data_exact_current_application_image_key_independent_compose_project_volumes_db_passwords_encrypted_contact_private_support_and_original_coach_credential_file_hashes_source_bound_consented_resume_share_four_panels_before_and_after_workers",
   "encrypted_backup_package_complete": true,
   "automated_backup_schedule_complete": false,
   "backup_retention_complete": false,
@@ -910,5 +919,9 @@
   "resume_public_sharing_scope": "explicit_active_verified_owner_review_and_consent_for_selected_frozen_snapshot_7_30_90_days_one_active_link_default_phone_email_links_omitted_optional_contact_optin_owner_or_full_admin_terminal_revoke_admin_cannot_supply_owner_consent_source_bound_encryption_token_hash_and_current_source_integrity_no_index_no_referrer_no_store",
   "resume_public_sharing_archive_policy": "all_unrevoked_links_revoked_with_parent_archive_same_transaction_restore_never_reactivates",
   "resume_public_sharing_owner_eligibility": "any_role_active_verified_account_temporary_pause_on_deactivation_or_verification_loss",
-  "resume_public_sharing_recipient_copy_recall_complete": false
+  "resume_public_sharing_recipient_copy_recall_complete": false,
+  "container_local_acceptance_code_revision": "b399cf5",
+  "latest_container_upgrade_acceptance_complete": true,
+  "latest_container_restore_acceptance_complete": true,
+  "container_current_production_images_published": false
 }
