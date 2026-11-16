@@ -1,5 +1,5 @@
 {
-  "phase": "container-deployment-and-local-acceptance",
+  "phase": "encrypted-backup-and-independent-local-restore",
   "completed": [
     "phone-verification",
     "password-login",
@@ -316,7 +316,15 @@
     "private-nonoverwriting-environment-initializer",
     "explicit-trusted-proxy-boundaries",
     "real-worker-scheduler-container-healthchecks",
-    "four-panel-container-recreation-persistence-acceptance"
+    "four-panel-container-recreation-persistence-acceptance",
+    "quiesced-encrypted-database-private-storage-snapshots",
+    "independent-private-backup-passphrase-generation",
+    "atomic-nonoverwriting-encrypted-backup-publication",
+    "empty-target-transactional-postgresql-restore",
+    "exact-application-image-and-key-restore-checks",
+    "bounded-safe-archive-and-private-file-hash-verification",
+    "restore-preserves-stopped-writers-and-clears-source-heartbeats",
+    "local-independent-volume-and-secret-restore-acceptance"
   ],
   "tests": {
     "postgresql": {
@@ -334,6 +342,9 @@
     "production_build": true,
     "operational_javascript": {
       "passed": 6
+    },
+    "operational_recovery_python": {
+      "passed": 13
     }
   },
   "browser_qa": true,
@@ -539,7 +550,12 @@
     "container-actual-scheduler-default-sms-heartbeats",
     "container-encrypted-database-private-file-persistence-after-recreation",
     "container-trusted-https-forwarding-with-host-prefix-protection",
-    "container-private-path-isolation-and-320-1440-layouts"
+    "container-private-path-isolation-and-320-1440-layouts",
+    "restored-four-panel-password-login-and-access-isolation",
+    "restored-encrypted-private-contact-readable",
+    "restored-source-heartbeats-cleared-before-worker-start",
+    "restored-actual-default-sms-scheduler-probes",
+    "restored-four-panels-320-390-768-1440"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -616,7 +632,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase38_container_acceptance_verified_ready_for_pr_phase39_encrypted_backup_restore_next",
+    "current_work": "phase39_local_encrypted_backup_restore_verified_ready_for_pr_phase40_private_survey_exports_next",
     "next_groups": [
       "organization_contract_installments_and_lifecycle",
       "remaining_purchase_cancellation_refunds_awaiting_policy",
@@ -708,10 +724,16 @@
   "operational_readiness_scope": "configuration_and_local_runtime_only_no_live_provider_or_domain_restore_deployment_acceptance",
   "scheduler_and_queue_heartbeat_probes_complete": true,
   "offserver_backup_complete": false,
-  "backup_restore_acceptance_complete": false,
+  "backup_restore_acceptance_complete": true,
   "public_scheduled_publishing_scope": "immutable_reviewed_home_article_page_snapshots_tehran_minute_1_minute_to_1_year_fresh_active_admin_at_actual_execution",
   "mentor_specific_coordination_scope": "student_selected_current_public_profile_fixed_coach_encrypted_snapshot_optional_matching_grant_admin_human_agreed_booking",
   "container_deployment_package_complete": true,
   "container_local_acceptance_complete": true,
-  "container_local_acceptance_scope": "locally_built_images_filesystem_runtime_config_verified_flattened_vfs_copies_no_public_tls_or_provider_acceptance"
+  "container_local_acceptance_scope": "locally_built_images_filesystem_runtime_config_verified_flattened_vfs_copies_no_public_tls_or_provider_acceptance",
+  "backup_restore_acceptance_scope": "local_synthetic_data_independent_compose_project_volumes_db_passwords_exact_application_image_key_encrypted_pii_private_file_hash_four_panels_workers",
+  "encrypted_backup_package_complete": true,
+  "automated_backup_schedule_complete": false,
+  "backup_retention_complete": false,
+  "independent_production_secret_store_complete": false,
+  "public_deployment_inputs": "asked_owner_for_domain_and_available_server_provider_public_ip_no_secrets"
 }
