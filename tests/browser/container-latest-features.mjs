@@ -156,6 +156,25 @@ async function status(path) {
         `fetch(${JSON.stringify(path)},{headers:{Accept:'application/json'}}).then(async r=>{await r.text();return r.status})`,
     );
 }
+let quotaWaits = 0;
+async function awaitPublicQuota() {
+    for (let attempt = 0; attempt < 3; attempt++) {
+        const reply = await evaluate(
+            `(async()=>{const r=await fetch(${JSON.stringify(fixture.public_url)},{headers:{Accept:'text/html'}});await r.text();return {status:r.status,retry:Number(r.headers.get('retry-after'))};})()`,
+        );
+        if (reply.status === 200) return;
+        assert.equal(reply.status, 429, "Unexpected public fixture status");
+        assert(
+            reply.retry > 0 && reply.retry <= 60,
+            "Honor only the actual bounded quota retry interval",
+        );
+        assert(attempt < 2, "Public fixture quota did not reopen");
+        quotaWaits++;
+        await new Promise((resolve) =>
+            setTimeout(resolve, Math.min(reply.retry, 30) * 1000),
+        );
+    }
+}
 async function responsive(label) {
     for (const width of [320, 390, 768, 1440]) {
         await send("Emulation.setDeviceMetricsOverride", {
@@ -206,6 +225,7 @@ try {
     await responsive("Container private resume sharing");
     await networkIdle();
     await send("Network.clearBrowserCookies");
+    await awaitPublicQuota();
     await goto(fixture.public_url);
     assert(
         await evaluate(
@@ -258,6 +278,7 @@ try {
     console.log(
         JSON.stringify({
             result: "passed",
+            quota_waits: quotaWaits,
             checks: [
                 "non-development-container-owner-and-admin-original-credential-file-hash-download",
                 "student-organization-role-private-credential-isolation",
