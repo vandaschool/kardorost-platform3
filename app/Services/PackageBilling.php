@@ -37,9 +37,12 @@ class PackageBilling
         return DB::transaction(function () use ($admin, $data, $product) {
             if ($product) {
                 $product = ConsultationProduct::whereKey($product->id)->lockForUpdate()->firstOrFail();
-                if ($product->revision !== (int) $data['revision']) {
-                    $this->fail('تنظیمات تغییر کرده است؛ صفحه را تازه کنید.');
-                }
+            }
+            User::whereIn('id', [$admin->id, $data['coach_id']])->orderBy('id')->lockForUpdate()->get();
+            $admin = User::findOrFail($admin->id);
+            abort_unless($admin->is_active && $admin->hasRole('admin'), 403);
+            if ($product && $product->revision !== (int) $data['revision']) {
+                $this->fail('تنظیمات تغییر کرده است؛ صفحه را تازه کنید.');
             }
             $coach = User::findOrFail($data['coach_id']);
             if ($data['published'] && (! $coach->is_active || ! $coach->hasRole('coach'))) {
@@ -79,6 +82,9 @@ class PackageBilling
                 $this->fail('سفارش قبلی نیازمند بررسی است؛ از سوابق خرید پیگیری کنید.');
             }
             if ($existing && $existing->expires_at->isFuture()) {
+                $existing = $this->locked($existing);
+                $this->payable($student->fresh(), $existing);
+
                 return $existing;
             }
             $coach = $product->coach;
@@ -95,11 +101,11 @@ class PackageBilling
         }, 3);
     }
 
-    /** Shared order: purchase, sorted participant rows, payment, receipt/refund, grant. */
-    public function locked(PackagePurchase $purchase): PackagePurchase
+    /** Shared order: purchase, sorted participant and optional actor rows, payment, receipt/refund, grant. */
+    public function locked(PackagePurchase $purchase, ?User $actor = null): PackagePurchase
     {
         $purchase = PackagePurchase::whereKey($purchase->id)->lockForUpdate()->firstOrFail();
-        User::whereIn('id', [$purchase->student_id, $purchase->coach_id])->orderBy('id')->lockForUpdate()->get();
+        User::whereIn('id', array_filter([$purchase->student_id, $purchase->coach_id, $actor?->id]))->orderBy('id')->lockForUpdate()->get();
 
         return $purchase;
     }
@@ -212,7 +218,9 @@ class PackageBilling
         $this->purpose($payment);
 
         return DB::transaction(function () use ($admin, $payment) {
-            $purchase = $this->locked($payment->packagePurchase);
+            $purchase = $this->locked($payment->packagePurchase, $admin);
+            $admin = User::findOrFail($admin->id);
+            abort_unless($admin->is_active && $admin->hasRole('admin'), 403);
             $payment = Payment::whereKey($payment->id)->lockForUpdate()->firstOrFail();
             if ($payment->refund()->where('status', '!=', 'rejected')->exists()) {
                 $this->fail('این وجه در فرایند بازپرداخت است.');
@@ -280,7 +288,9 @@ class PackageBilling
         $this->purpose($receipt->payment);
 
         return DB::transaction(function () use ($admin, $receipt, $data) {
-            $purchase = $this->locked($receipt->payment->packagePurchase);
+            $purchase = $this->locked($receipt->payment->packagePurchase, $admin);
+            $admin = User::findOrFail($admin->id);
+            abort_unless($admin->is_active && $admin->hasRole('admin'), 403);
             $payment = Payment::whereKey($receipt->payment_id)->lockForUpdate()->firstOrFail();
             $receipt = PaymentReceipt::whereKey($receipt->id)->lockForUpdate()->firstOrFail();
             if ($receipt->status === 'approved' && $data['action'] === 'approve') {
