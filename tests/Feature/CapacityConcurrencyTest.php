@@ -3718,4 +3718,113 @@ CODE;
     {
         $this->consultationFinancialAfterAccessChange(false, false, true);
     }
+
+    private function packageManagementAfterAccessChange(string $action, bool $deactivate = false, bool $changeCoach = false, bool $unverify = false): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Package management authorization row-lock races require PostgreSQL.');
+        }
+        $product = ConsultationProduct::factory()->create();
+        $purchase = PackagePurchase::factory()->create(['consultation_product_id' => $product->id]);
+        $actor = $action === 'reserve' ? $purchase->student : User::findOrFail($product->reviewed_by);
+        $payment = null;
+        $receipt = null;
+        if (in_array($action, ['approve', 'reject'], true)) {
+            Storage::fake('receipts');
+            config(['platform.finance.transfer_destination' => '6037991234567890']);
+            $receipt = app(PackageBilling::class)->submitReceipt($purchase->student, $purchase, UploadedFile::fake()->createWithContent('software-only-race64.pdf', "%PDF-1.4\n% SOFTWARE-ONLY-ACCESS-RACE\n%%EOF\n"), 'SOFTWAREONLYRACE64', now()->toDateString());
+            $payment = $receipt->payment;
+        } elseif ($action === 'allocate') {
+            $payment = Payment::factory()->create(['installment_id' => null, 'enrollment_id' => null, 'user_id' => $purchase->student_id, 'package_purchase_id' => $purchase->id, 'amount' => $purchase->amount, 'method' => 'gateway', 'status' => 'review_required', 'captured_at' => now(), 'paid_at' => now(), 'reference' => 'SOFTWARE-CAPTURED-RACE64']);
+        }
+        $snapshot = fn () => hash('sha256', json_encode([$product->fresh()->getAttributes(), $purchase->fresh()->getAttributes(), $payment?->fresh()->getAttributes(), $receipt?->fresh()->getAttributes(), ConsultationGrant::count(), AuditEvent::count()], JSON_THROW_ON_ERROR));
+        $before = $snapshot();
+        $target = $changeCoach ? User::findOrFail($product->coach_id) : $actor;
+        $role = $changeCoach ? 'coach' : ($action === 'reserve' ? 'student' : 'admin');
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$action=$argv[1];$actor=\App\Models\User::findOrFail((int)$argv[2]);$product=\App\Models\ConsultationProduct::findOrFail((int)$argv[3]);$purchase=\App\Models\PackagePurchase::findOrFail((int)$argv[4]);$payment=(int)$argv[5]?\App\Models\Payment::findOrFail((int)$argv[5]):null;$receipt=(int)$argv[6]?\App\Models\PaymentReceipt::findOrFail((int)$argv[6]):null;$barrier=$action==='reserve'?'student':'admin';$checked=false;
+\Illuminate\Support\Facades\DB::listen(function($query)use($barrier,&$checked){if(!$checked&&str_contains($query->sql,'roles')&&in_array($barrier,$query->bindings,true)){$checked=true;echo "CHECKED\n";flush();}});
+try{$service=app(\App\Services\PackageBilling::class);$data=[...$product->only('revision','coach_id','title','description','sessions','session_minutes','valid_days','published'),'price'=>100000,'manual_payment_enabled'=>false];match($action){'create_product'=>$service->configure($actor,$data),'edit_product'=>$service->configure($actor,$data,$product),'allocate'=>$service->resolve($actor,$payment),'approve','reject'=>$service->review($actor,$receipt,['action'=>$action,'expected_review_version'=>0,'verified_amount'=>100000,'statement_verified'=>true]),'reserve'=>$service->reserve($actor,$product,$product->revision)};echo 'COMMITTED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}catch(\Illuminate\Validation\ValidationException){echo '422';}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, $action, (string) $actor->id, (string) $product->id, (string) $purchase->id, (string) ($payment?->id ?? 0), (string) ($receipt?->id ?? 0)], base_path(), null, null, 20);
+        try {
+            DB::transaction(function () use ($target, $process, $deactivate, $unverify, $role) {
+                User::whereKey($target->id)->lockForUpdate()->firstOrFail();
+                $process->start();
+                $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'CHECKED')), $process->getErrorOutput());
+                if ($deactivate) {
+                    User::whereKey($target->id)->update(['is_active' => false]);
+                } elseif ($unverify) {
+                    User::whereKey($target->id)->update(['phone_verified_at' => null]);
+                } else {
+                    $target->roles()->detach(Role::where('key', $role)->value('id'));
+                }
+            });
+            $process->wait();
+            $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+            $this->assertStringEndsWith($changeCoach ? '422' : '403', $process->getOutput());
+        } finally {
+            if ($process->isRunning()) {
+                $process->stop();
+            }
+        }
+        $this->assertSame($before, $snapshot());
+        $this->assertDatabaseCount('consultation_products', 1);
+        $this->assertDatabaseCount('package_purchases', 1);
+        $this->assertDatabaseCount('notifications', 0);
+        if ($receipt) {
+            Storage::disk('receipts')->assertExists($receipt->file_path);
+            $this->assertDatabaseCount('receipt_claims', 1);
+        }
+    }
+
+    public function test_waiting_package_product_creation_rechecks_current_admin_role(): void
+    {
+        $this->packageManagementAfterAccessChange('create_product');
+    }
+
+    public function test_waiting_package_product_edit_rechecks_current_admin_role(): void
+    {
+        $this->packageManagementAfterAccessChange('edit_product');
+    }
+
+    public function test_waiting_package_allocation_rechecks_current_admin_role(): void
+    {
+        $this->packageManagementAfterAccessChange('allocate');
+    }
+
+    public function test_waiting_package_receipt_approval_rechecks_current_admin_role(): void
+    {
+        $this->packageManagementAfterAccessChange('approve');
+    }
+
+    public function test_waiting_package_receipt_rejection_rechecks_current_admin_role(): void
+    {
+        $this->packageManagementAfterAccessChange('reject');
+    }
+
+    public function test_waiting_package_receipt_approval_rechecks_current_admin_activity(): void
+    {
+        $this->packageManagementAfterAccessChange('approve', true);
+    }
+
+    public function test_waiting_package_reservation_reuse_rechecks_current_student_role(): void
+    {
+        $this->packageManagementAfterAccessChange('reserve');
+    }
+
+    public function test_waiting_package_product_publication_rechecks_current_coach_role(): void
+    {
+        $this->packageManagementAfterAccessChange('edit_product', false, true);
+    }
+
+    public function test_waiting_package_reservation_reuse_rechecks_current_student_activity(): void
+    {
+        $this->packageManagementAfterAccessChange('reserve', true);
+    }
+
+    public function test_waiting_package_reservation_reuse_rechecks_current_phone_verification(): void
+    {
+        $this->packageManagementAfterAccessChange('reserve', false, false, true);
+    }
 }

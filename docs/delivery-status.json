@@ -1,5 +1,5 @@
 {
-  "phase": "current-consultation-production-container-acceptance",
+  "phase": "current-package-management-authorization",
   "completed": [
     "phone-verification",
     "password-login",
@@ -419,17 +419,20 @@
     "consultation-payment-initiation-and-pending-reuse-current-owner-activity-and-role-after-locks",
     "actual-production-container-upgrade-and-independent-restore-for-current-consultation-management-and-financial-authorizations",
     "nine-production-current-actor-refusals-before-and-after-restore-fixture-rows-rolled-back",
-    "deterministic-peer-tab-cookie-start-and-honored-public-quota-retry-in-browser-acceptance"
+    "deterministic-peer-tab-cookie-start-and-honored-public-quota-retry-in-browser-acceptance",
+    "package-product-configuration-current-admin-and-coach-under-existing-root-then-sorted-account-lock-order",
+    "package-receipt-review-and-captured-allocation-current-admin-before-writes-or-paid-shortcut",
+    "existing-package-order-reuse-current-buyer-eligibility-with-original-coach-and-frozen-terms-preserved"
   ],
   "tests": {
     "postgresql": {
-      "passed": 1169,
-      "assertions": 9828
+      "passed": 1188,
+      "assertions": 9957
     },
     "sqlite": {
-      "passed": 993,
-      "skipped": 176,
-      "assertions": 8817
+      "passed": 1002,
+      "skipped": 186,
+      "assertions": 8870
     },
     "javascript": {
       "passed": 6
@@ -727,7 +730,8 @@
     "phase61-real-coach-free-jalali-slot-form-hide-publish-meeting-student-book-cancel-own-request-withdraw-admin-close-peer403-320-1440",
     "phase62-admin-real-manual-grant-form-jalali-expiry-create-edit-stop-owner-view-source-reference-private-peer-isolation-no-payment-created-320-1440",
     "phase63-production6726a92-upgrade-and-independent-restored-panels-private-features-error-pages-current-auth-rollback-probe-stopped-running-320-1440",
-    "phase63-blank-peer-target-before-cookie-clear-and-real-quota-wait-no-limiter-reset"
+    "phase63-blank-peer-target-before-cookie-clear-and-real-quota-wait-no-limiter-reset",
+    "phase64-real-package-product-create-publish-next-edition-price-edit-owner-pending-order-reuse-original-hash-and-price-preserved-no-payment-peer403-320-1440"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -804,9 +808,9 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase63_verified_ready_to_merge_then_current_package_product_configuration_review_allocation_and_reservation_reuse_authorization_preserving_shared_purchase_participant_lock_order",
+    "current_work": "phase64_verified_ready_to_merge_then_review_current_actor_authorization_and_shared_lock_order_in_existing_refund_workflows_no_new_refund_amount_policy",
     "next_groups": [
-      "package_product_configuration_manual_receipt_review_allocation_and_existing_reservation_current_authorization",
+      "existing_refund_workflow_current_actor_authorization_and_shared_lock_order_review_without_new_amount_policy",
       "career_and_assessment_extensions_without_invented_instruments",
       "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
       "coach_settlement_and_organization_benefits_requiring_business_terms",
@@ -951,12 +955,14 @@
   "container_current_production_images_published": false,
   "implicit_action_rate_budgets_isolated": true,
   "implicit_action_rate_budgets_scope": "throttle_alias_numeric_or_unnamed_limits_without_explicit_prefix_normalized_route_template_and_declared_methods_no_query_or_record_id_variation_original_framework_identity_counts_durations_storage_named_limiters_and_explicit_shared_prefix_unchanged",
-  "container_acceptance_matches_current_application_code": true,
-  "container_acceptance_pending_changes": null,
+  "container_acceptance_matches_current_application_code": false,
+  "container_acceptance_pending_changes": "phase64_package_configuration_review_allocation_existing_reservation_reuse_current_authorization_not_in_last6726a92_image",
   "persian_error_recovery_pages_complete": true,
   "persian_error_recovery_pages_scope": "403/404/405/419/429/500/503 HTML private no-store noindex no-referrer, minimal Inertia props without session/database shares, standalone inline CSS with no asset dependency, Retry-After/Allow/rate headers and HEAD preserved; API/JSON/validation/redirect/debug5xx contracts unchanged; fixed GET recovery without replay, history or reload",
   "consultation_management_current_authorization_complete": true,
   "consultation_management_current_authorization_scope": "createSlot/resolve/change/publish/meeting lock sorted actor and participants before slot/booking/request, reload actor and recheck current activity/role/ownership and admin-only paid-price permission before writes/audit/notifications; active owner cancellation/withdrawal remains after student-role loss; eight PostgreSQL races; grant configuration/payment-attempt current-actor review is next and not included",
   "consultation_manual_grant_payment_current_authorization_complete": true,
-  "consultation_manual_grant_payment_current_authorization_scope": "ConsultationPackages.configure includes current admin in sorted account locks and rechecks current activity/admin role before grant change/audit/notification; ConsultationBilling.attempt reloads current account and rechecks owner/activity/student role after participant locks before creating or returning pending charge; received-money capture independent existing behavior unchanged; six native feature cases and six PG races; package-product purchase management separate scope"
+  "consultation_manual_grant_payment_current_authorization_scope": "ConsultationPackages.configure includes current admin in sorted account locks and rechecks current activity/admin role before grant change/audit/notification; ConsultationBilling.attempt reloads current account and rechecks owner/activity/student role after participant locks before creating or returning pending charge; received-money capture independent existing behavior unchanged; six native feature cases and six PG races; package-product purchase management separate scope",
+  "package_management_current_authorization_complete": true,
+  "package_management_current_authorization_scope": "PackageBilling.configure locks existing product then sorted admin/new-coach rows and checks current admin eligibility before revision/write; locked(purchase, optional actor) preserves purchase-first then sorted participants/actor before financial rows; resolve/review recheck current admin before paid shortcut or financial changes; existing pending order reuse uses locked original purchase and fresh payable checks for original coach/buyer/activity/phone/role while preserving frozen terms/deadline; refund administration separate review scope"
 }
