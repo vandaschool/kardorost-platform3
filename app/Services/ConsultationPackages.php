@@ -24,7 +24,9 @@ class ConsultationPackages
         abort_unless($admin->is_active && $admin->hasRole('admin'), 403);
 
         return DB::transaction(function () use ($admin, $student, $coach, $data, $grant) {
-            User::whereIn('id', [$student->id, $coach->id])->orderBy('id')->lockForUpdate()->get();
+            User::whereIn('id', [$admin->id, $student->id, $coach->id])->orderBy('id')->lockForUpdate()->get();
+            $admin = User::findOrFail($admin->id);
+            abort_unless($admin->is_active && $admin->hasRole('admin'), 403);
             $student->refresh();
             $coach->refresh();
             if (! $grant && (! $student->is_active || ! $student->phone_verified_at || ! $student->hasRole('student') || ! $coach->is_active || ! $coach->hasRole('coach') || $student->id === $coach->id)) {

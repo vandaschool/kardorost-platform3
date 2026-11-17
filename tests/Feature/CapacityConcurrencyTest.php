@@ -3637,4 +3637,85 @@ CODE;
     {
         $this->consultationWriteAfterAccessChange('cancel', 'owner', true);
     }
+
+    private function consultationFinancialAfterAccessChange(bool $grantOperation, bool $existing, bool $deactivate = false): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Consultation financial authorization races require PostgreSQL.');
+        }
+        $record = $grantOperation ? ConsultationGrant::factory()->create() : Consultation::factory()->create(['consultation_slot_id' => ConsultationSlot::factory()->state(['price' => 1000000]), 'status' => 'pending_payment', 'amount' => 1000000, 'listed_amount' => 1000000, 'expires_at' => now()->addMinutes(10)]);
+        $actor = $grantOperation ? User::factory()->create() : $record->student;
+        if ($grantOperation) {
+            $actor->roles()->attach(Role::where('key', 'admin')->value('id'));
+        } elseif ($existing) {
+            app(ConsultationBilling::class)->attempt($actor, $record);
+        }
+        $before = $record->fresh()->getAttributes();
+        $role = $grantOperation ? 'admin' : 'student';
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$grantOperation=$argv[1]==='grant';$actor=\App\Models\User::findOrFail((int)$argv[2]);$record=$grantOperation?\App\Models\ConsultationGrant::findOrFail((int)$argv[3]):\App\Models\Consultation::findOrFail((int)$argv[3]);$existing=$argv[4]==='1';$role=$argv[5];$checked=false;
+\Illuminate\Support\Facades\DB::listen(function($query)use($role,&$checked){if(!$checked&&str_contains($query->sql,'roles')&&in_array($role,$query->bindings,true)){$checked=true;echo "CHECKED\n";flush();}});
+try{if($grantOperation){$data=['title'=>'Software-only grant race','source_reference'=>'SOFTWARE-ONLY-RACE62','total_sessions'=>5,'session_minutes'=>60,'valid_until'=>now()->addMonth()->toDateString(),'revision'=>1,'active'=>false];app(\App\Services\ConsultationPackages::class)->configure($actor,$record->student,$record->coach,$data,$existing?$record:null);}else{app(\App\Services\ConsultationBilling::class)->attempt($actor,$record);}echo 'COMMITTED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, $grantOperation ? 'grant' : 'payment', (string) $actor->id, (string) $record->id, $existing ? '1' : '0', $role], base_path(), null, null, 20);
+        try {
+            DB::transaction(function () use ($actor, $process, $deactivate, $role) {
+                User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+                $process->start();
+                $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'CHECKED')), $process->getErrorOutput());
+                if ($deactivate) {
+                    User::whereKey($actor->id)->update(['is_active' => false]);
+                } else {
+                    $actor->roles()->detach(Role::where('key', $role)->value('id'));
+                }
+            });
+            $process->wait();
+            $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+            $this->assertStringEndsWith('403', $process->getOutput());
+        } finally {
+            if ($process->isRunning()) {
+                $process->stop();
+            }
+        }
+        $this->assertSame($before, $record->fresh()->getAttributes());
+        $this->assertDatabaseCount('payments', ! $grantOperation && $existing ? 1 : 0);
+        $this->assertDatabaseCount('audit_events', 0);
+        $this->assertDatabaseCount('notifications', 0);
+        if ($grantOperation) {
+            $this->assertDatabaseCount('consultation_grants', 1);
+        } elseif ($existing) {
+            $this->assertSame('pending', Payment::sole()->status);
+            $this->assertSame(1000000, Payment::sole()->amount);
+        }
+    }
+
+    public function test_waiting_manual_consultation_grant_creation_rechecks_admin_role(): void
+    {
+        $this->consultationFinancialAfterAccessChange(true, false);
+    }
+
+    public function test_waiting_manual_consultation_grant_edit_rechecks_admin_role(): void
+    {
+        $this->consultationFinancialAfterAccessChange(true, true);
+    }
+
+    public function test_waiting_manual_consultation_grant_edit_rechecks_admin_activity(): void
+    {
+        $this->consultationFinancialAfterAccessChange(true, true, true);
+    }
+
+    public function test_waiting_consultation_payment_creation_rechecks_student_role(): void
+    {
+        $this->consultationFinancialAfterAccessChange(false, false);
+    }
+
+    public function test_waiting_consultation_payment_reuse_rechecks_student_role(): void
+    {
+        $this->consultationFinancialAfterAccessChange(false, true);
+    }
+
+    public function test_waiting_consultation_payment_creation_rechecks_student_activity(): void
+    {
+        $this->consultationFinancialAfterAccessChange(false, false, true);
+    }
 }
