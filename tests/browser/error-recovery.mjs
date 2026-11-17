@@ -186,7 +186,7 @@ async function openPeer() {
     const t = await (
         await fetch(
             "http://127.0.0.1:9222/json/new?" +
-                encodeURIComponent(base + "/login"),
+                encodeURIComponent("about:blank"),
             { method: "PUT" },
         )
     ).json();
@@ -225,7 +225,12 @@ async function openPeer() {
             if (await evalPeer(expression)) return;
             await new Promise((r) => setTimeout(r, 100));
         }
-        throw Error("Peer fixture login timed out");
+        throw Error(
+            "Peer fixture login timed out: " +
+                (await evalPeer(
+                    "JSON.stringify({path:location.pathname,ready:document.readyState,title:document.title})",
+                )),
+        );
     };
     return { t, ws, rpc, evalPeer, waitPeer };
 }
