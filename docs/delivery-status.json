@@ -1,5 +1,5 @@
 {
-  "phase": "current-course-creation-authorization",
+  "phase": "current-course-organization-container-acceptance",
   "completed": [
     "phone-verification",
     "password-login",
@@ -429,7 +429,8 @@
     "current-course-payment-and-benefit-authorization",
     "current-course-signup-and-plan-authorization",
     "current-organization-workflow-authorization",
-    "current-course-creation-authorization"
+    "current-course-creation-authorization",
+    "current-course-organization-container-acceptance"
   ],
   "tests": {
     "postgresql": {
@@ -458,7 +459,15 @@
     "course_creation_concurrency_postgresql": {
       "passed": 2,
       "assertions": 13
-    }
+    },
+    "production_mode_authorization_refusals": {
+      "total": 63,
+      "course_organization_new": 32,
+      "consultation_existing": 9,
+      "financial_existing": 22,
+      "fixture_rows_rolled_back": true
+    },
+    "full_php_suite_last_completed_phase": 70
   },
   "browser_qa": true,
   "deployed": false,
@@ -754,7 +763,8 @@
     "phase68_owned_new_zero_course_five_user_native8033_actual_course_create_publish_coach_assign_manual_payment_benefit_config_and_next_edition_student_checkout_jalali_private_receipt_admin_coach_deactivate_review_money_retained_grant_blocked_reactivate_retry_one_frozen_grant_disable_future_private_hash_peer403_320_390_768_1440_no_real_funds",
     "phase69_actual_admin40_60_installment_plan_jalali_date_peer_student_signup_future50_50_keeps_held40_60_quote_original_paid_contract_grant_receipt_hash_same_held_quote_reused_true_no_new_payment_student_plan403_320_390_768_1440_preserved_native68_owner_fixture_with_shared_course_peer_privacy_bound_to_original_receipt_reference_and_file403",
     "phase70_isolated_zero_course_org_six_user_native8034_real_admin_course_org_license2_to3_jalali_CSV_two_consents_group2_seats_leave_remove_keep_learning_report403_backup_manager_revoke_original_frozen_import_completed_replay_no_new_money_320_390_768_1440",
-    "phase71_isolated_zero_course_three_user_native8035_actual_admin_published_paid100000toman_to1000000rial_free_draft_initial_cohorts_capacity_format_audit_student_post403_unchanged_draft_public404_zero_enrollment_payment_320_390_768_1440"
+    "phase71_isolated_zero_course_three_user_native8035_actual_admin_published_paid100000toman_to1000000rial_free_draft_initial_cohorts_capacity_format_audit_student_post403_unchanged_draft_public404_zero_enrollment_payment_320_390_768_1440",
+    "phase72_actual6bca6e7_php8_4_28_nginx_pg_upgrade_and_independent_c70992cd_restore_four_panels_private_source_bound_files_consented_share_error403_404_419_429_download_budget_63_rolled_back_production_refusals_and_three_real_worker_heartbeats_nine_browser_groups_320_390_768_1440"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -831,9 +841,9 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase71_verified_31_related_335_assertions_two_pg_races_13_assertions_five_red_cases_before_fix_pint_dates_build_syntax_actual_browser_passed_preparing_PR67_then_phase72_current_image_upgrade_and_restore",
+    "current_work": "phase72_verified_actual6bca6e7_production_builds_filesystem_runtime_config_exact_497_files_53_to53_same_volume_upgrade_GPG_independent_c70992cd_restore_63_refusals_frozen_quote_and_benefit_guard_nine_browser_groups_actual_three_heartbeats_ops6_recovery16_dates6_pint_syntax_passed_preparing_PR68_then_private_discussion_attachments",
     "next_groups": [
-      "current_production_container_acceptance_for_phases68_to71_then_remaining_independent_product_work",
+      "private_cohort_discussion_attachments_with_current_access_moderation_withdrawal_and_private_downloads",
       "career_and_assessment_extensions_without_invented_instruments",
       "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
       "coach_settlement_and_organization_benefits_requiring_business_terms",
@@ -929,8 +939,8 @@
   "mentor_specific_coordination_scope": "student_selected_current_public_profile_fixed_coach_encrypted_snapshot_optional_matching_grant_admin_human_agreed_booking",
   "container_deployment_package_complete": true,
   "container_local_acceptance_complete": true,
-  "container_local_acceptance_scope": "actual_Dockerfile_application_web_builds_code_b399cf5_full_filesystem_and_essential_runtime_config_verified_local_flattened_vfs_copies_existing_postgresql17_image_bootstrap_source_hash_verified_same_volume_upgrade47to53_migrations493_source_files_four_panels_latest_private_credentials_and_consented_resume_shares_recovery_before_after_workers_no_public_tls_or_live_provider_acceptance; phase60 actual production Dockerfile application/web builds PHP8.4.27 at 0fd3924, verified VFS local copies 9940/2341 filesystem entries/runtime configs, PG17 init SHA equal, code-only same-volume 53-to-53 upgrade no reseed/retained private fixtures and 497 tracked source files matched; production Chromium403/404/419/429/minimal Inertia and independent implicit-action budgets verified before backup and restored workers-stopped/running; phase63 real application/web builds at6726a92 PHP8.4.27, VFS9940/2341 filesystem entries and runtime configs equal, same-volume53-to53 code-only upgrade/497 source files and private fixtures preserved; nine production stale-actor management/manual-grant/payment refusals in rolled-back synthetic-row transaction before backup and after restore; PostgreSQL sequences may advance; phase67 actual f399edf application/web Dockerfile builds PHP8.4.28, verified VFS copies9940/2341 filesystem entries and runtime settings equal, same-volume53-to53 upgrade497 source files no reseed and private source data preserved; 22 new financial stale-activity refusals plus frozen purchase reuse and nine previous consultation refusals passed in production before backup and after independent restore; all fixture rows rolled back and stored-file paths unchanged, PostgreSQL sequences can advance",
-  "backup_restore_acceptance_scope": "local_synthetic_data_exact_current_application_image_key_independent_compose_project_volumes_db_passwords_encrypted_contact_private_support_and_original_coach_credential_file_hashes_source_bound_consented_resume_share_four_panels_before_and_after_workers; phase60 independent latest-image GPG/PG17 restore with all refusal guards, separate project/volumes/database passwords stable application key, original private-file hashes/ciphertexts/source-bound credential/share preserved, worker heartbeats reset and actual new three heartbeats verified; no offserver/public deployment; phase63 latest6726a92 independent GPG/PG17/private-files restore all guards, original ciphertexts/hash/source-bound consent and three actual new worker heartbeats; four-panel/private-feature/error/browser-budget checks before backup and restored stopped/running; actual Retry-After wait branch exercised; phase67 independent exact-current-f399edf GPG/PG17/private-files restore with all existing refusal guards, preserved source ciphertexts/credential bytes/share consent, separate project/volumes/database passwords and stopped workers, actual three fresh worker heartbeats after start; all three browser groups passed before backup and restored stopped/running; no public deployment/offserver/live-provider acceptance",
+  "container_local_acceptance_scope": "actual_Dockerfile_application_web_builds_code_b399cf5_full_filesystem_and_essential_runtime_config_verified_local_flattened_vfs_copies_existing_postgresql17_image_bootstrap_source_hash_verified_same_volume_upgrade47to53_migrations493_source_files_four_panels_latest_private_credentials_and_consented_resume_shares_recovery_before_after_workers_no_public_tls_or_live_provider_acceptance; phase60 actual production Dockerfile application/web builds PHP8.4.27 at 0fd3924, verified VFS local copies 9940/2341 filesystem entries/runtime configs, PG17 init SHA equal, code-only same-volume 53-to-53 upgrade no reseed/retained private fixtures and 497 tracked source files matched; production Chromium403/404/419/429/minimal Inertia and independent implicit-action budgets verified before backup and restored workers-stopped/running; phase63 real application/web builds at6726a92 PHP8.4.27, VFS9940/2341 filesystem entries and runtime configs equal, same-volume53-to53 code-only upgrade/497 source files and private fixtures preserved; nine production stale-actor management/manual-grant/payment refusals in rolled-back synthetic-row transaction before backup and after restore; PostgreSQL sequences may advance; phase67 actual f399edf application/web Dockerfile builds PHP8.4.28, verified VFS copies9940/2341 filesystem entries and runtime settings equal, same-volume53-to53 upgrade497 source files no reseed and private source data preserved; 22 new financial stale-activity refusals plus frozen purchase reuse and nine previous consultation refusals passed in production before backup and after independent restore; all fixture rows rolled back and stored-file paths unchanged, PostgreSQL sequences can advance; phase72 actual6bca6e7 PHP8.4.28 application/web builds, verified VFS9940/2341 entries/runtime config equality, same-volume53-to53 code-only upgrade497 source files and retained private fixtures/consent, 32 new course/organization stale-activity refusals plus positive frozen quote despite next benefit/plan and unavailable future coach, exact benefit422 guard, all fixture rows rollback/file paths unchanged, total63 production refusals with existing9/22 probes; PostgreSQL sequences may advance",
+  "backup_restore_acceptance_scope": "local_synthetic_data_exact_current_application_image_key_independent_compose_project_volumes_db_passwords_encrypted_contact_private_support_and_original_coach_credential_file_hashes_source_bound_consented_resume_share_four_panels_before_and_after_workers; phase60 independent latest-image GPG/PG17 restore with all refusal guards, separate project/volumes/database passwords stable application key, original private-file hashes/ciphertexts/source-bound credential/share preserved, worker heartbeats reset and actual new three heartbeats verified; no offserver/public deployment; phase63 latest6726a92 independent GPG/PG17/private-files restore all guards, original ciphertexts/hash/source-bound consent and three actual new worker heartbeats; four-panel/private-feature/error/browser-budget checks before backup and restored stopped/running; actual Retry-After wait branch exercised; phase67 independent exact-current-f399edf GPG/PG17/private-files restore with all existing refusal guards, preserved source ciphertexts/credential bytes/share consent, separate project/volumes/database passwords and stopped workers, actual three fresh worker heartbeats after start; all three browser groups passed before backup and restored stopped/running; no public deployment/offserver/live-provider acceptance; phase72 exact6bca6e7 independent GPG/PG17/private-files restore c70992cd with all existing key/dirty-target/live-effect guards, preserved old source credential/share/ciphertexts and independent DB credentials/volumes,63 production refusals after restore, stopped heartbeat false/false/false then three actual fresh heartbeats, all nine browser groups before backup/restored workers stopped/running passed; only local owned four-user synthetic fixtures",
   "encrypted_backup_package_complete": true,
   "automated_backup_schedule_complete": false,
   "backup_retention_complete": false,
@@ -972,14 +982,14 @@
   "resume_public_sharing_archive_policy": "all_unrevoked_links_revoked_with_parent_archive_same_transaction_restore_never_reactivates",
   "resume_public_sharing_owner_eligibility": "any_role_active_verified_account_temporary_pause_on_deactivation_or_verification_loss",
   "resume_public_sharing_recipient_copy_recall_complete": false,
-  "container_local_acceptance_code_revision": "f399edf5684b7d7241adac62f7f086fdf8521b6e",
+  "container_local_acceptance_code_revision": "6bca6e7063ed9500780ca812fbec4c2239280a09",
   "latest_container_upgrade_acceptance_complete": true,
   "latest_container_restore_acceptance_complete": true,
   "container_current_production_images_published": false,
   "implicit_action_rate_budgets_isolated": true,
   "implicit_action_rate_budgets_scope": "throttle_alias_numeric_or_unnamed_limits_without_explicit_prefix_normalized_route_template_and_declared_methods_no_query_or_record_id_variation_original_framework_identity_counts_durations_storage_named_limiters_and_explicit_shared_prefix_unchanged",
-  "container_acceptance_matches_current_application_code": false,
-  "container_acceptance_pending_changes": "phase68_course_finance_phase69_signup_plan_phase70_organization_and_phase71_course_creation_current_authorization_not_in_last_f399edf_image",
+  "container_acceptance_matches_current_application_code": true,
+  "container_acceptance_pending_changes": null,
   "persian_error_recovery_pages_complete": true,
   "persian_error_recovery_pages_scope": "403/404/405/419/429/500/503 HTML private no-store noindex no-referrer, minimal Inertia props without session/database shares, standalone inline CSS with no asset dependency, Retry-After/Allow/rate headers and HEAD preserved; API/JSON/validation/redirect/debug5xx contracts unchanged; fixed GET recovery without replay, history or reload",
   "consultation_management_current_authorization_complete": true,
@@ -1001,5 +1011,7 @@
   "organization_workflow_current_authorization_complete": true,
   "organization_workflow_current_authorization_scope": "Organization creation, invitation create/revoke/renew/CSV preview and commit including committed replay, owner/member/manager lifecycle, admin license create/edit and group enrollment including duplicate return recheck current active actor and required role under parent then sorted actor/target accounts; revoke-manager includes all current manager accounts; owner leave after student-role loss and suspended-org owner/admin departure preserved; departure retains active enrollment records and used seats; no automatic seat recycling or cancellation policy; 38 feature, 137 related and 44 actual PostgreSQL races including reciprocal multi-role managers without transaction retry; isolated six-user Chromium actual consent/group/lifecycle plus completed replay passed, no real funds or live services",
   "course_creation_current_authorization_complete": true,
-  "course_creation_current_authorization_scope": "CourseController.store checks current active admin under account FOR UPDATE inside creation transaction before course, initial cohort or audit writes, with initial active/admin guard; 3 feature and 2 PostgreSQL concurrency cases reproduced unauthorized creation before fix; related31/335 and races2/13 passed; full-suite baseline explicitly remains phase70 PG1423/10959 and SQLite1123/300skip/9363; isolated three-user actual Chromium published paid and free draft creation, capacity/format/audit/one-time toman conversion, student POST403 without changes and draft public404; zero enrollments or payments, no schema/dependencies"
+  "course_creation_current_authorization_scope": "CourseController.store checks current active admin under account FOR UPDATE inside creation transaction before course, initial cohort or audit writes, with initial active/admin guard; 3 feature and 2 PostgreSQL concurrency cases reproduced unauthorized creation before fix; related31/335 and races2/13 passed; full-suite baseline explicitly remains phase70 PG1423/10959 and SQLite1123/300skip/9363; isolated three-user actual Chromium published paid and free draft creation, capacity/format/audit/one-time toman conversion, student POST403 without changes and draft public404; zero enrollments or payments, no schema/dependencies",
+  "course_organization_current_authorization_production_acceptance_complete": true,
+  "course_organization_current_authorization_production_acceptance_scope": "Guarded four-user production/debug-false non-development6bca6e7 image:32 inactive-account refusals cover course/org creation, course finance/benefit and plan admin, organization invitations/import/lifecycle/license/group admin/manager, five signup states and owner payment/receipt/departure; frozen original quote and two-session contract survive next edition/40-60 future plan/unavailable future coach; fresh signup rejected specifically on benefit validation; full touched raw-row/file-path fingerprint unchanged after denials and outer rollback, temporary uploads removed; old9 consultation+22 financial probes also pass before backup and after independent restore; no real funds, sends or live services"
 }

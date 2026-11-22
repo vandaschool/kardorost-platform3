@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 import subprocess
 
-from container_runtime_probes import CURRENT_CONSULTATION_AUTHORIZATION, CURRENT_FINANCIAL_AUTHORIZATION
+from container_runtime_probes import CURRENT_CONSULTATION_AUTHORIZATION, CURRENT_FINANCIAL_AUTHORIZATION, CURRENT_COURSE_ORGANIZATION_AUTHORIZATION
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location('recovery', ROOT / 'resources/operations/recovery.py')
@@ -100,6 +100,9 @@ if os.environ.get('CONTAINER_EXPECT_CURRENT_CONSULTATION_AUTH') == '1':
 if os.environ.get('CONTAINER_EXPECT_CURRENT_FINANCIAL_AUTH') == '1':
     assert run(target, ['exec', '-T', 'app', 'php', '-r', CURRENT_FINANCIAL_AUTHORIZATION]).strip() == 'TWENTY_TWO_PRODUCTION_FINANCIAL_REFUSALS_FROZEN_PURCHASE_AND_FIXTURE_ROWS_ROLLED_BACK'
 
+if os.environ.get('CONTAINER_EXPECT_CURRENT_COURSE_ORGANIZATION_AUTH') == '1':
+    assert run(target, ['exec', '-T', 'app', 'php', '-r', CURRENT_COURSE_ORGANIZATION_AUTHORIZATION]).strip() == 'THIRTY_TWO_PRODUCTION_COURSE_ORGANIZATION_REFUSALS_FROZEN_QUOTE_AND_FIXTURE_ROWS_ROLLED_BACK'
+
 run(target, ['up', '-d', '--no-build', '--wait', '--wait-timeout', '120', 'web', 'worker-default', 'worker-sms', 'scheduler'])
 assert target.running() == {'postgres', 'app', 'web', 'worker-default', 'worker-sms', 'scheduler'}
 report = {'result': 'passed', 'scope': 'owned_loopback_four_synthetic_users_same_project_volumes_and_keys', 'before_migrations': before['migration_count'], 'upgrade_kind': 'schema_and_code' if after['migration_count'] > before['migration_count'] else 'code_only', 'after_migrations': after['migration_count'], 'tracked_source_files_matched': len(files), 'checks': ['existing_encrypted_lead_ciphertext_and_plaintext_preserved', 'existing_private_support_file_hash_preserved', 'all_pending_migrations_applied_without_reseeding', 'exact_checked_out_application_source_in_non_development_image', 'new_encrypted_coach_credential_and_original_private_file', 'new_owner_consented_source_bound_resume_share', 'six_services_started_with_external_effects_disabled']}
@@ -107,6 +110,8 @@ if os.environ.get('CONTAINER_EXPECT_CURRENT_CONSULTATION_AUTH') == '1':
     report['checks'].append('nine_current_actor_production_authorization_refusals_all_fixture_rows_rolled_back')
 if os.environ.get('CONTAINER_EXPECT_CURRENT_FINANCIAL_AUTH') == '1':
     report['checks'].append('twenty_two_current_financial_production_refusals_frozen_purchase_preserved_all_fixture_rows_rolled_back')
+if os.environ.get('CONTAINER_EXPECT_CURRENT_COURSE_ORGANIZATION_AUTH') == '1':
+    report['checks'].append('thirty_two_current_course_organization_production_refusals_frozen_quote_and_unavailable_future_coach_guard_all_fixture_rows_rolled_back')
 heartbeat()
 Path('/tmp/kardorost-container-upgrade-acceptance.json').write_text(json.dumps(report))
 print(json.dumps(report))
