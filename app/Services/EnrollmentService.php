@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AuditEvent;
 use App\Models\Cohort;
+use App\Models\CohortConsultationBenefit;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Payment;
@@ -18,13 +19,18 @@ class EnrollmentService
         return DB::transaction(function () use ($user, $cohort, $plan) {
             $cohort = Cohort::whereKey($cohort->id)->lockForUpdate()->firstOrFail();
             $course = Course::whereKey($cohort->course_id)->firstOrFail();
+            $existing = Enrollment::where('user_id', $user->id)->where('cohort_id', $cohort->id)->lockForUpdate()->first();
+            $reusing = $existing && ($existing->status === 'active' || ($existing->status === 'pending_payment' && $existing->expires_at?->isFuture()));
+            $coachId = ! $reusing && $course->price > 0 ? CohortConsultationBenefit::where('cohort_id', $cohort->id)->where('enabled', true)->value('coach_id') : null;
+            User::whereIn('id', array_filter([$user->id, $coachId]))->orderBy('id')->lockForUpdate()->get();
+            $user = User::findOrFail($user->id);
+            abort_unless($user->is_active && $user->phone_verified_at && $user->hasRole('student'), 403);
             if (! $cohort->registration_open || ! $course->is_published) {
                 throw ValidationException::withMessages(['cohort' => 'ثبت‌نام این دوره باز نیست.']);
             }
             if (! in_array($plan, ['full', 'installments'], true)) {
                 throw ValidationException::withMessages(['payment_plan' => 'روش پرداخت معتبر نیست.']);
             }
-            $existing = Enrollment::where('user_id', $user->id)->where('cohort_id', $cohort->id)->lockForUpdate()->first();
             if ($existing && $existing->status === 'active') {
                 return $existing;
             }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditEvent;
 use App\Models\Cohort;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +14,8 @@ class BillingPlanController extends Controller
 {
     public function update(Request $request, Cohort $cohort): RedirectResponse
     {
+        $actor = $request->user();
+        abort_unless($actor && $actor->is_active && $actor->hasRole('admin'), 403);
         $rules = ['expected_revision' => 'required|integer|min:0', 'installment_enabled' => 'required|boolean', 'manual_payment_enabled' => 'required|boolean', 'parts' => 'present|array|max:12'];
         if ($request->boolean('installment_enabled')) {
             $rules['parts.*.amount'] = 'required|integer|min:1|max:1000000000';
@@ -22,8 +25,10 @@ class BillingPlanController extends Controller
         if ($data['manual_payment_enabled'] && ! config('platform.finance.transfer_destination')) {
             throw ValidationException::withMessages(['manual_payment_enabled' => 'اطلاعات حساب دریافت وجه هنوز توسط مدیریت پلتفرم تنظیم نشده است.']);
         }
-        DB::transaction(function () use ($cohort, $data, $request) {
+        DB::transaction(function () use ($cohort, $data, $actor) {
             $cohort = Cohort::whereKey($cohort->id)->lockForUpdate()->firstOrFail();
+            $actor = User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+            abort_unless($actor->is_active && $actor->hasRole('admin'), 403);
             $price = $cohort->course->price;
             if ($cohort->billing_revision !== (int) $data['expected_revision']) {
                 throw ValidationException::withMessages(['parts' => 'تنظیمات مالی توسط مدیر دیگری تغییر کرده است. صفحه را به‌روز کنید.']);
@@ -49,7 +54,7 @@ class BillingPlanController extends Controller
                     $cohort->installmentPlan()->create(['sequence' => $i + 1, 'amount' => (int) $part['amount'] * 10, 'due_date' => $i === 0 ? now()->toDateString() : $part['due_date']]);
                 }
             }
-            AuditEvent::create(['actor_id' => $request->user()->id, 'action' => 'cohort.billing_plan_updated', 'subject_type' => 'cohort', 'subject_id' => $cohort->id]);
+            AuditEvent::create(['actor_id' => $actor->id, 'action' => 'cohort.billing_plan_updated', 'subject_type' => 'cohort', 'subject_id' => $cohort->id]);
         });
 
         return back()->with('success', 'تنظیمات مالی ذخیره شد. قرارداد و اقساط ثبت‌نام‌های قبلی تغییر نکرد.');
