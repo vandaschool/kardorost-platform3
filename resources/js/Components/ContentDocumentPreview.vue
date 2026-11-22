@@ -1,4 +1,5 @@
 <script>
+import ContentMediaThumbnail from "./ContentMediaThumbnail.vue";
 import { h } from "vue";
 import { safeContentLink } from "../content-document";
 function runs(value) {
@@ -33,6 +34,17 @@ export default {
                 "data-content-document-preview": "",
             },
             (this.document?.blocks || []).map((block) => {
+                if (block.type === "image")
+                    return h("figure", null, [
+                        h(ContentMediaThumbnail, {
+                            mediaKey: block.media,
+                            alt: block.alt,
+                            loading: "lazy",
+                        }),
+                        block.caption
+                            ? h("figcaption", null, block.caption)
+                            : null,
+                    ]);
                 if (["bullet_list", "ordered_list"].includes(block.type))
                     return h(
                         block.type === "bullet_list" ? "ul" : "ol",
@@ -73,5 +85,16 @@ export default {
     border-inline-start: 3px solid var(--teal);
     padding-inline-start: 1rem;
     margin-inline: 0;
+}
+</style>
+
+<style scoped>
+.content-document-preview :deep(figure) {
+    margin: 1rem 0;
+}
+.content-document-preview :deep(img) {
+    max-width: 100%;
+    max-height: 16rem;
+    object-fit: contain;
 }
 </style>

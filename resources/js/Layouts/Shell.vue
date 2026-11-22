@@ -105,6 +105,7 @@ const menus = computed(() => {
                 ],
             ]),
             item("محتوای سایت", "FileText", "/admin/content"),
+            item("تصویرهای سایت", "FileText", "/admin/media"),
             group("مدیریت و عملیات", "ShieldCheck", [
                 ["کاربران", "Users", "/admin/users"],
                 ["وضعیت اجرا", "Activity", "/admin/readiness"],

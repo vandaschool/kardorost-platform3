@@ -530,3 +530,9 @@
 .public-prose [data-rich-document] blockquote { border-inline-start: 3px solid var(--teal); padding-inline-start: 1rem; margin-inline: 0; }
 .public-prose [data-rich-document] a { text-decoration: underline; overflow-wrap: anywhere; }
 .public-prose [data-rich-document] hr { border: 0; border-top: 1px solid var(--line); margin-block: 1.5rem; }
+
+[data-content-image] { margin: 1.5rem 0; }
+[data-content-image] img { display: block; max-width: 100%; height: auto; border-radius: 14px; }
+[data-content-image] figcaption { font-size: .9rem; color: var(--muted); margin-top: .6rem; }
+
+.public-heading h1 { overflow-wrap: anywhere; }

@@ -17,6 +17,7 @@ use App\Http\Controllers\ConsultationPaymentController;
 use App\Http\Controllers\ConsultationProductController;
 use App\Http\Controllers\ContactLeadController;
 use App\Http\Controllers\ContentController;
+use App\Http\Controllers\ContentMediaController;
 use App\Http\Controllers\CourseBenefitController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\DiscussionAttachmentController;
@@ -59,6 +60,7 @@ Route::get('/catalog/{slug}', [PublicSiteController::class, 'course'])->name('pu
 Route::get('/journal', [PublicSiteController::class, 'journal'])->name('public.journal');
 Route::get('/journal/{slug}', [PublicSiteController::class, 'article'])->name('public.article');
 Route::get('/pages/{slug}', [PublicSiteController::class, 'page'])->name('public.page');
+Route::get('/media/{key}/{sha}', [ContentMediaController::class, 'publicFile'])->whereUuid('key')->where('sha', '[a-f0-9]{64}')->name('public.media');
 Route::get('/sitemap.xml', [PublicSiteController::class, 'sitemap']);
 Route::get('/robots.txt', [PublicSiteController::class, 'robots']);
 Route::middleware('guest')->group(function () {
@@ -256,6 +258,12 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/admin/reports/export', [OperationalReportController::class, 'export'])->middleware('throttle:10,1')->name('admin.reports.export');
         Route::get('/admin/communications', [CommunicationController::class, 'index'])->name('admin.communications');
         Route::post('/admin/communications/{delivery}/query', [CommunicationController::class, 'retry'])->middleware('throttle:20,1');
+        Route::get('/admin/media', [ContentMediaController::class, 'index'])->name('admin.media');
+        Route::get('/admin/media/options', [ContentMediaController::class, 'options'])->middleware('throttle:60,1');
+        Route::post('/admin/media', [ContentMediaController::class, 'upload'])->middleware('throttle:12,1');
+        Route::post('/admin/media/{media}/publish', [ContentMediaController::class, 'publish']);
+        Route::post('/admin/media/{media}/withdraw', [ContentMediaController::class, 'withdraw']);
+        Route::get('/admin/media/{key}/preview', [ContentMediaController::class, 'preview'])->whereUuid('key');
         Route::get('/admin/content', [ContentController::class, 'index'])->name('admin.content');
         Route::post('/admin/content', [ContentController::class, 'create']);
         Route::get('/admin/content/{page}', [ContentController::class, 'edit'])->name('admin.content.edit');

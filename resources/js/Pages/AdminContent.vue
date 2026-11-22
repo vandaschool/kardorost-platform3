@@ -26,6 +26,7 @@ function create() {
                 <h1>محتوای سایت</h1>
                 <p>پیش‌نویس خصوصی، انتشار نسخه ثابت و کنترل نمایش عمومی.</p>
             </div>
+            <Link href="/admin/media" class="btn secondary">تصویرهای سایت</Link>
             <a href="/" class="btn secondary" target="_blank" rel="noopener"
                 >دیدن سایت عمومی</a
             >

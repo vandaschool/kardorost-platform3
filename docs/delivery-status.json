@@ -1,5 +1,5 @@
 {
-  "phase": "rich-cms-container-acceptance",
+  "phase": "public-media-library-and-cms-images",
   "completed": [
     "phone-verification",
     "password-login",
@@ -434,7 +434,8 @@
     "private-course-discussion-attachments",
     "discussion-attachment-container-acceptance",
     "safe-rich-public-cms-content",
-    "rich-cms-container-acceptance"
+    "rich-cms-container-acceptance",
+    "public-media-library-and-cms-images"
   ],
   "tests": {
     "postgresql": {
@@ -481,6 +482,21 @@
     "rich_content_related_postgresql": {
       "passed": 93,
       "assertions": 509
+    },
+    "content_media_related_postgresql": {
+      "passed": 126,
+      "assertions": 728,
+      "concurrency_included": 11
+    },
+    "content_media_related_sqlite": {
+      "passed": 115,
+      "skipped": 11,
+      "assertions": 668
+    },
+    "content_media_concurrency_postgresql": {
+      "passed": 11,
+      "assertions": 60,
+      "included_in_related_total": true
     }
   },
   "browser_qa": true,
@@ -782,7 +798,8 @@
     "phase73_owned_zero_course_five_user_native8036_actual_free_course_two_signups_two_private_pdf_uploads_consent_SHA256_headers_outsider403_hidden_peer404_staff200_answer_clear_real_admin_owner_role_change_private_self_withdraw_after_role_loss_bytes_metadata_history_retained_completed_replay_no_payments_320_390_768_1440",
     "phase74_actualcfbd87e_schema53to54_PHP8_4_28_VFS9947_2342_503source_files_current_four_user_production_UI_active_and_withdrawn_software_private_PDF_hash_cipher_consent_history_financial_rows_retained_independent1386c81e_restore90_refusals3_file_validations12_browser_groups_real_three_heartbeats_320_390_768_1440",
     "phase75_native8037_three_synthetic_users_zero_content_actual_toolbar_links_formatting_text_paste_plain_conversion93_tests_both_DBs_legacy_and_rich_versions_preserved_three_publications_cancelled_future_schedule_frozen_history_student403_completed_replay_320_390_768_1440",
-    "phase76_actual387aa61_schema54to54_PHP8_4_28_VFS9953_2342_509_source_files_four_user_production_CMS_UI_plain_rich_publications_private_draft_cancelled_schedule_exact_fingerprints_independent_fd526bbb_restore_private_active_withdrawn_file_history_retained90_refusals3_validations15_browser_groups_three_heartbeats_320_390_768_1440"
+    "phase76_actual387aa61_schema54to54_PHP8_4_28_VFS9953_2342_509_source_files_four_user_production_CMS_UI_plain_rich_publications_private_draft_cancelled_schedule_exact_fingerprints_independent_fd526bbb_restore_private_active_withdrawn_file_history_retained90_refusals3_validations15_browser_groups_three_heartbeats_320_390_768_1440",
+    "phase77_native8038_four_synthetic_users_zero_media_content_two32x24_rasters_private_upload_explicit_publication_picker_alt_caption_public_decode_SHA_headers_private_draft_remove_reinsert_publication_immutable_terminal_withdrawal404_public_editor_history_placeholders_bytes_cipher_retained_student_org403_text_only_drop_completed_replay_320_390_768_1440"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -887,9 +904,9 @@
   "organization_membership_history_scope": "latest_50_own_or_admin_selected_organization_changes",
   "public_site_complete": true,
   "public_cms_complete": true,
-  "public_cms_scope": "versioned_home_articles_standalone_pages_plain_or_bounded_structured_rich_text_explicit_immutable_publication_and_reviewed_scheduling_no_media_library",
+  "public_cms_scope": "versioned_home_articles_standalone_pages_plain_or_bounded_structured_rich_text_explicit_immutable_publication_and_reviewed_scheduling_no_media_library; approved_library_raster_images_with_frozen_alt_caption_reference_and_terminal_withdrawal",
   "public_coach_profiles_complete": true,
-  "public_media_library_complete": false,
+  "public_media_library_complete": true,
   "public_rich_text_editor_complete": true,
   "public_scheduled_publishing_complete": true,
   "public_anonymous_contact_leads_complete": true,
@@ -1006,8 +1023,8 @@
   "container_current_production_images_published": false,
   "implicit_action_rate_budgets_isolated": true,
   "implicit_action_rate_budgets_scope": "throttle_alias_numeric_or_unnamed_limits_without_explicit_prefix_normalized_route_template_and_declared_methods_no_query_or_record_id_variation_original_framework_identity_counts_durations_storage_named_limiters_and_explicit_shared_prefix_unchanged",
-  "container_acceptance_matches_current_application_code": true,
-  "container_acceptance_pending_changes": "",
+  "container_acceptance_matches_current_application_code": false,
+  "container_acceptance_pending_changes": "phase77_media_library_images_schema55_not_in_actual387aa61_schema54_image",
   "persian_error_recovery_pages_complete": true,
   "persian_error_recovery_pages_scope": "403/404/405/419/429/500/503 HTML private no-store noindex no-referrer, minimal Inertia props without session/database shares, standalone inline CSS with no asset dependency, Retry-After/Allow/rate headers and HEAD preserved; API/JSON/validation/redirect/debug5xx contracts unchanged; fixed GET recovery without replay, history or reload",
   "consultation_management_current_authorization_complete": true,
@@ -1037,14 +1054,21 @@
   "discussion_attachment_physical_erasure_complete": false,
   "discussion_attachment_production_acceptance_complete": true,
   "discussion_attachment_production_acceptance_scope": "Guarded four-user production/debug-false image:27 refusal cases +3 specific validation guards, 90 total combined authorization refusals, opened private stream bytes and encrypted bound metadata, idempotent upload, current student/staff roles/eligibility/assignment, hidden content, byte/cipher substitution, active owner withdrawal after role loss, retained history/bytes, precise owned temporary-file cleanup after outer rollback; actual persistent software-only UI fixture with1active and1withdrawn PDF, exact cipher/consent/hash/enrollment/revision-history equality on independent restore, no financial rows changed and no republishing; four browser groups across pre-backup and restored workers stopped/running all12 pass",
-  "public_rich_text_editor_scope": "typed_document_v1_heading_h2_h3_paragraph_bold_italic_lists_quote_divider_safe_web_internal_links_text_only_paste_escaped_static_public_and_history_rendering_http_run_whitespace_preserved_no_raw_HTML_execution_immutable_legacy_and_rich_publications_schedules",
+  "public_rich_text_editor_scope": "typed_document_v1_heading_h2_h3_paragraph_bold_italic_lists_quote_divider_safe_web_internal_links_text_only_paste_escaped_static_public_and_history_rendering_http_run_whitespace_preserved_no_raw_HTML_execution_immutable_legacy_and_rich_publications_schedules; approved_library_images_and_text_only_drop",
   "current_work": {
-    "completed_phase": 76,
-    "next": "phase77_public_media_library_and_CMS_image_blocks",
+    "completed_phase": 77,
+    "next": "phase78_actual_media_image_upgrade_and_independent_restore_acceptance",
     "restored_environment_private_path": "/tmp/kardorost-compose-restored-phase76.env",
-    "resume": "preserve_fd526bbb_four_users_two_CMS_publications_private_draft_cancelled_schedule_active_and_withdrawn_private_discussion_PDFs_no_reset",
+    "resume": "preserve_fd526bbb_CMS76_versions_private_files_and_native8038_one_publication_private_draft_withdrawn_PNG_private_JPEG_no_reset",
     "lease_owner": "automation-20261116-resume-045432"
   },
   "rich_content_production_acceptance_complete": true,
-  "rich_content_production_acceptance_scope": "real387aa61_image_same_volume_upgrade_and_independent_fd526bbb_GPG_PG17_restore_exact_publications_private_draft_cancelled_schedule_definition_status_hashes_and_financial_rows_no_republishing_real_toolbar_whitespace_plain_paste_conversion_and_student403_all15_browser_groups"
+  "rich_content_production_acceptance_scope": "real387aa61_image_same_volume_upgrade_and_independent_fd526bbb_GPG_PG17_restore_exact_publications_private_draft_cancelled_schedule_definition_status_hashes_and_financial_rows_no_republishing_real_toolbar_whitespace_plain_paste_conversion_and_student403_all15_browser_groups",
+  "public_media_library_scope": "current_full_admin_private_PNG_JPEG_upload_separate_reviewed_publication_terminal_withdrawal_retained_original_bytes_and_source_bound_encrypted_metadata_4MiB_6000_each_12million_pixels_500_lifetime_per_owner_no_replacement_same_nonce",
+  "public_cms_images_complete": true,
+  "public_cms_images_scope": "max20_library_image_blocks_UUID_SHA_alt_caption_fixed_escaped_rendering_draft_and_frozen_publication_history_current_locked_reference_integrity_on_publish_schedule_execute_visibility_withdrawal_placeholder_without_history_rewrite",
+  "public_media_search_index": "authenticated20_result_linear_encrypted_title_scan_large_catalog_load_acceptance_pending",
+  "public_media_antivirus_scanning_complete": false,
+  "public_media_image_processing_complete": false,
+  "public_media_physical_erasure_complete": false
 }
