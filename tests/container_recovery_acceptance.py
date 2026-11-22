@@ -7,7 +7,7 @@ import secrets
 import subprocess
 import tempfile
 
-from container_runtime_probes import DISCUSSION_ATTACHMENT_FIXTURE_STATE
+from container_runtime_probes import DISCUSSION_ATTACHMENT_FIXTURE_STATE, RICH_CONTENT_FIXTURE_STATE
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location('recovery', ROOT / 'resources/operations/recovery.py')
@@ -42,6 +42,11 @@ discussion_original = None
 if os.environ.get('CONTAINER_EXPECT_DISCUSSION_ATTACHMENTS') == '1':
     discussion_original = json.loads(source.run(['exec', '-T', 'app', 'php', '-r', DISCUSSION_ATTACHMENT_FIXTURE_STATE]))
     assert discussion_original['fixture_complete'], 'Only the completed owned software-only discussion fixture.'
+
+rich_content_original = None
+if os.environ.get('CONTAINER_EXPECT_RICH_CONTENT') == '1':
+    rich_content_original = json.loads(source.run(['exec', '-T', 'app', 'php', '-r', RICH_CONTENT_FIXTURE_STATE]))
+    assert rich_content_original['fixture_complete'], 'Only the completed owned software-only rich CMS fixture.'
 
 latest_probe = r"""require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$credential=\App\Models\CoachCredential::sole();$service=app(\App\Services\CoachCredentials::class);$metadata=$service->metadata($credential);$fileHash=hash('sha256',\Illuminate\Support\Facades\Storage::disk('learning')->get($credential->file_path));$share=\App\Models\ResumeShare::sole();$sharing=app(\App\Services\ResumeSharing::class);$data=$sharing->metadata($share);$public=$sharing->publicPayload($data['token']);echo json_encode(['credential_source_valid'=>$metadata!==null&&$metadata['credential_id']===$credential->id&&$metadata['user_id']===$credential->user_id,'credential_cipher_hash'=>hash('sha256',$credential->getRawOriginal('definition')),'credential_hash'=>$metadata['sha256'],'original_file_hash'=>$fileHash,'credential_cipher_private'=>!str_contains($credential->getRawOriginal('definition'),'مدرک صرفاً آزمایشی'),'share_cipher_hash'=>hash('sha256',$share->getRawOriginal('definition')),'share_source_valid'=>$data['share_id']===$share->id&&$data['version_id']===$share->resume_version_id,'public_source_name'=>$public['definition']['name']==='نام نسخه آزمایشی کانتینر','public_contacts_omitted'=>$public['definition']['phone']===''&&$public['definition']['email']==='','token_encrypted'=>!str_contains($share->getRawOriginal('definition'),$data['token'])]);"""
 latest_original = None
@@ -127,6 +132,9 @@ with tempfile.TemporaryDirectory(prefix='kardorost-recovery-acceptance-') as tem
     if discussion_original is not None:
         discussion_restored = json.loads(target.run(['exec', '-T', 'app', 'php', '-r', DISCUSSION_ATTACHMENT_FIXTURE_STATE]))
         assert discussion_restored == discussion_original, 'Private attachment ciphertexts, bytes, consent, withdrawal or revision history changed.'
+    if rich_content_original is not None:
+        rich_content_restored = json.loads(target.run(['exec', '-T', 'app', 'php', '-r', RICH_CONTENT_FIXTURE_STATE]))
+        assert rich_content_restored == rich_content_original, 'Rich content, public versions, private draft or cancelled schedule snapshot changed.'
     # Save only the synthetic private destination environment for separate browser acceptance.
     destination = Path(os.environ.get('RECOVERY_DESTINATION_ENV_FILE', '/tmp/kardorost-compose-restored.env')).resolve()
     assert destination.is_relative_to('/tmp') and destination.name.startswith('kardorost-compose-restored')
@@ -144,6 +152,8 @@ with tempfile.TemporaryDirectory(prefix='kardorost-recovery-acceptance-') as tem
         report['checks'].append('latest_private_credential_original_bytes_encrypted_source_and_consented_resume_share_restored')
     if discussion_original is not None:
         report['checks'].append('private_discussion_original_file_hashes_encrypted_bound_metadata_consent_withdrawal_and_revision_history_restored_without_republishing')
+    if rich_content_original is not None:
+        report['checks'].append('exact_rich_CMS_publications_private_draft_cancelled_schedule_snapshot_and_financial_rows_restored_without_republication')
     heartbeat()
     Path('/tmp/kardorost-recovery-acceptance.json').write_text(json.dumps(report))
     print(json.dumps(report))
