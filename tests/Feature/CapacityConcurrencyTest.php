@@ -4569,4 +4569,47 @@ CODE;
         $this->assertSame(0, (int) Enrollment::sum('amount'));
         $this->assertDatabaseCount('payments', 0);
     }
+
+    public static function courseCreatorAccessChanges(): array
+    {
+        return [['activity'], ['role']];
+    }
+
+    #[DataProvider('courseCreatorAccessChanges')]
+    public function test_course_creation_waits_for_and_rechecks_current_admin(string $change): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Course creation authorization row locks require PostgreSQL.');
+        }
+        $actor = $this->workflowUser('admin');
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$request=\Illuminate\Http\Request::create('/admin/courses','POST',['title'=>'Software-only course71','description'=>'Current course creation authorization','stage'=>1,'price'=>100000,'capacity'=>5,'format'=>'hybrid','is_published'=>true]);$request->setUserResolver(fn()=>$actor);$checked=false;\Illuminate\Support\Facades\DB::connection()->beforeExecuting(function($sql)use(&$checked){if(!$checked&&((str_contains($sql,'"users"')&&str_contains($sql,'for update'))||str_starts_with($sql,'insert into "courses"'))){$checked=true;echo "CHECKED\n";flush();}});try{app(\App\Http\Controllers\CourseController::class)->store($request);echo 'CREATED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo 'HTTP:'.$e->getStatusCode();}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $actor->id], base_path(), null, null, 20);
+        $expected = null;
+        try {
+            DB::transaction(function () use ($actor, $change, $process, &$expected) {
+                User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+                $process->start();
+                $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'CHECKED')), $process->getErrorOutput());
+                if ($change === 'activity') {
+                    $actor->forceFill(['is_active' => false])->save();
+                    $this->assertFalse($actor->fresh()->is_active);
+                } else {
+                    $actor->roles()->sync([Role::where('key', 'student')->value('id')]);
+                }
+                $expected = $this->workflowSnapshot();
+            });
+            $process->wait();
+            $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+            $this->assertStringEndsWith('HTTP:403', $process->getOutput());
+        } finally {
+            if ($process->isRunning()) {
+                $process->stop();
+            }
+        }
+        $this->assertDatabaseCount('courses', 0);
+        $this->assertDatabaseCount('cohorts', 0);
+        $this->assertSame($expected, $this->workflowSnapshot());
+    }
 }

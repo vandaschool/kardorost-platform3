@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditEvent;
 use App\Models\Cohort;
 use App\Models\Course;
+use App\Models\User;
 use App\Services\CohortCapacity;
 use App\Services\CourseConsultationBenefits;
 use Illuminate\Http\RedirectResponse;
@@ -33,11 +34,15 @@ class CourseController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $actor = $request->user();
+        abort_unless($actor && $actor->is_active && $actor->hasRole('admin'), 403);
         $data = $request->validate(['title' => 'required|string|max:150', 'description' => 'required|string|max:5000', 'stage' => 'required|integer|between:1,3', 'price' => 'required|integer|min:0|max:1000000000', 'capacity' => 'required|integer|between:1,10000', 'format' => 'required|in:live,recorded,hybrid', 'is_published' => 'required|boolean']);
-        DB::transaction(function () use ($data, $request) {
+        DB::transaction(function () use ($data, $actor) {
+            $actor = User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+            abort_unless($actor->is_active && $actor->hasRole('admin'), 403);
             $course = Course::create(['title' => $data['title'], 'slug' => Str::slug($data['title']).'-'.Str::lower(Str::random(6)), 'description' => $data['description'], 'stage' => $data['stage'], 'price' => (int) $data['price'] * 10, 'is_published' => $data['is_published']]);
             Cohort::create(['course_id' => $course->id, 'title' => 'نوبت اول', 'format' => $data['format'], 'capacity' => $data['capacity']]);
-            AuditEvent::create(['actor_id' => $request->user()->id, 'action' => 'course.created', 'subject_type' => 'course', 'subject_id' => $course->id]);
+            AuditEvent::create(['actor_id' => $actor->id, 'action' => 'course.created', 'subject_type' => 'course', 'subject_id' => $course->id]);
         });
 
         return back()->with('success', 'دوره و نوبت اول آن ساخته شد.');
