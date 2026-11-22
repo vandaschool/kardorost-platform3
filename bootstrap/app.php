@@ -19,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_X_FORWARDED_PORT);
+        $middleware->trimStrings(except: ['definition.document.blocks.*.children.*.text', 'definition.document.blocks.*.items.*.*.text']);
+        $middleware->convertEmptyStringsToNull(except: [fn (Request $request): bool => $request->is('admin/content', 'admin/content/*')]);
         $middleware->web(append: [HandleInertiaRequests::class]);
         $middleware->alias(['throttle' => ActionThrottleRequests::class, 'account.active' => EnsureAccountActive::class, 'panel.role' => EnsurePanelRole::class]);
     })

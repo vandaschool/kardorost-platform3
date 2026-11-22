@@ -3,7 +3,10 @@ import { Head, Link, useForm } from "@inertiajs/vue3";
 import Shell from "../Layouts/Shell.vue";
 import Pagination from "../Components/Pagination.vue";
 import JalaliDateInput from "../Components/JalaliDateInput.vue";
-import { computed } from "vue";
+import { computed, ref } from "vue";
+import ContentDocumentPreview from "../Components/ContentDocumentPreview.vue";
+import ContentDocumentEditor from "../Components/ContentDocumentEditor.vue";
+import { documentFromText, documentText } from "../content-document";
 import { dateTime, fa } from "../dates";
 const props = defineProps({
     page: Object,
@@ -15,6 +18,17 @@ const draft = useForm({
     revision: props.page.revision,
     definition: JSON.parse(JSON.stringify(props.page.draft)),
 });
+const rich = ref(Boolean(props.page.draft.document));
+function toggleRich() {
+    if (rich.value) {
+        draft.definition.body = documentText(draft.definition.document);
+        delete draft.definition.document;
+        rich.value = false;
+    } else {
+        draft.definition.document = documentFromText(draft.definition.body);
+        rich.value = true;
+    }
+}
 const publish = useForm({ revision: props.page.revision });
 const visibility = useForm({
     revision: props.page.revision,
@@ -119,7 +133,21 @@ function toggle() {
                         maxlength="320"
                         :disabled="draft.processing"
                     /></label
-                ><label
+                ><button
+                    type="button"
+                    class="btn secondary"
+                    :disabled="busy"
+                    data-toggle-content-format
+                    @click="toggleRich"
+                >
+                    {{ rich ? "تبدیل قالب به متن ساده" : "قالب‌بندی متن" }}
+                </button>
+                <ContentDocumentEditor
+                    v-if="rich"
+                    v-model="draft.definition.document"
+                    :disabled="busy"
+                />
+                <label v-else
                     >متن<textarea
                         v-model="draft.definition.body"
                         name="body"
@@ -135,7 +163,7 @@ function toggle() {
                         maxlength="160"
                         :disabled="draft.processing"
                 /></label>
-                <p class="muted">
+                <p v-if="!rich" class="muted">
                     متن ساده نمایش داده می‌شود؛ کد HTML اجرا نمی‌شود. بین بندها
                     یک خط خالی بگذارید.
                 </p>
@@ -308,7 +336,11 @@ function toggle() {
                     نسخه عمومی حاصل: {{ fa(item.publication_number) }}
                 </p>
                 <h4>{{ item.definition.title }}</h4>
-                <p class="preserve-lines">{{ item.definition.body }}</p>
+                <ContentDocumentPreview
+                    v-if="item.definition.document"
+                    :document="item.definition.document"
+                />
+                <p v-else class="preserve-lines">{{ item.definition.body }}</p>
             </details>
             <Pagination :page="schedules" />
         </section>
@@ -328,7 +360,14 @@ function toggle() {
                 </summary>
                 <h3>{{ publication.definition.title }}</h3>
                 <p>{{ publication.definition.excerpt }}</p>
-                <p style="white-space: pre-wrap; overflow-wrap: anywhere">
+                <ContentDocumentPreview
+                    v-if="publication.definition.document"
+                    :document="publication.definition.document"
+                />
+                <p
+                    v-else
+                    style="white-space: pre-wrap; overflow-wrap: anywhere"
+                >
                     {{ publication.definition.body }}
                 </p>
             </details>

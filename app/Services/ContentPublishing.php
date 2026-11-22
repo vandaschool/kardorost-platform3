@@ -28,6 +28,11 @@ class ContentPublishing
 
     public function definition(array $input): array
     {
+        $document = null;
+        if (array_key_exists('document', $input) && $input['document'] !== null) {
+            $document = app(ContentDocument::class)->normalize($input['document']);
+            $input['body'] = app(ContentDocument::class)->plain($document);
+        }
         foreach (['title', 'excerpt', 'body', 'meta_description'] as $key) {
             if (isset($input[$key]) && is_string($input[$key]) && ! mb_check_encoding($input[$key], 'UTF-8')) {
                 $this->fail('متن محتوا معتبر نیست.');
@@ -35,7 +40,7 @@ class ContentPublishing
         }
         $valid = Validator::make($input, ['title' => 'required|string|max:160', 'excerpt' => 'required|string|max:320', 'body' => 'required|string|max:60000', 'meta_description' => 'nullable|string|max:160'])->validate();
 
-        return ['title' => trim($valid['title']), 'excerpt' => trim($valid['excerpt']), 'body' => trim($valid['body']), 'meta_description' => trim($valid['meta_description'] ?? '')];
+        return [...['title' => trim($valid['title']), 'excerpt' => trim($valid['excerpt']), 'body' => trim($valid['body']), 'meta_description' => trim($valid['meta_description'] ?? '')], ...($document ? ['document' => $document] : [])];
     }
 
     public function create(User $actor, string $kind, string $slug, array $definition): ContentPage
