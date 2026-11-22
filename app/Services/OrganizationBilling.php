@@ -36,11 +36,16 @@ class OrganizationBilling
         abort_unless($actor->is_active && $actor->hasRole('org_admin') && $invoice->organization->status === 'active' && $invoice->organization->members()->where('users.id', $actor->id)->wherePivot('kind', 'manager')->exists(), 403);
     }
 
-    private function locked(OrganizationInvoice $invoice): OrganizationInvoice
+    /** Shared order: organization, invoice, optional actor, payment, receipt/refund. */
+    private function locked(OrganizationInvoice $invoice, ?User $actor = null): OrganizationInvoice
     {
         Organization::whereKey($invoice->organization_id)->lockForUpdate()->firstOrFail();
+        $invoice = OrganizationInvoice::whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+        if ($actor) {
+            User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+        }
 
-        return OrganizationInvoice::whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+        return $invoice;
     }
 
     private function audit(User|int|null $actor, string $action, string $type, int $id, array $metadata = []): void
@@ -78,11 +83,15 @@ class OrganizationBilling
 
         return DB::transaction(function () use ($actor, $organization, $data, $invoice, $revision) {
             $organization = Organization::whereKey($organization->id)->lockForUpdate()->firstOrFail();
+            if ($invoice) {
+                $invoice = OrganizationInvoice::whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+            }
+            $actor = User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+            $this->admin($actor);
             if ($organization->status !== 'active') {
                 $this->fail('سازمان فعال لازم است.');
             }
             if ($invoice) {
-                $invoice = OrganizationInvoice::whereKey($invoice->id)->lockForUpdate()->firstOrFail();
                 if ($invoice->organization_id !== $organization->id || $invoice->status !== 'draft' || $invoice->revision !== $revision) {
                     $this->fail('فقط پیش‌نویس با نسخه تازه قابل ویرایش است.');
                 }
@@ -105,7 +114,9 @@ class OrganizationBilling
     {
         $this->admin($actor);
         DB::transaction(function () use ($actor, $invoice, $revision) {
-            $invoice = $this->locked($invoice);
+            $invoice = $this->locked($invoice, $actor);
+            $actor = User::findOrFail($actor->id);
+            $this->admin($actor);
             if ($invoice->status !== 'draft' || $invoice->revision !== $revision || $invoice->organization->status !== 'active') {
                 $this->fail('پیش‌نویس معتبر و سازمان فعال لازم است.');
             }
@@ -124,7 +135,9 @@ class OrganizationBilling
     {
         $this->admin($actor);
         DB::transaction(function () use ($actor, $invoice, $revision, $reason) {
-            $invoice = $this->locked($invoice);
+            $invoice = $this->locked($invoice, $actor);
+            $actor = User::findOrFail($actor->id);
+            $this->admin($actor);
             if (! in_array($invoice->status, ['draft', 'issued'], true) || $invoice->revision !== $revision || $invoice->payments()->where(fn ($q) => $q->whereNotNull('captured_at')->orWhere('status', 'pending_review')->orWhere(fn ($q) => $q->where('status', 'pending')->where('attempt_expires_at', '>', now())))->exists()) {
                 $this->fail('صورت‌حساب دارای وجه یا پرداخت در جریان را نمی‌توان باطل کرد.');
             }
@@ -157,7 +170,8 @@ class OrganizationBilling
     public function attempt(User $actor, OrganizationInvoice $invoice, ?int $amountToman = null): Payment
     {
         return DB::transaction(function () use ($actor, $invoice, $amountToman) {
-            $invoice = $this->locked($invoice);
+            $invoice = $this->locked($invoice, $actor);
+            $actor = User::findOrFail($actor->id);
             $this->payable($actor, $invoice);
             $amount = $this->paymentAmount($invoice, $amountToman);
             $pending = $invoice->payments()->where('method', 'gateway')->where('status', 'pending')->where('attempt_expires_at', '>', now())->first();
@@ -179,11 +193,12 @@ class OrganizationBilling
         if (! preg_match('/^[A-Z0-9]{4,100}$/D', $reference)) {
             $this->fail('شناسه واریز معتبر وارد کنید.');
         }
-        $filePath = $file->store('organization', 'receipts');
+        $filePath = null;
         $fileHash = hash_file('sha256', $file->getRealPath());
         try {
-            return DB::transaction(function () use ($actor, $invoice, $file, $reference, $date, $filePath, $fileHash, $amountToman) {
-                $invoice = $this->locked($invoice);
+            return DB::transaction(function () use ($actor, $invoice, $file, $reference, $date, &$filePath, $fileHash, $amountToman) {
+                $invoice = $this->locked($invoice, $actor);
+                $actor = User::findOrFail($actor->id);
                 $this->payable($actor, $invoice);
                 $amount = $this->paymentAmount($invoice, $amountToman);
                 if ($invoice->payments()->where('status', 'pending')->where('attempt_expires_at', '>', now())->exists()) {
@@ -196,6 +211,7 @@ class OrganizationBilling
                 if (ReceiptClaim::where('file_hash', $fileHash)->orWhere('transfer_key', $claimKey)->exists()) {
                     $this->fail('این رسید یا شناسه واریز قبلاً در سامانه استفاده شده است.');
                 }
+                $filePath = $file->store('organization', 'receipts');
                 $payment = Payment::create(['organization_invoice_id' => $invoice->id, 'enrollment_id' => null, 'user_id' => $actor->id, 'payer_name_snapshot' => $actor->name, 'amount' => $amount, 'method' => 'manual', 'status' => 'pending_review']);
                 $fileName = mb_substr(preg_replace('/[\x00-\x1F\x7F]/u', '_', str_replace(['\\', '/'], '_', $file->getClientOriginalName())), 0, 200);
                 $receipt = PaymentReceipt::create(['payment_id' => $payment->id, 'file_path' => $filePath, 'file_name' => $fileName, 'file_hash' => $fileHash, 'destination' => $invoice->destination, 'transfer_reference' => $reference, 'transfer_date' => $date]);
@@ -205,7 +221,9 @@ class OrganizationBilling
                 return $receipt;
             }, 3);
         } catch (\Throwable $exception) {
-            Storage::disk('receipts')->delete($filePath);
+            if ($filePath) {
+                Storage::disk('receipts')->delete($filePath);
+            }
             if ($exception instanceof UniqueConstraintViolationException) {
                 $this->fail('همین مدرک یا شناسه واریز هم‌زمان ثبت شده است.');
             }throw $exception;
@@ -221,7 +239,9 @@ class OrganizationBilling
         }
 
         return DB::transaction(function () use ($actor, $receipt, $data) {
-            $invoice = $this->locked($receipt->payment->organizationInvoice);
+            $invoice = $this->locked($receipt->payment->organizationInvoice, $actor);
+            $actor = User::findOrFail($actor->id);
+            $this->admin($actor);
             $payment = Payment::whereKey($receipt->payment_id)->lockForUpdate()->firstOrFail();
             $receipt = PaymentReceipt::whereKey($receipt->id)->lockForUpdate()->firstOrFail();
             if ($receipt->status !== 'pending' || $receipt->review_version !== (int) $data['expected_review_version']) {

@@ -3924,4 +3924,92 @@ CODE;
         $this->assertSame($before, $snapshot());
         $this->assertSame([], Storage::disk('refunds')->allFiles());
     }
+
+    public static function organizationBillingAccessRaces(): array
+    {
+        $cases = [];
+        foreach (['create', 'edit', 'issue', 'void', 'approve', 'reject'] as $action) {
+            $cases['admin_'.$action] = [$action, 'role'];
+        }
+        foreach (['attempt', 'reuse', 'receipt'] as $action) {
+            foreach (['role', 'activity', 'membership'] as $change) {
+                $cases['manager_'.$action.'_'.$change] = [$action, $change];
+            }
+        }
+
+        return $cases;
+    }
+
+    #[DataProvider('organizationBillingAccessRaces')]
+    public function test_waiting_organization_billing_write_rechecks_current_authorization(string $action, string $change): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Organization billing authorization row-lock races require PostgreSQL.');
+        }
+        Storage::fake('receipts');
+        config(['platform.finance.transfer_destination' => '6037991234567890', 'platform.finance.transfer_holder' => 'Software-only account']);
+        $invoice = OrganizationInvoice::factory()->create();
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $manager = User::factory()->create();
+        $manager->roles()->attach(Role::where('key', 'org_admin')->value('id'));
+        $invoice->organization->members()->attach($manager->id, ['kind' => 'manager']);
+        $managerOperation = in_array($action, ['attempt', 'reuse', 'receipt'], true);
+        $actor = $managerOperation ? $manager : $admin;
+        $service = app(OrganizationBilling::class);
+        if ($managerOperation || in_array($action, ['approve', 'reject'], true)) {
+            $service->issue($admin, $invoice, 1);
+            $invoice = $invoice->fresh();
+        }
+        if ($action === 'reuse') {
+            $service->attempt($manager, $invoice);
+        }
+        $receipt = in_array($action, ['approve', 'reject'], true)
+            ? $service->receipt($manager, $invoice, UploadedFile::fake()->createWithContent('software-only-race66.pdf', "%PDF-1.4\n% SOFTWARE-ONLY-NO-REAL-FUNDS66\n%%EOF\n"), 'SOFTWAREONLYRACE66', now()->toDateString())
+            : null;
+        $snapshot = function () {
+            $state = [];
+            foreach (['organization_invoices', 'payments', 'payment_receipts', 'receipt_claims', 'organization_payment_allocations', 'audit_events', 'notifications'] as $table) {
+                $state[$table] = DB::table($table)->orderBy('id')->get()->toJson();
+            }
+            foreach (Storage::disk('receipts')->allFiles() as $file) {
+                $state['files'][$file] = hash_file('sha256', Storage::disk('receipts')->path($file));
+            }
+
+            return hash('sha256', json_encode($state, JSON_THROW_ON_ERROR));
+        };
+        $before = $snapshot();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$action=$argv[1];$actor=\App\Models\User::findOrFail((int)$argv[2]);$invoice=\App\Models\OrganizationInvoice::findOrFail((int)$argv[3]);$receipt=(int)$argv[4]?\App\Models\PaymentReceipt::findOrFail((int)$argv[4]):null;$manager=in_array($action,['attempt','reuse','receipt'],true);config(['filesystems.disks.receipts.root'=>$argv[5],'platform.finance.transfer_destination'=>'6037991234567890','platform.finance.transfer_holder'=>'Software-only account']);$checked=false;
+\Illuminate\Support\Facades\DB::listen(function($query)use(&$checked){if(!$checked&&str_contains($query->sql,'roles')&&in_array('admin',$query->bindings,true)){$checked=true;echo "CHECKED\n";flush();}});if($manager){echo "CHECKED\n";flush();}
+try{$service=app(\App\Services\OrganizationBilling::class);$definition=['title'=>'Software-only contract','contract_reference'=>'SOFTWARE-ONLY-RACE66','due_date'=>now()->addWeek()->toDateString(),'organization_license_id'=>null,'lines'=>[['title'=>'Software-only service','quantity'=>1,'unit_price'=>100000]]];match($action){'create'=>$service->draft($actor,$invoice->organization,$definition),'edit'=>$service->draft($actor,$invoice->organization,$definition,$invoice,1),'issue'=>$service->issue($actor,$invoice,1),'void'=>$service->void($actor,$invoice,1,'Software-only cancellation'),'attempt','reuse'=>$service->attempt($actor,$invoice),'receipt'=>$service->receipt($actor,$invoice,\Illuminate\Http\UploadedFile::fake()->createWithContent('software-only-new-race66.pdf',"%PDF-1.4\n% SOFTWARE-ONLY-NEW-RECEIPT66\n%%EOF\n"),'SOFTWAREONLYNEW66',now()->toDateString()),'approve','reject'=>$service->review($actor,$receipt,['action'=>$action,'expected_review_version'=>0,'verified_amount'=>100000,'statement_verified'=>true,'review_note'=>'Software-only review'])};echo 'COMMITTED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, $action, (string) $actor->id, (string) $invoice->id, (string) ($receipt?->id ?? 0), Storage::disk('receipts')->path('')], base_path(), null, null, 20);
+        try {
+            DB::transaction(function () use ($invoice, $actor, $process, $change, $managerOperation) {
+                if ($managerOperation && $change !== 'activity') {
+                    Organization::whereKey($invoice->organization_id)->lockForUpdate()->firstOrFail();
+                } else {
+                    User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+                }
+                $process->start();
+                $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'CHECKED')), $process->getErrorOutput());
+                if ($change === 'activity') {
+                    User::whereKey($actor->id)->update(['is_active' => false]);
+                } elseif ($change === 'membership') {
+                    $invoice->organization->members()->detach($actor->id);
+                } else {
+                    $actor->roles()->detach(Role::where('key', $managerOperation ? 'org_admin' : 'admin')->value('id'));
+                }
+            });
+            $process->wait();
+            $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+            $this->assertStringEndsWith('403', $process->getOutput());
+        } finally {
+            if ($process->isRunning()) {
+                $process->stop();
+            }
+        }
+        $this->assertSame($before, $snapshot());
+    }
 }

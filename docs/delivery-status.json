@@ -1,5 +1,5 @@
 {
-  "phase": "current-refund-workflow-authorization",
+  "phase": "current-organization-billing-authorization",
   "completed": [
     "phone-verification",
     "password-login",
@@ -423,17 +423,18 @@
     "package-product-configuration-current-admin-and-coach-under-existing-root-then-sorted-account-lock-order",
     "package-receipt-review-and-captured-allocation-current-admin-before-writes-or-paid-shortcut",
     "existing-package-order-reuse-current-buyer-eligibility-with-original-coach-and-frozen-terms-preserved",
-    "current-refund-workflow-authorization"
+    "current-refund-workflow-authorization",
+    "current-organization-billing-authorization"
   ],
   "tests": {
     "postgresql": {
-      "passed": 1225,
-      "assertions": 10139
+      "passed": 1253,
+      "assertions": 10252
     },
     "sqlite": {
-      "passed": 1025,
-      "skipped": 200,
-      "assertions": 8982
+      "passed": 1038,
+      "skipped": 215,
+      "assertions": 9035
     },
     "javascript": {
       "passed": 6
@@ -733,7 +734,8 @@
     "phase63-production6726a92-upgrade-and-independent-restored-panels-private-features-error-pages-current-auth-rollback-probe-stopped-running-320-1440",
     "phase63-blank-peer-target-before-cookie-clear-and-real-quota-wait-no-limiter-reset",
     "phase64-real-package-product-create-publish-next-edition-price-edit-owner-pending-order-reuse-original-hash-and-price-preserved-no-payment-peer403-320-1440",
-    "phase65_owned_five_user_native_fixture_actual_refund_request_admin_approval_and_software_only_manual_proof_form_jalali_full_amount_owner_private_hash_no_store_nosniff_masked_iban_peer403_320_390_768_1440_resumable_no_real_bank_transfer"
+    "phase65_owned_five_user_native_fixture_actual_refund_request_admin_approval_and_software_only_manual_proof_form_jalali_full_amount_owner_private_hash_no_store_nosniff_masked_iban_peer403_320_390_768_1440_resumable_no_real_bank_transfer",
+    "phase66_owned_five_user_native8032_same_preserved_fixture_explicit_software_only_manual_account_actual_admin_draft_edit_issue_manager_selects_org_two_partial_receipts_independent_review_private_hash_no_store_student403_personal_payment_unchanged_320_390_768_1440_refund65_regression_preserved"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -810,9 +812,9 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase65_verified_ready_to_merge_then_organization_invoice_draft_issue_void_receipt_review_and_manager_payment_current_actor_authorization_without_changing_capture_or_contract_amount_policy",
+    "current_work": "phase66_verified_ready_to_merge_then_phase67_actual_current_image_build_upgrade_and_independent_restore_acceptance_pre_upgrade_phase63_owned_source_encrypted_backup_and_independent_key_ready_in_private_tmp_phase67_acceptance",
     "next_groups": [
-      "organization_invoice_current_actor_authorization_then_current_application_container_upgrade_and_recovery_acceptance",
+      "current_application_container_upgrade_and_recovery_acceptance_then_remaining_course_payment_and_course_benefit_current_actor_review",
       "career_and_assessment_extensions_without_invented_instruments",
       "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
       "coach_settlement_and_organization_benefits_requiring_business_terms",
@@ -958,7 +960,7 @@
   "implicit_action_rate_budgets_isolated": true,
   "implicit_action_rate_budgets_scope": "throttle_alias_numeric_or_unnamed_limits_without_explicit_prefix_normalized_route_template_and_declared_methods_no_query_or_record_id_variation_original_framework_identity_counts_durations_storage_named_limiters_and_explicit_shared_prefix_unchanged",
   "container_acceptance_matches_current_application_code": false,
-  "container_acceptance_pending_changes": "phase64_package_management_and_phase65_shared_refund_current_authorization_not_in_last6726a92_image",
+  "container_acceptance_pending_changes": "phase64_package_management_phase65_refund_and_phase66_organization_billing_current_authorization_not_in_last6726a92_image",
   "persian_error_recovery_pages_complete": true,
   "persian_error_recovery_pages_scope": "403/404/405/419/429/500/503 HTML private no-store noindex no-referrer, minimal Inertia props without session/database shares, standalone inline CSS with no asset dependency, Retry-After/Allow/rate headers and HEAD preserved; API/JSON/validation/redirect/debug5xx contracts unchanged; fixed GET recovery without replay, history or reload",
   "consultation_management_current_authorization_complete": true,
@@ -968,5 +970,7 @@
   "package_management_current_authorization_complete": true,
   "package_management_current_authorization_scope": "PackageBilling.configure locks existing product then sorted admin/new-coach rows and checks current admin eligibility before revision/write; locked(purchase, optional actor) preserves purchase-first then sorted participants/actor before financial rows; resolve/review recheck current admin before paid shortcut or financial changes; existing pending order reuse uses locked original purchase and fresh payable checks for original coach/buyer/activity/phone/role while preserving frozen terms/deadline; refund administration separate review scope",
   "refund_workflow_current_authorization_complete": true,
-  "refund_workflow_current_authorization_scope": "Existing full manual refunds for course, consultation, package and organization parents lock the actor under the existing shared parent-to-payment order and reload current activity/admin role or owner/organization-manager rights before request/review/complete writes; private proof storage follows authorization, state/amount/IBAN/date/duplicate checks; personal active owner rights survive student-role removal; 23 feature cases, 14 PostgreSQL races; money/cancellation policy and automatic bank transfers unchanged"
+  "refund_workflow_current_authorization_scope": "Existing full manual refunds for course, consultation, package and organization parents lock the actor under the existing shared parent-to-payment order and reload current activity/admin role or owner/organization-manager rights before request/review/complete writes; private proof storage follows authorization, state/amount/IBAN/date/duplicate checks; personal active owner rights survive student-role removal; 23 feature cases, 14 PostgreSQL races; money/cancellation policy and automatic bank transfers unchanged",
+  "organization_billing_current_authorization_complete": true,
+  "organization_billing_current_authorization_scope": "Organization then invoice then optional actor before payment/receipt/refund; draft create/edit, issue, void and receipt review reload current active admin under locks; manager new/reused gateway attempt and receipt submission reload current account before payable current activity/role/membership checks; receipt storage after current authorization and validation; received-money capture independent of current payer eligibility remains unchanged; 13 feature cases and 15 PostgreSQL races; original pending attempt amount/payer snapshot retained across valid managers"
 }
