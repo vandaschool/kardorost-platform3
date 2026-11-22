@@ -13,6 +13,9 @@ defineProps({ cohorts: Object, role: String });
                     پرسش‌ها و بحث‌های هر نوبت را در فضای همان کلاس دنبال کنید.
                 </p>
             </div>
+            <Link href="/discussion-attachments" class="btn secondary"
+                >مدیریت ضمیمه‌های من</Link
+            >
         </section>
         <p v-if="!cohorts.data.length" class="muted">
             نوبت آموزشی قابل دسترسی برای شما وجود ندارد.

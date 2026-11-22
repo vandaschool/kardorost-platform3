@@ -11,7 +11,7 @@ class DiscussionPostRevision extends Model
 
     protected function casts(): array
     {
-        return ['revision' => 'integer', 'hidden' => 'boolean'];
+        return ['revision' => 'integer', 'hidden' => 'boolean', 'attachments' => 'encrypted:array'];
     }
 
     public function actor(): BelongsTo
