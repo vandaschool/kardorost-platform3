@@ -1,4 +1,5 @@
 <script setup>
+import ContentMediaPicker from "./ContentMediaPicker.vue";
 import { onMounted, onBeforeUnmount, ref, watch } from "vue";
 import {
     documentFromText,
@@ -71,7 +72,16 @@ function changed() {
         )
             return;
         const tag = node.tagName;
-        if (tag === "HR") blocks.push({ type: "divider" });
+        if (tag === "FIGURE" && node.dataset.contentMedia) {
+            const image = node.querySelector("img");
+            blocks.push({
+                type: "image",
+                media: node.dataset.contentMedia,
+                sha256: node.dataset.contentSha,
+                alt: image?.getAttribute("alt") || "",
+                caption: node.querySelector("figcaption")?.textContent || "",
+            });
+        } else if (tag === "HR") blocks.push({ type: "divider" });
         else if (["UL", "OL"].includes(tag)) {
             const items = Array.from(node.children)
                 .filter((n) => n.tagName === "LI")
@@ -93,6 +103,7 @@ function changed() {
                     "OL",
                     "BLOCKQUOTE",
                     "HR",
+                    "FIGURE",
                 ].includes(n.tagName),
             )
         ) {
@@ -152,6 +163,44 @@ function restore() {
     const value = props.modelValue || documentFromText("");
     const elements = [];
     for (const block of value.blocks || []) {
+        if (block.type === "image") {
+            const figure = document.createElement("figure");
+            figure.dataset.contentMedia = block.media;
+            figure.dataset.contentSha = block.sha256;
+            figure.contentEditable = "false";
+            const image = document.createElement("img");
+            image.src =
+                "/admin/media/" + encodeURIComponent(block.media) + "/preview";
+            image.alt = block.alt;
+            image.draggable = false;
+            image.addEventListener("error", () => {
+                image.hidden = true;
+                if (!figure.querySelector("[data-unavailable-media-preview]")) {
+                    const message = document.createElement("span");
+                    message.dataset.unavailableMediaPreview = "";
+                    message.textContent = "تصویر در دسترس نیست.";
+                    figure.prepend(message);
+                }
+            });
+            figure.append(image);
+            if (block.caption) {
+                const caption = document.createElement("figcaption");
+                caption.textContent = block.caption;
+                figure.append(caption);
+            }
+            const remove = document.createElement("button");
+            remove.type = "button";
+            remove.textContent = "حذف تصویر از متن";
+            remove.addEventListener("click", () => {
+                if (!props.disabled) {
+                    figure.remove();
+                    changed();
+                }
+            });
+            figure.append(remove);
+            elements.push(figure);
+            continue;
+        }
         const tag =
             block.type === "heading"
                 ? block.level === 2
@@ -209,10 +258,23 @@ function applyLink() {
     command(href ? "createLink" : "unlink", href);
     link.value = "";
 }
+function addImage(block) {
+    if (props.disabled) return;
+    changed();
+    const value = JSON.parse(last);
+    value.blocks.push(block);
+    last = "";
+    emit("update:modelValue", value);
+}
 function paste(event) {
     event.preventDefault();
     if (!props.disabled)
         command("insertText", event.clipboardData.getData("text/plain"));
+}
+function drop(event) {
+    event.preventDefault();
+    if (!props.disabled && !event.dataTransfer.files.length)
+        command("insertText", event.dataTransfer.getData("text/plain"));
 }
 function preventNavigation(event) {
     if (event.target.closest("a")) event.preventDefault();
@@ -327,6 +389,7 @@ onBeforeUnmount(() => {
                 ثبت یا برداشتن لینک
             </button>
         </div>
+        <ContentMediaPicker :disabled="disabled" @select="addImage" />
         <div
             ref="editor"
             class="rich-content-input"
@@ -339,13 +402,14 @@ onBeforeUnmount(() => {
             @mouseup="remember"
             @keyup="remember"
             @paste="paste"
+            @drop="drop"
             @click="preventNavigation"
         ></div>
         <p v-if="error" class="field-error" role="alert">{{ error }}</p>
         <p class="caption muted">
-            فقط قالب متن و لینک ثبت می‌شود؛ متن چسبانده‌شده به صورت متن ساده
-            وارد می‌شود. تغییرات تا ذخیره و انتشار روی سایت عمومی نمایش داده
-            نمی‌شوند.
+            فقط قالب متن، لینک و تصویر کتابخانه ثبت می‌شود؛ متن چسبانده یا
+            رهاشده به صورت متن ساده وارد می‌شود. تغییرات تا ذخیره و انتشار روی
+            سایت عمومی نمایش داده نمی‌شوند.
         </p>
     </section>
 </template>
@@ -374,5 +438,29 @@ onBeforeUnmount(() => {
 }
 .rich-content-input :deep(a) {
     text-decoration: underline;
+}
+</style>
+
+<style scoped>
+.rich-content-input :deep(figure) {
+    margin: 1rem 0;
+    padding: 0.5rem;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+}
+.rich-content-input :deep(figure img) {
+    max-width: 100%;
+    max-height: 16rem;
+    display: block;
+    object-fit: contain;
+}
+.rich-content-input :deep(figcaption) {
+    overflow-wrap: anywhere;
+}
+</style>
+
+<style scoped>
+.rich-content-input :deep(figure img[hidden]) {
+    display: none;
 }
 </style>

@@ -54,6 +54,7 @@ class ContentPublishing
         try {
             return DB::transaction(function () use ($actor, $kind, $slug, $definition) {
                 $this->lockAdmin($actor);
+                app(ContentMediaLibrary::class)->validateDocument($definition, false);
                 $page = ContentPage::create(['created_by' => $actor->id, 'kind' => $kind, 'slug' => $slug, 'draft' => $definition]);
                 $this->audit($actor, $page, 'created');
 
@@ -85,6 +86,7 @@ class ContentPublishing
         $definition = $this->definition($definition);
         DB::transaction(function () use ($actor, $page, $revision, $definition) {
             $page = $this->locked($actor, $page, $revision);
+            app(ContentMediaLibrary::class)->validateDocument($definition, false);
             $this->cancelPending($actor, $page, 'draft_changed');
             $page->update(['draft' => $definition, 'revision' => $page->revision + 1]);
             $this->audit($actor, $page, 'draft_saved');
@@ -96,6 +98,7 @@ class ContentPublishing
         return DB::transaction(function () use ($actor, $page, $revision) {
             $page = $this->locked($actor, $page, $revision);
             $definition = $this->definition($page->draft);
+            app(ContentMediaLibrary::class)->validateDocument($definition, true);
             if ($page->currentPublication?->content_hash === $this->hash($definition)) {
                 $this->fail('این محتوا قبلاً منتشر شده است؛ برای نمایش دوباره، وضعیت نمایش را تغییر دهید.');
             }
@@ -111,6 +114,9 @@ class ContentPublishing
             $page = $this->locked($actor, $page, $revision);
             if ($available && ! $page->current_version) {
                 $this->fail('ابتدا یک نسخه منتشر کنید.');
+            }
+            if ($available) {
+                app(ContentMediaLibrary::class)->validateDocument($page->currentPublication->definition, true);
             }
             $this->cancelPending($actor, $page, 'visibility_changed');
             $previous = $page->available;
@@ -157,6 +163,7 @@ class ContentPublishing
         return DB::transaction(function () use ($actor, $page, $revision, $at) {
             $page = $this->locked($actor, $page, $revision);
             $definition = $this->definition($page->draft);
+            app(ContentMediaLibrary::class)->validateDocument($definition, true);
             $hash = $this->hash($definition);
             if ($page->currentPublication?->content_hash === $hash) {
                 $this->fail('همین نسخه از قبل منتشر شده است.');
@@ -205,6 +212,7 @@ class ContentPublishing
             } else {
                 try {
                     $definition = $this->definition($schedule->definition);
+                    app(ContentMediaLibrary::class)->validateDocument($definition, true);
                     if ($page->currentPublication?->content_hash === $this->hash($definition)) {
                         $reason = 'already_published';
                     }

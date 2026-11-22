@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ContentDocument
@@ -115,12 +116,24 @@ class ContentDocument
         $blocks = [];
         $nodes = 0;
         $characters = 0;
+        $images = 0;
         foreach ($document['blocks'] as $block) {
-            if (! is_array($block) || ! in_array($block['type'] ?? null, ['paragraph', 'heading', 'quote', 'bullet_list', 'ordered_list', 'divider'], true)) {
+            if (! is_array($block) || ! in_array($block['type'] ?? null, ['paragraph', 'heading', 'quote', 'bullet_list', 'ordered_list', 'divider', 'image'], true)) {
                 $this->fail();
             }
             $type = $block['type'];
-            if ($type === 'divider') {
+            if ($type === 'image') {
+                $this->keys($block, ['type', 'media', 'sha256', 'alt', 'caption']);
+                if (! is_string($block['media'] ?? null) || ! Str::isUuid($block['media']) || ! is_string($block['sha256'] ?? null) || ! preg_match('/^[a-f0-9]{64}$/D', $block['sha256']) || ! is_string($block['alt'] ?? null) || trim($block['alt']) === '' || ! mb_check_encoding($block['alt'], 'UTF-8') || mb_strlen($block['alt']) > 240 || ! is_string($block['caption'] ?? '') || ! mb_check_encoding($block['caption'] ?? '', 'UTF-8') || mb_strlen($block['caption'] ?? '') > 320 || str_contains($block['alt'].($block['caption'] ?? ''), "\0")) {
+                    $this->fail();
+                }
+                $characters += mb_strlen($block['alt'].($block['caption'] ?? ''));
+                $images++;
+                if ($images > 20 || $characters > 60000) {
+                    $this->fail();
+                }
+                $blocks[] = ['type' => 'image', 'media' => strtolower($block['media']), 'sha256' => $block['sha256'], 'alt' => trim($block['alt']), 'caption' => trim($block['caption'] ?? '')];
+            } elseif ($type === 'divider') {
                 $this->keys($block, ['type']);
                 $blocks[] = ['type' => 'divider'];
             } elseif (in_array($type, ['bullet_list', 'ordered_list'], true)) {
@@ -158,7 +171,9 @@ class ContentDocument
     {
         $blocks = [];
         foreach ($document['blocks'] as $block) {
-            if (isset($block['items'])) {
+            if ($block['type'] === 'image') {
+                $blocks[] = trim($block['alt']."\n".$block['caption']);
+            } elseif (isset($block['items'])) {
                 $blocks[] = implode("\n", array_map(fn ($runs) => implode('', array_column($runs, 'text')), $block['items']));
             } elseif (isset($block['children'])) {
                 $blocks[] = implode('', array_column($block['children'], 'text'));

@@ -13,15 +13,17 @@ export function documentFromText(text = "") {
 export function documentText(document) {
     return (document?.blocks || [])
         .flatMap((block) =>
-            block.items
-                ? [
-                      block.items
-                          .map((runs) => runs.map((run) => run.text).join(""))
-                          .join("\n"),
-                  ]
-                : block.children
-                  ? [block.children.map((run) => run.text).join("")]
-                  : [],
+            block.type === "image"
+                ? [block.alt + (block.caption ? "\n" + block.caption : "")]
+                : block.items
+                  ? [
+                        block.items
+                            .map((runs) => runs.map((run) => run.text).join(""))
+                            .join("\n"),
+                    ]
+                  : block.children
+                    ? [block.children.map((run) => run.text).join("")]
+                    : [],
         )
         .join("\n\n")
         .trim();
