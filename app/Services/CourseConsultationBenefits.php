@@ -26,6 +26,9 @@ class CourseConsultationBenefits
         DB::transaction(function () use ($admin, $cohort, $data) {
             $cohort = Cohort::whereKey($cohort->id)->lockForUpdate()->firstOrFail();
             $benefit = CohortConsultationBenefit::where('cohort_id', $cohort->id)->lockForUpdate()->first();
+            User::whereIn('id', array_filter([$admin->id, $data['enabled'] ? $data['coach_id'] : null]))->orderBy('id')->lockForUpdate()->get();
+            $admin = User::findOrFail($admin->id);
+            abort_unless($admin->is_active && $admin->hasRole('admin'), 403);
             if (($benefit?->revision ?? 0) !== (int) $data['revision']) {
                 $this->fail('تنظیمات تغییر کرده است؛ صفحه را تازه کنید.');
             }
@@ -159,6 +162,8 @@ class CourseConsultationBenefits
             $enrollment = Enrollment::findOrFail($contract->enrollment_id);
             Cohort::whereKey($enrollment->cohort_id)->lockForUpdate()->firstOrFail();
             $enrollment = Enrollment::whereKey($enrollment->id)->lockForUpdate()->firstOrFail();
+            $admin = app(BillingService::class)->lockFinancialActor($enrollment, $admin);
+            abort_unless($admin->is_active && $admin->hasRole('admin'), 403);
             if ($enrollment->billing_version !== $contract->billing_version) {
                 $this->fail('قرارداد متعلق به نسخه قبلی ثبت‌نام است.');
             }

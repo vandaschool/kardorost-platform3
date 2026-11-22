@@ -1,5 +1,5 @@
 {
-  "phase": "current-financial-container-acceptance",
+  "phase": "current-course-payment-and-benefit-authorization",
   "completed": [
     "phone-verification",
     "password-login",
@@ -425,17 +425,18 @@
     "existing-package-order-reuse-current-buyer-eligibility-with-original-coach-and-frozen-terms-preserved",
     "current-refund-workflow-authorization",
     "current-organization-billing-authorization",
-    "current-financial-container-acceptance"
+    "current-financial-container-acceptance",
+    "current-course-payment-and-benefit-authorization"
   ],
   "tests": {
     "postgresql": {
-      "passed": 1253,
-      "assertions": 10252
+      "passed": 1287,
+      "assertions": 10397
     },
     "sqlite": {
-      "passed": 1038,
-      "skipped": 215,
-      "assertions": 9035
+      "passed": 1055,
+      "skipped": 232,
+      "assertions": 9103
     },
     "javascript": {
       "passed": 6
@@ -738,7 +739,8 @@
     "phase65_owned_five_user_native_fixture_actual_refund_request_admin_approval_and_software_only_manual_proof_form_jalali_full_amount_owner_private_hash_no_store_nosniff_masked_iban_peer403_320_390_768_1440_resumable_no_real_bank_transfer",
     "phase66_owned_five_user_native8032_same_preserved_fixture_explicit_software_only_manual_account_actual_admin_draft_edit_issue_manager_selects_org_two_partial_receipts_independent_review_private_hash_no_store_student403_personal_payment_unchanged_320_390_768_1440_refund65_regression_preserved",
     "phase67_current_f399edf_php8_4_28_nginx_pg_four_panels_private_credentials_consented_resume_error_pages_and_real429_budget_all_pass_before_backup_and_restored_workers_stopped_running_320_390_768_1440",
-    "phase67_completed_native_organization_invoice_fixture_replay_preserves_both_approved_receipts_uses_exact_expected_cumulative_approved_amount_no_reset_no_new_deposits_private_hashes_retained"
+    "phase67_completed_native_organization_invoice_fixture_replay_preserves_both_approved_receipts_uses_exact_expected_cumulative_approved_amount_no_reset_no_new_deposits_private_hashes_retained",
+    "phase68_owned_new_zero_course_five_user_native8033_actual_course_create_publish_coach_assign_manual_payment_benefit_config_and_next_edition_student_checkout_jalali_private_receipt_admin_coach_deactivate_review_money_retained_grant_blocked_reactivate_retry_one_frozen_grant_disable_future_private_hash_peer403_320_390_768_1440_no_real_funds"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -815,9 +817,9 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase67_verified_ready_to_merge_then_current_course_financial_authorization_billing_attempt_receipt_review_allocation_and_frozen_course_benefit_configuration_retry_without_new_cancellation_policy",
+    "current_work": "phase68_verified_ready_to_merge_then_course_enrollment_and_cohort_billing_plan_current_actor_authorization_review_keep_existing_frozen_quotes_and_owned_debt_rights",
     "next_groups": [
-      "course_payment_receipt_allocation_and_course_consultation_benefit_current_actor_authorization_review",
+      "course_enrollment_and_cohort_billing_plan_current_actor_authorization_then_organization_membership_and_seat_workflows",
       "career_and_assessment_extensions_without_invented_instruments",
       "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
       "coach_settlement_and_organization_benefits_requiring_business_terms",
@@ -962,8 +964,8 @@
   "container_current_production_images_published": false,
   "implicit_action_rate_budgets_isolated": true,
   "implicit_action_rate_budgets_scope": "throttle_alias_numeric_or_unnamed_limits_without_explicit_prefix_normalized_route_template_and_declared_methods_no_query_or_record_id_variation_original_framework_identity_counts_durations_storage_named_limiters_and_explicit_shared_prefix_unchanged",
-  "container_acceptance_matches_current_application_code": true,
-  "container_acceptance_pending_changes": null,
+  "container_acceptance_matches_current_application_code": false,
+  "container_acceptance_pending_changes": "phase68_course_financial_actor_authorization_not_in_last_f399edf_image",
   "persian_error_recovery_pages_complete": true,
   "persian_error_recovery_pages_scope": "403/404/405/419/429/500/503 HTML private no-store noindex no-referrer, minimal Inertia props without session/database shares, standalone inline CSS with no asset dependency, Retry-After/Allow/rate headers and HEAD preserved; API/JSON/validation/redirect/debug5xx contracts unchanged; fixed GET recovery without replay, history or reload",
   "consultation_management_current_authorization_complete": true,
@@ -977,5 +979,7 @@
   "organization_billing_current_authorization_complete": true,
   "organization_billing_current_authorization_scope": "Organization then invoice then optional actor before payment/receipt/refund; draft create/edit, issue, void and receipt review reload current active admin under locks; manager new/reused gateway attempt and receipt submission reload current account before payable current activity/role/membership checks; receipt storage after current authorization and validation; received-money capture independent of current payer eligibility remains unchanged; 13 feature cases and 15 PostgreSQL races; original pending attempt amount/payer snapshot retained across valid managers",
   "financial_current_authorization_production_acceptance_complete": true,
-  "financial_current_authorization_production_acceptance_scope": "Guarded four-synthetic-user production/debug-false image without dev dependencies: 22 stale-activity refusals cover package product/create/edit/allocation/receipt, organization invoice create/edit/issue/void/receipt decisions, package and organization refund review/completion, owner existing purchase reuse/refund request and manager new/reused charge/receipt/refund; positive frozen purchase survives next product edition; entire touched table rows and stored-file paths preserved after refusals and outer rollback; temp upload removed; PostgreSQL sequences may advance; native four-refund-parent tests and current-role races remain separate coverage"
+  "financial_current_authorization_production_acceptance_scope": "Guarded four-synthetic-user production/debug-false image without dev dependencies: 22 stale-activity refusals cover package product/create/edit/allocation/receipt, organization invoice create/edit/issue/void/receipt decisions, package and organization refund review/completion, owner existing purchase reuse/refund request and manager new/reused charge/receipt/refund; positive frozen purchase survives next product edition; entire touched table rows and stored-file paths preserved after refusals and outer rollback; temp upload removed; PostgreSQL sequences may advance; native four-refund-parent tests and current-role races remain separate coverage",
+  "course_payment_and_benefit_current_authorization_complete": true,
+  "course_payment_and_benefit_current_authorization_scope": "BillingService new/reused attempt and allocation resolution, ReceiptService submission/review including paid shortcuts, CourseConsultationBenefits configure/retry including issued shortcut reload current owner/admin under parent financial locks; shared sorted actor/student/frozen-benefit-coach accounts acquired before payment/receipt and grant issuance, reciprocal admin/coach concurrent reviews succeed; current eligible coach locked for future benefit configuration; active owner debt-payment rights survive student-role loss, received-money capture remains independent, original frozen benefit definition remains unchanged; enrollment signup and cohort billing-plan authorization are separate next review scope"
 }

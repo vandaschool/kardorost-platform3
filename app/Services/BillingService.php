@@ -6,6 +6,7 @@ use App\Models\AuditEvent;
 use App\Models\Cohort;
 use App\Models\Course;
 use App\Models\Enrollment;
+use App\Models\EnrollmentConsultationBenefit;
 use App\Models\Installment;
 use App\Models\Payment;
 use App\Models\PaymentAllocation;
@@ -40,14 +41,26 @@ class BillingService
         return Installment::where('enrollment_id', $enrollment->id)->where('billing_version', $enrollment->billing_version)->whereNull('voided_at');
     }
 
-    public function locked(Installment $installment): array
+    public function locked(Installment $installment, ?User $actor = null): array
     {
         $enrollment = Enrollment::findOrFail($installment->enrollment_id);
         $cohort = Cohort::whereKey($enrollment->cohort_id)->lockForUpdate()->firstOrFail();
         $enrollment = Enrollment::whereKey($enrollment->id)->lockForUpdate()->firstOrFail();
         $installment = Installment::whereKey($installment->id)->lockForUpdate()->firstOrFail();
+        if ($actor) {
+            $this->lockFinancialActor($enrollment, $actor);
+        }
 
         return [$cohort, $enrollment, $installment];
+    }
+
+    /** Caller holds cohort/enrollment locks; include frozen benefit participants before payment locks. */
+    public function lockFinancialActor(Enrollment $enrollment, User $actor): User
+    {
+        $coachId = EnrollmentConsultationBenefit::where('enrollment_id', $enrollment->id)->where('billing_version', $enrollment->billing_version)->value('coach_id');
+        User::whereIn('id', array_filter([$actor->id, $enrollment->user_id, $coachId]))->orderBy('id')->lockForUpdate()->get();
+
+        return User::findOrFail($actor->id);
     }
 
     public function payable(User $user, Enrollment $enrollment, Installment $installment): void
@@ -73,7 +86,8 @@ class BillingService
     public function attempt(User $user, Installment $installment): Payment
     {
         return DB::transaction(function () use ($user, $installment) {
-            [$cohort,$enrollment,$installment] = $this->locked($installment);
+            [$cohort,$enrollment,$installment] = $this->locked($installment, $user);
+            $user = User::findOrFail($user->id);
             $this->payable($user, $enrollment, $installment);
             if (Payment::where('installment_id', $installment->id)->where('status', 'pending_review')->exists()) {
                 throw ValidationException::withMessages(['payment' => 'رسید این صورتحساب در حال بررسی است.']);
@@ -155,6 +169,8 @@ class BillingService
             $cohort = Cohort::whereKey($e->cohort_id)->lockForUpdate()->firstOrFail();
             $e = Enrollment::whereKey($e->id)->lockForUpdate()->firstOrFail();
             $invoice = $payment->installment_id ? Installment::whereKey($payment->installment_id)->lockForUpdate()->first() : null;
+            $admin = $this->lockFinancialActor($e, $admin);
+            abort_unless($admin->is_active && $admin->hasRole('admin'), 403);
             $payment = Payment::whereKey($payment->id)->lockForUpdate()->firstOrFail();
             if ($payment->refund()->where('status', '!=', 'rejected')->exists()) {
                 throw ValidationException::withMessages(['payment' => 'این پرداخت در فرایند بازپرداخت است و قابل تخصیص نیست.']);
