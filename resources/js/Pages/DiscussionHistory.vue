@@ -46,6 +46,11 @@ defineProps({
             <p class="lesson-text" style="overflow-wrap: anywhere">
                 {{ revision.body }}
             </p>
+            <ul v-if="revision.attachments?.length" class="muted">
+                <li v-for="file in revision.attachments" :key="file.id">
+                    ضمیمه همان نسخه: {{ file.file_name }}
+                </li>
+            </ul>
             <p v-if="revision.reason">دلیل: {{ revision.reason }}</p>
         </article>
         <Pagination :links="revisions.links"

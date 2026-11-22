@@ -1,5 +1,5 @@
 {
-  "phase": "current-course-organization-container-acceptance",
+  "phase": "private-course-discussion-attachments",
   "completed": [
     "phone-verification",
     "password-login",
@@ -430,17 +430,18 @@
     "current-course-signup-and-plan-authorization",
     "current-organization-workflow-authorization",
     "current-course-creation-authorization",
-    "current-course-organization-container-acceptance"
+    "current-course-organization-container-acceptance",
+    "private-course-discussion-attachments"
   ],
   "tests": {
     "postgresql": {
-      "passed": 1423,
-      "assertions": 10959
+      "passed": 1487,
+      "assertions": 11248
     },
     "sqlite": {
-      "passed": 1123,
-      "skipped": 300,
-      "assertions": 9363
+      "passed": 1165,
+      "skipped": 322,
+      "assertions": 9542
     },
     "javascript": {
       "passed": 6
@@ -467,7 +468,7 @@
       "financial_existing": 22,
       "fixture_rows_rolled_back": true
     },
-    "full_php_suite_last_completed_phase": 70
+    "full_php_suite_last_completed_phase": 73
   },
   "browser_qa": true,
   "deployed": false,
@@ -764,7 +765,8 @@
     "phase69_actual_admin40_60_installment_plan_jalali_date_peer_student_signup_future50_50_keeps_held40_60_quote_original_paid_contract_grant_receipt_hash_same_held_quote_reused_true_no_new_payment_student_plan403_320_390_768_1440_preserved_native68_owner_fixture_with_shared_course_peer_privacy_bound_to_original_receipt_reference_and_file403",
     "phase70_isolated_zero_course_org_six_user_native8034_real_admin_course_org_license2_to3_jalali_CSV_two_consents_group2_seats_leave_remove_keep_learning_report403_backup_manager_revoke_original_frozen_import_completed_replay_no_new_money_320_390_768_1440",
     "phase71_isolated_zero_course_three_user_native8035_actual_admin_published_paid100000toman_to1000000rial_free_draft_initial_cohorts_capacity_format_audit_student_post403_unchanged_draft_public404_zero_enrollment_payment_320_390_768_1440",
-    "phase72_actual6bca6e7_php8_4_28_nginx_pg_upgrade_and_independent_c70992cd_restore_four_panels_private_source_bound_files_consented_share_error403_404_419_429_download_budget_63_rolled_back_production_refusals_and_three_real_worker_heartbeats_nine_browser_groups_320_390_768_1440"
+    "phase72_actual6bca6e7_php8_4_28_nginx_pg_upgrade_and_independent_c70992cd_restore_four_panels_private_source_bound_files_consented_share_error403_404_419_429_download_budget_63_rolled_back_production_refusals_and_three_real_worker_heartbeats_nine_browser_groups_320_390_768_1440",
+    "phase73_owned_zero_course_five_user_native8036_actual_free_course_two_signups_two_private_pdf_uploads_consent_SHA256_headers_outsider403_hidden_peer404_staff200_answer_clear_real_admin_owner_role_change_private_self_withdraw_after_role_loss_bytes_metadata_history_retained_completed_replay_no_payments_320_390_768_1440"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -835,15 +837,15 @@
   "course_discussions_scope": "active_cohort_members_current_instructor_and_admin_plain_text",
   "discussion_message_history_complete": true,
   "discussion_live_chat_complete": false,
-  "discussion_file_attachments_complete": false,
+  "discussion_file_attachments_complete": true,
   "discussion_nested_replies_complete": false,
   "course_surveys_complete": true,
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase72_verified_actual6bca6e7_production_builds_filesystem_runtime_config_exact_497_files_53_to53_same_volume_upgrade_GPG_independent_c70992cd_restore_63_refusals_frozen_quote_and_benefit_guard_nine_browser_groups_actual_three_heartbeats_ops6_recovery16_dates6_pint_syntax_passed_preparing_PR68_then_private_discussion_attachments",
+    "current_work": "phase73_verified_private_discussion_attachments_schema54_full_pg1487_11248_sqlite1165_322skip9542_related63_439_races20_97_pint_dates_build_native8036_and_completed_replay_passed_preparing_PR69_then_actual_schema54_image_upgrade_restore_and_private_file_acceptance",
     "next_groups": [
-      "private_cohort_discussion_attachments_with_current_access_moderation_withdrawal_and_private_downloads",
+      "actual_schema54_discussion_attachment_production_image_upgrade_and_independent_private_file_restore_acceptance",
       "career_and_assessment_extensions_without_invented_instruments",
       "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
       "coach_settlement_and_organization_benefits_requiring_business_terms",
@@ -988,8 +990,8 @@
   "container_current_production_images_published": false,
   "implicit_action_rate_budgets_isolated": true,
   "implicit_action_rate_budgets_scope": "throttle_alias_numeric_or_unnamed_limits_without_explicit_prefix_normalized_route_template_and_declared_methods_no_query_or_record_id_variation_original_framework_identity_counts_durations_storage_named_limiters_and_explicit_shared_prefix_unchanged",
-  "container_acceptance_matches_current_application_code": true,
-  "container_acceptance_pending_changes": null,
+  "container_acceptance_matches_current_application_code": false,
+  "container_acceptance_pending_changes": "phase73_private_discussion_attachments_schema54_and_application_not_in_last6bca6e7_schema53_image",
   "persian_error_recovery_pages_complete": true,
   "persian_error_recovery_pages_scope": "403/404/405/419/429/500/503 HTML private no-store noindex no-referrer, minimal Inertia props without session/database shares, standalone inline CSS with no asset dependency, Retry-After/Allow/rate headers and HEAD preserved; API/JSON/validation/redirect/debug5xx contracts unchanged; fixed GET recovery without replay, history or reload",
   "consultation_management_current_authorization_complete": true,
@@ -1013,5 +1015,8 @@
   "course_creation_current_authorization_complete": true,
   "course_creation_current_authorization_scope": "CourseController.store checks current active admin under account FOR UPDATE inside creation transaction before course, initial cohort or audit writes, with initial active/admin guard; 3 feature and 2 PostgreSQL concurrency cases reproduced unauthorized creation before fix; related31/335 and races2/13 passed; full-suite baseline explicitly remains phase70 PG1423/10959 and SQLite1123/300skip/9363; isolated three-user actual Chromium published paid and free draft creation, capacity/format/audit/one-time toman conversion, student POST403 without changes and draft public404; zero enrollments or payments, no schema/dependencies",
   "course_organization_current_authorization_production_acceptance_complete": true,
-  "course_organization_current_authorization_production_acceptance_scope": "Guarded four-user production/debug-false non-development6bca6e7 image:32 inactive-account refusals cover course/org creation, course finance/benefit and plan admin, organization invitations/import/lifecycle/license/group admin/manager, five signup states and owner payment/receipt/departure; frozen original quote and two-session contract survive next edition/40-60 future plan/unavailable future coach; fresh signup rejected specifically on benefit validation; full touched raw-row/file-path fingerprint unchanged after denials and outer rollback, temporary uploads removed; old9 consultation+22 financial probes also pass before backup and after independent restore; no real funds, sends or live services"
+  "course_organization_current_authorization_production_acceptance_scope": "Guarded four-user production/debug-false non-development6bca6e7 image:32 inactive-account refusals cover course/org creation, course finance/benefit and plan admin, organization invitations/import/lifecycle/license/group admin/manager, five signup states and owner payment/receipt/departure; frozen original quote and two-session contract survive next edition/40-60 future plan/unavailable future coach; fresh signup rejected specifically on benefit validation; full touched raw-row/file-path fingerprint unchanged after denials and outer rollback, temporary uploads removed; old9 consultation+22 financial probes also pass before backup and after independent restore; no real funds, sends or live services",
+  "discussion_file_attachments_scope": "Private author-owned course discussion post attachments: PDF/PNG/JPEG/TXT max5MiB,3active/10lifetime per post, explicit versioned cohort sharing consent, owner/request-key idempotency and parent/current-account authorization locks; encrypted file metadata bound to row/post/owner/request/path, same opened stream SHA256/length verified before private no-store/nosniff/noindex octet download; current cohort member or assigned coach/admin access, hidden message/thread metadata hidden from nonstaff, withdrawn file unavailable to everyone; own paginated file management remains usable for active owner after student role/enrollment loss; current staff withdrawal requires reason; file bytes retained for history, no physical erasure/antivirus/public media claim; message revision attachment snapshots encrypted, selected answer invalidated;39 feature+20 actual PG races,63 related, complete native five-user UI and completed replay passed",
+  "discussion_attachment_antivirus_scanning_complete": false,
+  "discussion_attachment_physical_erasure_complete": false
 }

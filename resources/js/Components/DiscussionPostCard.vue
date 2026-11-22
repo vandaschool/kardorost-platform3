@@ -1,8 +1,14 @@
 <script setup>
 import { ref } from "vue";
 import { Link, useForm } from "@inertiajs/vue3";
+import DiscussionPostAttachments from "./DiscussionPostAttachments.vue";
 import { dateTime, fa } from "../dates";
-const props = defineProps({ post: Object, discussion: Object, staff: Boolean });
+const props = defineProps({
+    post: Object,
+    discussion: Object,
+    staff: Boolean,
+    attachmentConsent: String,
+});
 const editing = ref(false);
 const edit = useForm({
     revision: props.post.revision,
@@ -76,6 +82,12 @@ function selectAnswer() {
         <p v-else-if="!editing" class="lesson-text discussion-text">
             {{ post.body }}
         </p>
+        <DiscussionPostAttachments
+            v-if="!post.hidden || staff"
+            :post="post"
+            :discussion="discussion"
+            :consent="attachmentConsent"
+        />
         <form
             v-if="editing"
             class="form-stack"

@@ -19,6 +19,7 @@ use App\Http\Controllers\ContactLeadController;
 use App\Http\Controllers\ContentController;
 use App\Http\Controllers\CourseBenefitController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\DiscussionAttachmentController;
 use App\Http\Controllers\DiscussionController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\FinanceController;
@@ -148,6 +149,10 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::get('/survey-publications/{publication}/report', [SurveyController::class, 'report'])->name('surveys.report');
     Route::get('/survey-publications/{publication}/export', [SurveyController::class, 'export'])->middleware('throttle:10,1')->name('surveys.export');
     Route::get('/cohorts/{cohort}/survey-reports', [SurveyController::class, 'teaching'])->name('surveys.teaching');
+    Route::get('/discussion-attachments', [DiscussionAttachmentController::class, 'index'])->name('discussion-attachments');
+    Route::get('/discussion-attachments/{attachment}/file', [DiscussionAttachmentController::class, 'file'])->middleware('throttle:60,1')->name('discussion-attachments.file');
+    Route::post('/discussion-attachments/{attachment}/withdraw', [DiscussionAttachmentController::class, 'withdraw'])->middleware('throttle:30,1');
+    Route::post('/discussions/{discussion}/posts/{post}/attachments', [DiscussionAttachmentController::class, 'store'])->middleware('throttle:10,1');
     Route::get('/discussions', [DiscussionController::class, 'hub'])->name('discussions');
     Route::get('/cohorts/{cohort}/discussions', [DiscussionController::class, 'index'])->name('discussions.index');
     Route::post('/cohorts/{cohort}/discussions', [DiscussionController::class, 'create'])->middleware('throttle:15,1');

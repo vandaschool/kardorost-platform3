@@ -10,6 +10,7 @@ const props = defineProps({
     course: Object,
     posts: Object,
     staff: Boolean,
+    attachment_consent: String,
     role: String,
 });
 const reply = useForm({
@@ -70,6 +71,7 @@ function send() {
             :post="post"
             :discussion="discussion"
             :staff="staff"
+            :attachment-consent="attachment_consent"
         /><Pagination :links="posts.links" />
         <section
             v-if="discussion.can_reply"

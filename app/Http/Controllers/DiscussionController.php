@@ -70,16 +70,16 @@ class DiscussionController extends Controller
         $service->visible($request->user(), $discussion);
         $staff = $service->staff($request->user(), $discussion->cohort);
         $firstId = $discussion->posts()->oldest('id')->value('id');
-        $posts = $discussion->posts()->with('author:id,name')->when($discussion->hidden && ! $staff, fn ($query) => $query->whereRaw('1=0'))->orderBy('id')->paginate(20)->through(function ($post) use ($discussion, $staff, $request, $firstId) {
+        $posts = $discussion->posts()->with('author:id,name', 'attachments')->when($discussion->hidden && ! $staff, fn ($query) => $query->whereRaw('1=0'))->orderBy('id')->paginate(20)->through(function ($post) use ($discussion, $staff, $request, $firstId) {
             $data = ['id' => $post->id, 'hidden' => $post->hidden, 'revision' => $post->revision, 'can_edit' => ! $discussion->hidden && ! $discussion->locked && ! $post->hidden && $post->author_id === $request->user()->id, 'is_first' => $post->id === $firstId, 'created_at' => $post->created_at, 'edited' => $post->revision > 1];
             if ($post->hidden && ! $staff) {
                 return [...$data, 'body' => null, 'author_name' => null, 'author_role' => null];
             }
 
-            return [...$data, 'body' => $post->body, 'author_name' => $post->author->name, 'author_role' => $post->author_role, ...($staff ? ['moderation_reason' => $post->moderation_reason] : [])];
+            return [...$data, 'body' => $post->body, 'author_name' => $post->author->name, 'author_role' => $post->author_role, 'attachments' => $post->attachments->whereNull('withdrawn_at')->map(fn ($attachment) => [...app(CourseDiscussions::class)->attachmentData($attachment), 'can_withdraw' => $staff || $post->author_id === $request->user()->id, 'is_owner' => $post->author_id === $request->user()->id])->values()->all(), ...($staff ? ['moderation_reason' => $post->moderation_reason] : [])];
         });
 
-        return Inertia::render('Discussion', ['discussion' => $this->data($discussion, $request, $staff), 'cohort' => $discussion->cohort->only('id', 'title'), 'course' => $discussion->cohort->course->only('id', 'title'), 'posts' => $posts, 'staff' => $staff, 'role' => $this->role($request, $staff)]);
+        return Inertia::render('Discussion', ['discussion' => $this->data($discussion, $request, $staff), 'cohort' => $discussion->cohort->only('id', 'title'), 'course' => $discussion->cohort->course->only('id', 'title'), 'posts' => $posts, 'attachment_consent' => CourseDiscussions::ATTACHMENT_CONSENT, 'staff' => $staff, 'role' => $this->role($request, $staff)]);
     }
 
     private function belongs(CourseDiscussion $discussion, DiscussionPost $post): void
@@ -149,6 +149,6 @@ class DiscussionController extends Controller
         abort_unless($service->staff($request->user(), $discussion->cohort), 403);
         $this->belongs($discussion, $post);
 
-        return Inertia::render('DiscussionHistory', ['discussion_id' => $discussion->id, 'post_id' => $post->id, 'role' => $this->role($request, true), 'revisions' => $post->revisions()->with('actor:id,name')->latest('revision')->paginate(20)->through(fn ($revision) => [...$revision->only('revision', 'body', 'hidden', 'reason', 'created_at'), 'actor_name' => $revision->actor->name])]);
+        return Inertia::render('DiscussionHistory', ['discussion_id' => $discussion->id, 'post_id' => $post->id, 'role' => $this->role($request, true), 'revisions' => $post->revisions()->with('actor:id,name')->latest('revision')->paginate(20)->through(fn ($revision) => [...$revision->only('revision', 'body', 'hidden', 'reason', 'created_at'), 'attachments' => $revision->attachments ?? [], 'actor_name' => $revision->actor->name])]);
     }
 }

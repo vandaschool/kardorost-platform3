@@ -30,6 +30,11 @@ class DiscussionPost extends Model
         return $this->belongsTo(User::class, 'author_id');
     }
 
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(DiscussionAttachment::class)->orderBy('id');
+    }
+
     public function revisions(): HasMany
     {
         return $this->hasMany(DiscussionPostRevision::class);

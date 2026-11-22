@@ -33,6 +33,7 @@ use App\Models\CourseCertificate;
 use App\Models\CourseDiscussion;
 use App\Models\CourseSection;
 use App\Models\CourseSurvey;
+use App\Models\DiscussionAttachment;
 use App\Models\DiscussionPost;
 use App\Models\DiscussionPostRevision;
 use App\Models\Enrollment;
@@ -4611,5 +4612,194 @@ CODE;
         $this->assertDatabaseCount('courses', 0);
         $this->assertDatabaseCount('cohorts', 0);
         $this->assertSame($expected, $this->workflowSnapshot());
+    }
+
+    private function discussionAttachmentState(): string
+    {
+        $state = [];
+        foreach (['users', 'role_user', 'enrollments', 'courses', 'cohorts', 'course_discussions', 'discussion_posts', 'discussion_post_revisions', 'discussion_attachments', 'audit_events', 'notifications', 'jobs'] as $table) {
+            $rows = DB::table($table)->get()->map(fn ($row) => json_encode($row, JSON_THROW_ON_ERROR))->all();
+            sort($rows, SORT_STRING);
+            $state[$table] = $rows;
+        }
+        $files = Storage::disk('learning')->allFiles();
+        sort($files, SORT_STRING);
+        $state['files'] = $files;
+
+        return hash('sha256', json_encode($state, JSON_THROW_ON_ERROR));
+    }
+
+    private function discussionAttachmentFixture(bool $upload = true): array
+    {
+        Storage::fake('learning');
+        $student = $this->workflowUser('student');
+        $coach = $this->workflowUser('coach');
+        $cohort = Cohort::factory()->create(['course_id' => Course::factory()->state(['coach_id' => $coach->id, 'is_published' => true])]);
+        Enrollment::factory()->create(['user_id' => $student->id, 'cohort_id' => $cohort->id]);
+        $discussion = app(CourseDiscussions::class)->create($student, $cohort, ['title' => 'Software-only attachment race73', 'body' => 'No real document or course discussion.', 'kind' => 'question', 'request_key' => (string) Str::uuid()]);
+        $post = $discussion->posts()->sole();
+        $file = UploadedFile::fake()->createWithContent('software-only73.pdf', "%PDF-1.4\n% SOFTWARE-ONLY-ATTACHMENT73\n%%EOF\n");
+        $attachment = $upload ? app(CourseDiscussions::class)->attach($student, $post, ['revision' => 1, 'request_key' => (string) Str::uuid(), 'confirmed' => true, 'sharing_policy' => 'active_cohort_members_v1'], $file) : null;
+
+        return compact('student', 'coach', 'cohort', 'discussion', 'post', 'file', 'attachment');
+    }
+
+    private function discussionAttachmentProcess(User $actor, DiscussionPost $post, ?DiscussionAttachment $attachment, UploadedFile $file, string $action, string $barrier, ?string $key = null): Process
+    {
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$post=\App\Models\DiscussionPost::findOrFail((int)$argv[2]);$attachment=$argv[3]?\App\Models\DiscussionAttachment::findOrFail((int)$argv[3]):null;config(['filesystems.disks.learning.root'=>$argv[4]]);$file=new \Illuminate\Http\UploadedFile($argv[5],'software-only73.pdf',null,null,true);$action=$argv[6];$barrier=$argv[7];$checked=false;\Illuminate\Support\Facades\DB::connection()->beforeExecuting(function($sql)use(&$checked,$barrier){if(!$checked&&str_contains($sql,'for update')&&str_contains($sql,'"'.$barrier.'"')){$checked=true;echo "CHECKED\n";flush();}});try{$service=app(\App\Services\CourseDiscussions::class);if($action==='upload'){$item=$service->attach($actor,$post,['revision'=>(int)$argv[9],'request_key'=>$argv[8],'confirmed'=>true,'sharing_policy'=>'active_cohort_members_v1'],$file);echo 'ATTACHED:'.$item->id;}elseif($action==='download'){$prepared=$service->downloadAttachment($actor,$attachment);fclose($prepared['stream']);echo 'DOWNLOADED';}else{$service->withdrawAttachment($actor,$attachment,['revision'=>1,'reason'=>'Software-only race73 withdrawal']);echo 'WITHDRAWN';}}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo 'HTTP:'.$e->getStatusCode();}catch(\Illuminate\Validation\ValidationException){echo 'INVALID';}
+CODE;
+
+        return new Process([PHP_BINARY, '-r', $code, (string) $actor->id, (string) $post->id, (string) ($attachment?->id ?? ''), Storage::disk('learning')->path(''), $file->getRealPath(), $action, $barrier, $key ?? (string) Str::uuid(), (string) $post->fresh()->revision], base_path(), null, null, 20);
+    }
+
+    public static function discussionAttachmentAccessRaces(): array
+    {
+        $cases = [];
+        foreach (['upload', 'download'] as $action) {
+            foreach (['activity', 'role', 'phone', 'enrollment', 'post_hidden', 'thread_hidden'] as $change) {
+                $cases[$action.'_'.$change] = [$action, $change];
+            }
+        }
+        $cases['upload_thread_locked'] = ['upload', 'thread_locked'];
+        foreach (['activity', 'role', 'assignment'] as $change) {
+            $cases['staff_withdraw_'.$change] = ['staff_withdraw', $change];
+        }
+        $cases['owner_withdraw_activity'] = ['withdraw', 'activity'];
+
+        return $cases;
+    }
+
+    #[DataProvider('discussionAttachmentAccessRaces')]
+    public function test_discussion_attachment_operation_rechecks_current_access_after_concurrent_change(string $action, string $change): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Private discussion file authorization races require PostgreSQL.');
+        }
+        $fixture = $this->discussionAttachmentFixture($action !== 'upload');
+        extract($fixture);
+        $actor = $action === 'staff_withdraw' ? $coach : $student;
+        $barrier = in_array($change, ['activity', 'role', 'phone'], true) ? 'users' : ($change === 'enrollment' ? 'cohorts' : 'courses');
+        $process = $this->discussionAttachmentProcess($actor, $post, $attachment, $file, $action, $barrier);
+        $expected = null;
+        try {
+            DB::transaction(function () use ($actor, $coach, $cohort, $discussion, $post, $barrier, $process, $change, &$expected) {
+                match ($barrier) {
+                    'users' => User::whereKey($actor->id)->lockForUpdate()->firstOrFail(),
+                    'cohorts' => Cohort::whereKey($cohort->id)->lockForUpdate()->firstOrFail(),
+                    default => Course::whereKey($cohort->course_id)->lockForUpdate()->firstOrFail(),
+                };
+                $process->start();
+                $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'CHECKED')), $process->getErrorOutput());
+                if ($change === 'activity') {
+                    $actor->forceFill(['is_active' => false])->save();
+                    $this->assertFalse($actor->fresh()->is_active);
+                } elseif ($change === 'role') {
+                    $actor->roles()->sync([Role::where('key', 'org_admin')->value('id')]);
+                } elseif ($change === 'phone') {
+                    $actor->update(['phone_verified_at' => null]);
+                } elseif ($change === 'enrollment') {
+                    Enrollment::where('user_id', $actor->id)->where('cohort_id', $cohort->id)->update(['status' => 'cancelled']);
+                } elseif ($change === 'assignment') {
+                    Course::whereKey($cohort->course_id)->update(['coach_id' => null]);
+                } elseif ($change === 'post_hidden') {
+                    app(CourseDiscussions::class)->moderatePost($coach, $post, $post->fresh()->revision, true, 'Software-only race moderation');
+                } else {
+                    app(CourseDiscussions::class)->moderate($coach, $discussion, ['revision' => 1, 'hidden' => $change === 'thread_hidden', 'locked' => $change === 'thread_locked', 'pinned' => false, 'reason' => 'Software-only race moderation']);
+                }
+                $expected = $this->discussionAttachmentState();
+            });
+            $process->wait();
+            $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+            $status = in_array($change, ['post_hidden', 'thread_hidden', 'thread_locked'], true) ? ($action === 'upload' ? 'INVALID' : 'HTTP:404') : 'HTTP:403';
+            $this->assertStringEndsWith($status, $process->getOutput());
+        } finally {
+            if ($process->isRunning()) {
+                $process->stop();
+            }
+        }
+        $this->assertSame($expected, $this->discussionAttachmentState());
+    }
+
+    public function test_owner_can_withdraw_attachment_after_concurrent_role_loss_without_recycling_history(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Owner file withdrawal authorization race requires PostgreSQL.');
+        }
+        extract($this->discussionAttachmentFixture());
+        $process = $this->discussionAttachmentProcess($student, $post, $attachment, $file, 'withdraw', 'users');
+        try {
+            DB::transaction(function () use ($student, $process) {
+                User::whereKey($student->id)->lockForUpdate()->firstOrFail();
+                $process->start();
+                $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'CHECKED')), $process->getErrorOutput());
+                $student->roles()->sync([Role::where('key', 'org_admin')->value('id')]);
+            });
+            $process->wait();
+            $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+            $this->assertStringEndsWith('WITHDRAWN', $process->getOutput());
+        } finally {
+            if ($process->isRunning()) {
+                $process->stop();
+            }
+        }
+        $this->assertNotNull($attachment->fresh()->withdrawn_at);
+        $this->assertSame(3, $post->fresh()->revision);
+        Storage::disk('learning')->assertExists($attachment->file_path);
+        $this->assertSame(3, $post->revisions()->count());
+    }
+
+    public static function simultaneousAttachmentUploads(): array
+    {
+        return [['same_request'], ['last_slot']];
+    }
+
+    #[DataProvider('simultaneousAttachmentUploads')]
+    public function test_simultaneous_discussion_uploads_preserve_idempotency_and_last_attachment_slot(string $scenario): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Private attachment capacity/idempotency races require PostgreSQL.');
+        }
+        extract($this->discussionAttachmentFixture(false));
+        if ($scenario === 'last_slot') {
+            for ($index = 0; $index < 2; $index++) {
+                app(CourseDiscussions::class)->attach($student, $post, ['revision' => $post->fresh()->revision, 'request_key' => (string) Str::uuid(), 'confirmed' => true, 'sharing_policy' => 'active_cohort_members_v1'], $file);
+            }
+        }
+        $key = (string) Str::uuid();
+        $processes = [$this->discussionAttachmentProcess($student, $post, null, $file, 'upload', 'courses', $key), $this->discussionAttachmentProcess($student, $post, null, $file, 'upload', 'courses', $scenario === 'same_request' ? $key : (string) Str::uuid())];
+        $outputs = [];
+        try {
+            DB::transaction(function () use ($cohort, $processes) {
+                Course::whereKey($cohort->course_id)->lockForUpdate()->firstOrFail();
+                foreach ($processes as $process) {
+                    $process->start();
+                }
+                foreach ($processes as $process) {
+                    $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'CHECKED')), $process->getErrorOutput());
+                }
+            });
+            foreach ($processes as $process) {
+                $process->wait();
+                $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+                $outputs[] = trim(str_replace('CHECKED', '', $process->getOutput()));
+            }
+        } finally {
+            foreach ($processes as $process) {
+                if ($process->isRunning()) {
+                    $process->stop();
+                }
+            }
+        }
+        if ($scenario === 'same_request') {
+            $this->assertSame($outputs[0], $outputs[1]);
+            $this->assertStringStartsWith('ATTACHED:', $outputs[0]);
+        } else {
+            $this->assertCount(1, array_filter($outputs, fn ($output) => $output === 'INVALID'));
+            $this->assertCount(1, array_filter($outputs, fn ($output) => str_starts_with($output, 'ATTACHED:')));
+        }
+        $this->assertDatabaseCount('discussion_attachments', $scenario === 'same_request' ? 1 : 3);
+        $this->assertCount($scenario === 'same_request' ? 1 : 3, Storage::disk('learning')->allFiles());
+        $this->assertSame($scenario === 'same_request' ? 2 : 4, $post->fresh()->revision);
     }
 }
