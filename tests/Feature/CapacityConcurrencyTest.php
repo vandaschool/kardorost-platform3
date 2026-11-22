@@ -4012,4 +4012,201 @@ CODE;
         }
         $this->assertSame($before, $snapshot());
     }
+
+    public static function courseFinancialAccessRaces(): array
+    {
+        $cases = [];
+        foreach (['approve', 'reject', 'resolve', 'resolve_paid', 'review_paid', 'configure_new', 'configure_edit', 'configure_disable', 'retry_waiting', 'retry_issued'] as $action) {
+            $cases['admin_'.$action] = [$action, 'admin_role'];
+        }
+        foreach (['attempt', 'reuse', 'receipt'] as $action) {
+            $cases['owner_'.$action] = [$action, 'owner_activity'];
+        }
+        $cases['new_benefit_coach_role'] = ['configure_new', 'coach_role'];
+        $cases['edited_benefit_coach_activity'] = ['configure_edit', 'coach_activity'];
+
+        return $cases;
+    }
+
+    private function courseFinancialRaceFixture(string $action): array
+    {
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $student = User::factory()->create();
+        $student->roles()->attach(Role::where('key', 'student')->value('id'));
+        $coach = User::factory()->create();
+        $coach->roles()->attach(Role::where('key', 'coach')->value('id'));
+        $cohort = Cohort::factory()->create(['course_id' => Course::factory()->state(['price' => 1000000, 'is_published' => true]), 'capacity' => 10, 'manual_payment_enabled' => true]);
+        $definition = ['revision' => 0, 'enabled' => true, 'coach_id' => $coach->id, 'title' => 'Software-only frozen race68', 'sessions' => 2, 'session_minutes' => 60, 'valid_days' => 30, 'activation' => 'first_payment'];
+        if ($action !== 'configure_new') {
+            app(CourseConsultationBenefits::class)->configure($admin, $cohort, $definition);
+        }
+        $enrollment = app(EnrollmentService::class)->reserve($student, $cohort);
+        $invoice = app(BillingService::class)->current($enrollment)->sole();
+        $payment = null;
+        $receipt = null;
+        if (in_array($action, ['reuse', 'resolve_paid', 'retry_waiting', 'retry_issued'], true)) {
+            $payment = app(BillingService::class)->attempt($student, $invoice);
+        }
+        if (in_array($action, ['approve', 'reject', 'review_paid'], true)) {
+            $receipt = app(ReceiptService::class)->submit($student, $invoice, UploadedFile::fake()->createWithContent('software-only-race68.pdf', "%PDF-1.4\n% SOFTWARE-ONLY-NO-REAL-FUNDS-RACE68\n%%EOF\n"), 'SOFTWAREONLYRACE68', now()->toDateString());
+            $payment = $receipt->payment;
+        }
+        if ($action === 'review_paid') {
+            app(ReceiptService::class)->review($admin, $receipt, ['action' => 'approve', 'expected_review_version' => 0, 'verified_amount' => 100000, 'statement_verified' => true, 'review_note' => 'Software-only independent review']);
+        }
+        if ($action === 'resolve') {
+            $payment = Payment::factory()->create(['user_id' => $student->id, 'enrollment_id' => $enrollment->id, 'installment_id' => $invoice->id, 'amount' => 1000000, 'status' => 'review_required', 'reference' => 'SOFTWARE-ONLY-CAPTURED-RACE68', 'captured_at' => now(), 'paid_at' => now()]);
+        }
+        if (in_array($action, ['resolve_paid', 'retry_waiting', 'retry_issued'], true)) {
+            if ($action === 'retry_waiting') {
+                User::whereKey($coach->id)->update(['is_active' => false]);
+            }
+            app(BillingService::class)->capture($payment, 'SOFTWARE-ONLY-VERIFIED-RACE68');
+            User::whereKey($coach->id)->update(['is_active' => true]);
+        }
+
+        return [$admin, $student, $coach, $cohort, $enrollment, $invoice, $payment, $receipt];
+    }
+
+    #[DataProvider('courseFinancialAccessRaces')]
+    public function test_waiting_course_financial_write_rechecks_current_authorization(string $action, string $change): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Course financial authorization row-lock races require PostgreSQL.');
+        }
+        Storage::fake('receipts');
+        config(['platform.finance.transfer_destination' => '6037991234567890']);
+        [$admin, $student, $coach, $cohort, $enrollment, $invoice, $payment, $receipt] = $this->courseFinancialRaceFixture($action);
+        $actor = $change === 'owner_activity' ? $student : $admin;
+        $target = str_starts_with($change, 'coach_') ? $coach : $actor;
+        $snapshot = function () {
+            $state = [];
+            foreach (['cohort_consultation_benefits', 'enrollment_consultation_benefits', 'consultation_grants', 'enrollments', 'installments', 'payments', 'payment_receipts', 'receipt_claims', 'payment_allocations', 'audit_events', 'notifications'] as $table) {
+                $state[$table] = DB::table($table)->orderBy('id')->get()->toJson();
+            }
+            foreach (Storage::disk('receipts')->allFiles() as $file) {
+                $state['files'][$file] = hash_file('sha256', Storage::disk('receipts')->path($file));
+            }
+
+            return hash('sha256', json_encode($state, JSON_THROW_ON_ERROR));
+        };
+        $before = $snapshot();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$action=$argv[1];$actor=\App\Models\User::findOrFail((int)$argv[2]);$coach=\App\Models\User::findOrFail((int)$argv[3]);$cohort=\App\Models\Cohort::findOrFail((int)$argv[4]);$enrollment=\App\Models\Enrollment::findOrFail((int)$argv[5]);$invoice=\App\Models\Installment::findOrFail((int)$argv[6]);$payment=(int)$argv[7]?\App\Models\Payment::findOrFail((int)$argv[7]):null;$receipt=(int)$argv[8]?\App\Models\PaymentReceipt::findOrFail((int)$argv[8]):null;config(['filesystems.disks.receipts.root'=>$argv[9],'platform.finance.transfer_destination'=>'6037991234567890']);$owner=in_array($action,['attempt','reuse','receipt'],true);$checked=false;
+\Illuminate\Support\Facades\DB::listen(function($query)use(&$checked){if(!$checked&&str_contains($query->sql,'roles')&&in_array('admin',$query->bindings,true)){$checked=true;echo "CHECKED\n";flush();}});if($owner){echo "CHECKED\n";flush();}
+try{$definition=['revision'=>$action==='configure_new'?0:1,'enabled'=>$action!=='configure_disable','coach_id'=>$coach->id,'title'=>'Software-only edited race68','sessions'=>3,'session_minutes'=>60,'valid_days'=>30,'activation'=>'first_payment'];match($action){'attempt','reuse'=>app(\App\Services\BillingService::class)->attempt($actor,$invoice),'receipt'=>app(\App\Services\ReceiptService::class)->submit($actor,$invoice,\Illuminate\Http\UploadedFile::fake()->createWithContent('software-only-new-race68.pdf',"%PDF-1.4\n% SOFTWARE-ONLY-NEW-RECEIPT68\n%%EOF\n"),'SOFTWAREONLYNEW68',now()->toDateString()),'approve','reject','review_paid'=>app(\App\Services\ReceiptService::class)->review($actor,$receipt,['action'=>$action==='reject'?'reject':'approve','expected_review_version'=>0,'verified_amount'=>100000,'statement_verified'=>true,'review_note'=>'Software-only review']),'resolve','resolve_paid'=>app(\App\Services\BillingService::class)->resolve($payment,$actor),'configure_new','configure_edit','configure_disable'=>app(\App\Services\CourseConsultationBenefits::class)->configure($actor,$cohort,$definition),'retry_waiting','retry_issued'=>app(\App\Services\CourseConsultationBenefits::class)->retry($actor,\App\Models\EnrollmentConsultationBenefit::where('enrollment_id',$enrollment->id)->sole())};echo 'COMMITTED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}catch(\Illuminate\Validation\ValidationException){echo '422';}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, $action, (string) $actor->id, (string) $coach->id, (string) $cohort->id, (string) $enrollment->id, (string) $invoice->id, (string) ($payment?->id ?? 0), (string) ($receipt?->id ?? 0), Storage::disk('receipts')->path('')], base_path(), null, null, 20);
+        try {
+            DB::transaction(function () use ($target, $process, $change) {
+                User::whereKey($target->id)->lockForUpdate()->firstOrFail();
+                $process->start();
+                $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'CHECKED')), $process->getErrorOutput());
+                if (str_ends_with($change, '_activity')) {
+                    User::whereKey($target->id)->update(['is_active' => false]);
+                } else {
+                    $target->roles()->detach(Role::where('key', $change === 'coach_role' ? 'coach' : 'admin')->value('id'));
+                }
+            });
+            $process->wait();
+            $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+            $this->assertStringEndsWith(str_starts_with($change, 'coach_') ? '422' : '403', $process->getOutput());
+        } finally {
+            if ($process->isRunning()) {
+                $process->stop();
+            }
+        }
+        $this->assertSame($before, $snapshot());
+    }
+
+    public function test_waiting_owned_course_payment_retains_active_owner_rights_after_student_role_loss(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Course payment ownership row-lock race requires PostgreSQL.');
+        }
+        [$admin, $student, $coach, $cohort, $enrollment, $invoice] = $this->courseFinancialRaceFixture('attempt');
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$owner=\App\Models\User::findOrFail((int)$argv[1]);$invoice=\App\Models\Installment::findOrFail((int)$argv[2]);echo "CHECKED\n";flush();$payment=app(\App\Services\BillingService::class)->attempt($owner,$invoice);echo 'PENDING:'.$payment->amount;
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, (string) $student->id, (string) $invoice->id], base_path(), null, null, 20);
+        try {
+            DB::transaction(function () use ($student, $process) {
+                User::whereKey($student->id)->lockForUpdate()->firstOrFail();
+                $process->start();
+                $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'CHECKED')), $process->getErrorOutput());
+                $student->roles()->sync([Role::where('key', 'coach')->value('id')]);
+            });
+            $process->wait();
+            $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+            $this->assertStringEndsWith('PENDING:1000000', $process->getOutput());
+        } finally {
+            if ($process->isRunning()) {
+                $process->stop();
+            }
+        }
+        $this->assertSame($student->id, Payment::sole()->user_id);
+        $this->assertNull($invoice->fresh()->paid_at);
+        $this->assertDatabaseCount('consultation_grants', 0);
+    }
+
+    public function test_concurrent_reciprocal_admin_coach_receipt_reviews_finish_without_account_lock_cycle(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Reciprocal financial participant row locks require PostgreSQL.');
+        }
+        Storage::fake('receipts');
+        config(['platform.finance.transfer_destination' => '6037991234567890']);
+        $actors = User::factory()->count(2)->create();
+        foreach ($actors as $actor) {
+            $actor->roles()->sync(Role::whereIn('key', ['admin', 'coach'])->pluck('id'));
+        }
+        $student = User::factory()->create();
+        $student->roles()->attach(Role::where('key', 'student')->value('id'));
+        $fixtures = [];
+        foreach ($actors as $index => $actor) {
+            $coach = $actors[1 - $index];
+            $cohort = Cohort::factory()->create(['course_id' => Course::factory()->state(['price' => 1000000, 'is_published' => true]), 'capacity' => 10, 'manual_payment_enabled' => true]);
+            app(CourseConsultationBenefits::class)->configure($actor, $cohort, ['revision' => 0, 'enabled' => true, 'coach_id' => $coach->id, 'title' => 'Software-only reciprocal benefit', 'sessions' => 2, 'session_minutes' => 60, 'valid_days' => 30, 'activation' => 'first_payment']);
+            $enrollment = app(EnrollmentService::class)->reserve($student, $cohort);
+            $invoice = app(BillingService::class)->current($enrollment)->sole();
+            $receipt = app(ReceiptService::class)->submit($student, $invoice, UploadedFile::fake()->createWithContent('reciprocal68.pdf', "%PDF-1.4\n% SOFTWARE-ONLY-RECIPROCAL68-".$index."\n%%EOF\n"), 'SOFTWAREONLYRECIPROCAL68'.$index, now()->toDateString());
+            $fixtures[] = [$actor, $cohort, $receipt];
+        }
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$receipt=\App\Models\PaymentReceipt::findOrFail((int)$argv[2]);config(['filesystems.disks.receipts.root'=>$argv[3]]);$checked=false;\Illuminate\Support\Facades\DB::listen(function($query)use(&$checked){if(!$checked&&str_contains($query->sql,'roles')&&in_array('admin',$query->bindings,true)){$checked=true;echo "CHECKED\n";flush();}});echo app(\App\Services\ReceiptService::class)->review($actor,$receipt,['action'=>'approve','expected_review_version'=>0,'verified_amount'=>100000,'statement_verified'=>true,'review_note'=>'Software-only reciprocal review'])?'PAID':'UNALLOCATED';
+CODE;
+        $processes = [];
+        foreach ($fixtures as [$actor, $cohort, $receipt]) {
+            $processes[] = new Process([PHP_BINARY, '-r', $code, (string) $actor->id, (string) $receipt->id, Storage::disk('receipts')->path('')], base_path(), null, null, 20);
+        }
+        try {
+            DB::transaction(function () use ($fixtures, $processes) {
+                Cohort::whereIn('id', array_map(fn ($item) => $item[1]->id, $fixtures))->orderBy('id')->lockForUpdate()->get();
+                foreach ($processes as $process) {
+                    $process->start();
+                }
+                foreach ($processes as $process) {
+                    $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'CHECKED')), $process->getErrorOutput());
+                }
+            });
+            foreach ($processes as $process) {
+                $process->wait();
+                $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+                $this->assertStringEndsWith('PAID', $process->getOutput());
+            }
+        } finally {
+            foreach ($processes as $process) {
+                if ($process->isRunning()) {
+                    $process->stop();
+                }
+            }
+        }
+        $this->assertSame(2, Payment::where('status', 'paid')->count());
+        $this->assertSame(2000000, (int) PaymentAllocation::sum('amount'));
+        $this->assertDatabaseCount('consultation_grants', 2);
+        foreach ($fixtures as [$actor, $cohort, $receipt]) {
+            Storage::disk('receipts')->assertExists($receipt->file_path);
+        }
+    }
 }

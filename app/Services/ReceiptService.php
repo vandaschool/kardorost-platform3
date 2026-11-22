@@ -25,7 +25,8 @@ class ReceiptService
         $path = null;
         try {
             return DB::transaction(function () use ($user, $installment, $file, $reference, $date, &$path) {
-                [$cohort,$enrollment,$installment] = $this->billing->locked($installment);
+                [$cohort,$enrollment,$installment] = $this->billing->locked($installment, $user);
+                $user = User::findOrFail($user->id);
                 $this->billing->payable($user, $enrollment, $installment);
                 $destination = $this->normalizeReference((string) config('platform.finance.transfer_destination'));
                 if (! $cohort->manual_payment_enabled || ! preg_match('/^(?:IR[0-9]{24}|[0-9]{8,30})$/D', $destination)) {
@@ -69,7 +70,9 @@ class ReceiptService
 
         return DB::transaction(function () use ($admin, $receipt, $data) {
             $payment = $receipt->payment;
-            [$cohort,$enrollment,$installment] = $this->billing->locked($payment->installment);
+            [$cohort,$enrollment,$installment] = $this->billing->locked($payment->installment, $admin);
+            $admin = User::findOrFail($admin->id);
+            abort_unless($admin->is_active && $admin->hasRole('admin'), 403);
             $payment = Payment::whereKey($payment->id)->lockForUpdate()->firstOrFail();
             $receipt = PaymentReceipt::whereKey($receipt->id)->lockForUpdate()->firstOrFail();
             if ($receipt->status === 'approved' && $data['action'] === 'approve') {
