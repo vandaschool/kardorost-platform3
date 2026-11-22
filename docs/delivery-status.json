@@ -1,5 +1,5 @@
 {
-  "phase": "discussion-attachment-container-acceptance",
+  "phase": "safe-rich-public-cms-content",
   "completed": [
     "phone-verification",
     "password-login",
@@ -432,7 +432,8 @@
     "current-course-creation-authorization",
     "current-course-organization-container-acceptance",
     "private-course-discussion-attachments",
-    "discussion-attachment-container-acceptance"
+    "discussion-attachment-container-acceptance",
+    "safe-rich-public-cms-content"
   ],
   "tests": {
     "postgresql": {
@@ -471,7 +472,15 @@
       "financial_existing": 22,
       "probe_fixture_rows_rolled_back": true
     },
-    "full_php_suite_last_completed_phase": 73
+    "full_php_suite_last_completed_phase": 73,
+    "rich_content_related_sqlite": {
+      "passed": 93,
+      "assertions": 509
+    },
+    "rich_content_related_postgresql": {
+      "passed": 93,
+      "assertions": 509
+    }
   },
   "browser_qa": true,
   "deployed": false,
@@ -770,7 +779,8 @@
     "phase71_isolated_zero_course_three_user_native8035_actual_admin_published_paid100000toman_to1000000rial_free_draft_initial_cohorts_capacity_format_audit_student_post403_unchanged_draft_public404_zero_enrollment_payment_320_390_768_1440",
     "phase72_actual6bca6e7_php8_4_28_nginx_pg_upgrade_and_independent_c70992cd_restore_four_panels_private_source_bound_files_consented_share_error403_404_419_429_download_budget_63_rolled_back_production_refusals_and_three_real_worker_heartbeats_nine_browser_groups_320_390_768_1440",
     "phase73_owned_zero_course_five_user_native8036_actual_free_course_two_signups_two_private_pdf_uploads_consent_SHA256_headers_outsider403_hidden_peer404_staff200_answer_clear_real_admin_owner_role_change_private_self_withdraw_after_role_loss_bytes_metadata_history_retained_completed_replay_no_payments_320_390_768_1440",
-    "phase74_actualcfbd87e_schema53to54_PHP8_4_28_VFS9947_2342_503source_files_current_four_user_production_UI_active_and_withdrawn_software_private_PDF_hash_cipher_consent_history_financial_rows_retained_independent1386c81e_restore90_refusals3_file_validations12_browser_groups_real_three_heartbeats_320_390_768_1440"
+    "phase74_actualcfbd87e_schema53to54_PHP8_4_28_VFS9947_2342_503source_files_current_four_user_production_UI_active_and_withdrawn_software_private_PDF_hash_cipher_consent_history_financial_rows_retained_independent1386c81e_restore90_refusals3_file_validations12_browser_groups_real_three_heartbeats_320_390_768_1440",
+    "phase75_native8037_three_synthetic_users_zero_content_actual_toolbar_links_formatting_text_paste_plain_conversion93_tests_both_DBs_legacy_and_rich_versions_preserved_three_publications_cancelled_future_schedule_frozen_history_student403_completed_replay_320_390_768_1440"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -847,7 +857,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase74_verified_actualcfbd87e_schema54_builds_VFS9947_2342_503files_upgrade_and_independent1386c81e_restore90_production_refusals3_file_validations_persistent_software_private_active_withdrawn_files_cipher_consent_history_financial_hash_equal_twelve_browser_groups_three_real_heartbeats_ops6_recovery16_dates6_pint_syntax_passed_preparing_PR70_then_safe_rich_CMS_editor",
+    "current_work": "phase74_merged_PR70_maind14293e_phase75_structured_rich_CMS_document_normalizer_and_legacy_plain_body_compatibility_implemented_renderer_editor_and_tests_in_progress_no_completion_claim",
     "next_groups": [
       "safe_structured_rich_CMS_editor_and_public_renderer_with_legacy_plain_text_compatibility",
       "career_and_assessment_extensions_without_invented_instruments",
@@ -875,10 +885,10 @@
   "organization_membership_history_scope": "latest_50_own_or_admin_selected_organization_changes",
   "public_site_complete": true,
   "public_cms_complete": true,
-  "public_cms_scope": "plain_text_versioned_home_copy_articles_standalone_pages_with_explicit_publication",
+  "public_cms_scope": "versioned_home_articles_standalone_pages_plain_or_bounded_structured_rich_text_explicit_immutable_publication_and_reviewed_scheduling_no_media_library",
   "public_coach_profiles_complete": true,
   "public_media_library_complete": false,
-  "public_rich_text_editor_complete": false,
+  "public_rich_text_editor_complete": true,
   "public_scheduled_publishing_complete": true,
   "public_anonymous_contact_leads_complete": true,
   "career_resume_builder_complete": true,
@@ -994,8 +1004,8 @@
   "container_current_production_images_published": false,
   "implicit_action_rate_budgets_isolated": true,
   "implicit_action_rate_budgets_scope": "throttle_alias_numeric_or_unnamed_limits_without_explicit_prefix_normalized_route_template_and_declared_methods_no_query_or_record_id_variation_original_framework_identity_counts_durations_storage_named_limiters_and_explicit_shared_prefix_unchanged",
-  "container_acceptance_matches_current_application_code": true,
-  "container_acceptance_pending_changes": null,
+  "container_acceptance_matches_current_application_code": false,
+  "container_acceptance_pending_changes": "phase75_safe_rich_public_CMS_content_not_in_lastcfbd87e_image",
   "persian_error_recovery_pages_complete": true,
   "persian_error_recovery_pages_scope": "403/404/405/419/429/500/503 HTML private no-store noindex no-referrer, minimal Inertia props without session/database shares, standalone inline CSS with no asset dependency, Retry-After/Allow/rate headers and HEAD preserved; API/JSON/validation/redirect/debug5xx contracts unchanged; fixed GET recovery without replay, history or reload",
   "consultation_management_current_authorization_complete": true,
@@ -1024,5 +1034,12 @@
   "discussion_attachment_antivirus_scanning_complete": false,
   "discussion_attachment_physical_erasure_complete": false,
   "discussion_attachment_production_acceptance_complete": true,
-  "discussion_attachment_production_acceptance_scope": "Guarded four-user production/debug-false image:27 refusal cases +3 specific validation guards, old90 total combined authorization refusals, opened private stream bytes and encrypted bound metadata, idempotent upload, current student/staff roles/eligibility/assignment, hidden content, byte/cipher substitution, active owner withdrawal after role loss, retained history/bytes, precise owned temporary-file cleanup after outer rollback; actual persistent software-only UI fixture with1active and1withdrawn PDF, exact cipher/consent/hash/enrollment/revision-history equality on independent restore, no financial rows changed and no republishing; four browser groups across pre-backup and restored workers stopped/running all12 pass"
+  "discussion_attachment_production_acceptance_scope": "Guarded four-user production/debug-false image:27 refusal cases +3 specific validation guards, 90 total combined authorization refusals, opened private stream bytes and encrypted bound metadata, idempotent upload, current student/staff roles/eligibility/assignment, hidden content, byte/cipher substitution, active owner withdrawal after role loss, retained history/bytes, precise owned temporary-file cleanup after outer rollback; actual persistent software-only UI fixture with1active and1withdrawn PDF, exact cipher/consent/hash/enrollment/revision-history equality on independent restore, no financial rows changed and no republishing; four browser groups across pre-backup and restored workers stopped/running all12 pass",
+  "public_rich_text_editor_scope": "typed_document_v1_heading_h2_h3_paragraph_bold_italic_lists_quote_divider_safe_web_internal_links_text_only_paste_escaped_static_public_and_history_rendering_http_run_whitespace_preserved_no_raw_HTML_execution_immutable_legacy_and_rich_publications_schedules",
+  "current_work": {
+    "completed_phase": 75,
+    "next": "phase76_actual_rich_CMS_image_upgrade_and_independent_restore_acceptance",
+    "resume": "preserve_native8037_three_publications_cancelled_schedule_and_production1386c81e_active_withdrawn_private_files_no_reset",
+    "lease_owner": "automation-20261116-resume-045432"
+  }
 }
