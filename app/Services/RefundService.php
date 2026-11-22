@@ -53,17 +53,18 @@ class RefundService
     }
 
     /** Uses the same parent-to-payment lock order as allocation and consultation settlement. */
-    private function locked(Payment $payment): Payment
+    private function locked(Payment $payment, User $actor): Payment
     {
         if ($payment->package_purchase_id) {
-            app(PackageBilling::class)->locked($payment->packagePurchase);
+            app(PackageBilling::class)->locked($payment->packagePurchase, $actor);
         } elseif ($payment->organization_invoice_id) {
             $invoice = OrganizationInvoice::findOrFail($payment->organization_invoice_id);
             Organization::whereKey($invoice->organization_id)->lockForUpdate()->firstOrFail();
             OrganizationInvoice::whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+            User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
         } elseif ($payment->consultation_id) {
             $item = Consultation::findOrFail($payment->consultation_id);
-            User::whereIn('id', [$item->student_id, $item->slot->coach_id])->orderBy('id')->lockForUpdate()->get();
+            User::whereIn('id', [$actor->id, $item->student_id, $item->slot->coach_id])->orderBy('id')->lockForUpdate()->get();
             ConsultationSlot::whereKey($item->consultation_slot_id)->lockForUpdate()->firstOrFail();
             Consultation::whereKey($item->id)->lockForUpdate()->firstOrFail();
         } else {
@@ -73,6 +74,7 @@ class RefundService
             if ($payment->installment_id) {
                 Installment::whereKey($payment->installment_id)->lockForUpdate()->firstOrFail();
             }
+            User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
         }
 
         return Payment::whereKey($payment->id)->lockForUpdate()->firstOrFail();
@@ -154,9 +156,12 @@ class RefundService
         $destination = $this->iban($destination);
 
         return DB::transaction(function () use ($actor, $payment, $destination, $reason, $version, $beneficiaryName) {
-            $p = $this->locked($payment);
+            $p = $this->locked($payment, $actor);
+            $actor = User::findOrFail($actor->id);
             if ($p->organization_invoice_id) {
                 app(OrganizationBilling::class)->manager($actor, $p->organizationInvoice);
+            } else {
+                abort_unless($actor->is_active && $actor->id === $p->user_id, 403);
             }
             $refund = Refund::where('payment_id', $p->id)->lockForUpdate()->first();
             if (! $this->refundable($p)) {
@@ -182,7 +187,9 @@ class RefundService
     {
         abort_unless($admin->is_active && $admin->hasRole('admin'), 403);
         DB::transaction(function () use ($admin, $refund, $version, $action, $note) {
-            $p = $this->locked($refund->payment);
+            $p = $this->locked($refund->payment, $admin);
+            $admin = User::findOrFail($admin->id);
+            abort_unless($admin->is_active && $admin->hasRole('admin'), 403);
             $refund = Refund::whereKey($refund->id)->lockForUpdate()->firstOrFail();
             if ($refund->status !== 'requested' || $refund->version !== $version) {
                 $this->fail('درخواست تغییر کرده است؛ صفحه را تازه کنید.');
@@ -210,10 +217,12 @@ class RefundService
         }
         $key = hash('sha256', $data['transfer_date'].'|'.$reference);
         $hash = hash_file('sha256', $file->getRealPath());
-        $path = $file->store('proofs', 'refunds');
+        $path = null;
         try {
-            DB::transaction(function () use ($admin, $refund, $data, $file, $reference, $key, $hash, $path) {
-                $p = $this->locked($refund->payment);
+            DB::transaction(function () use ($admin, $refund, $data, $file, $reference, $key, $hash, &$path) {
+                $p = $this->locked($refund->payment, $admin);
+                $admin = User::findOrFail($admin->id);
+                abort_unless($admin->is_active && $admin->hasRole('admin'), 403);
                 $refund = Refund::whereKey($refund->id)->lockForUpdate()->firstOrFail();
                 if ($refund->status !== 'approved' || $refund->version !== (int) $data['version']) {
                     $this->fail('درخواست برای ثبت واریز معتبر نیست یا قبلاً تکمیل شده است.');
@@ -230,6 +239,7 @@ class RefundService
                 if (Refund::where('transfer_key', $key)->orWhere('file_hash', $hash)->exists()) {
                     $this->fail('این مدرک یا شناسه واریز قبلاً استفاده شده است.');
                 }
+                $path = $file->store('proofs', 'refunds');
                 $name = mb_substr(preg_replace('/[\x00-\x1F\x7F]/u', '_', str_replace(['\\', '/'], '_', $file->getClientOriginalName())), 0, 200);
                 $refund->update(['status' => 'completed', 'version' => $refund->version + 1, 'transfer_reference' => $reference, 'transfer_date' => $data['transfer_date'], 'transfer_key' => $key, 'file_hash' => $hash, 'file_path' => $path, 'file_name' => $name, 'completed_by' => $admin->id, 'completed_at' => now()]);
                 $p->update(['status' => 'refunded']);
@@ -245,7 +255,9 @@ class RefundService
                 $this->event($refund, $admin, 'مدرک برگشت کامل وجه و تطبیق گیرنده ثبت شد.');
             }, 3);
         } catch (\Throwable $exception) {
-            Storage::disk('refunds')->delete($path);
+            if ($path) {
+                Storage::disk('refunds')->delete($path);
+            }
             if ($exception instanceof UniqueConstraintViolationException) {
                 $this->fail('مدرک یا شناسه واریز هم‌زمان برای درخواست دیگری ثبت شده است.');
             }

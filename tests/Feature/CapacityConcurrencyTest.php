@@ -104,6 +104,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
@@ -3826,5 +3827,101 @@ CODE;
     public function test_waiting_package_reservation_reuse_rechecks_current_phone_verification(): void
     {
         $this->packageManagementAfterAccessChange('reserve', false, false, true);
+    }
+
+    public static function refundAccessRaces(): array
+    {
+        $cases = [];
+        foreach (['course', 'consultation', 'package', 'organization'] as $kind) {
+            foreach (['approve', 'complete'] as $action) {
+                $cases[$kind.'_'.$action] = [$kind, $action, 'role'];
+            }
+            if ($kind !== 'organization') {
+                $cases[$kind.'_request'] = [$kind, 'request', 'activity'];
+            }
+        }
+        foreach (['activity', 'role', 'membership'] as $change) {
+            $cases['organization_request_'.$change] = ['organization', 'request', $change];
+        }
+
+        return $cases;
+    }
+
+    #[DataProvider('refundAccessRaces')]
+    public function test_waiting_refund_write_rechecks_current_authorization(string $kind, string $action, string $change): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Refund authorization row-lock races require PostgreSQL.');
+        }
+        Storage::fake('refunds');
+        $base = ['status' => 'review_required', 'reference' => 'SOFTWARE-ONLY-REFUND-RACE65', 'captured_at' => now(), 'paid_at' => now(), 'amount' => 1000000];
+        if ($kind === 'course') {
+            $payment = Payment::factory()->create($base);
+        } else {
+            if ($kind === 'organization') {
+                $invoice = OrganizationInvoice::factory()->create();
+                $owner = User::factory()->create();
+                $owner->roles()->attach(Role::where('key', 'org_admin')->value('id'));
+                $invoice->organization->members()->attach($owner->id, ['kind' => 'manager']);
+                $parent = ['organization_invoice_id' => $invoice->id, 'user_id' => $owner->id];
+            } elseif ($kind === 'package') {
+                $purchase = PackagePurchase::factory()->create();
+                $parent = ['package_purchase_id' => $purchase->id, 'user_id' => $purchase->student_id];
+            } else {
+                $booking = Consultation::factory()->create(['amount' => 1000000]);
+                $parent = ['consultation_id' => $booking->id, 'user_id' => $booking->student_id];
+            }
+            $payment = Payment::factory()->create([...$base, 'installment_id' => null, 'enrollment_id' => null, ...$parent]);
+        }
+        $service = app(RefundService::class);
+        $refund = null;
+        if ($action !== 'request') {
+            $refund = $kind === 'organization'
+                ? $service->requestOrganization($payment->user, $payment, 'IR820540102680020817909002', 'Software-only beneficiary', 'Software-only refund race', 0)
+                : $service->request($payment->user, $payment, 'IR820540102680020817909002', 'Software-only refund race', 0);
+            $actor = User::factory()->create();
+            $actor->roles()->attach(Role::where('key', 'admin')->value('id'));
+            if ($action === 'complete') {
+                $service->review($actor, $refund, 1, 'approve', 'Software-only approval');
+            }
+        } else {
+            $actor = $payment->user;
+        }
+        $snapshot = fn () => hash('sha256', json_encode([$payment->fresh()->getAttributes(), $refund?->fresh()->getAttributes(), Refund::count(), RefundEvent::count(), AuditEvent::count(), DB::table('notifications')->count()], JSON_THROW_ON_ERROR));
+        $before = $snapshot();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$action=$argv[1];$actor=\App\Models\User::findOrFail((int)$argv[2]);$payment=\App\Models\Payment::findOrFail((int)$argv[3]);$refund=(int)$argv[4]?\App\Models\Refund::findOrFail((int)$argv[4]):null;$membership=$argv[5]==='membership';config(['filesystems.disks.refunds.root'=>$argv[6]]);$checked=false;
+\Illuminate\Support\Facades\DB::listen(function($query)use($action,$payment,$membership,&$checked){$matches=$membership?str_contains($query->sql,'organization_user'):(str_contains($query->sql,'roles')&&in_array($action==='request'?'org_admin':'admin',$query->bindings,true));if(!$checked&&$matches){$checked=true;echo "CHECKED\n";flush();}});
+if($action==='request'&&!$payment->organization_invoice_id){echo "CHECKED\n";flush();}
+try{$service=app(\App\Services\RefundService::class);if($action==='request'){if($payment->organization_invoice_id){$service->requestOrganization($actor,$payment,'IR820540102680020817909002','Software-only beneficiary','Software-only refund race',0);}else{$service->request($actor,$payment,'IR820540102680020817909002','Software-only refund race',0);}}elseif($action==='complete'){$service->complete($actor,$refund,['version'=>$refund->version,'amount'=>100000,'destination'=>'IR820540102680020817909002','transfer_reference'=>'SOFTWAREONLYRACE65','transfer_date'=>now()->toDateString(),'statement_verified'=>true,'beneficiary_verified'=>true],\Illuminate\Http\UploadedFile::fake()->createWithContent('software-only-race65.pdf',"%PDF-1.4\n% SOFTWARE-ONLY-NO-REAL-TRANSFER\n%%EOF\n"));}else{$service->review($actor,$refund,$refund->version,'approve','Software-only refund race');}echo 'COMMITTED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, $action, (string) $actor->id, (string) $payment->id, (string) ($refund?->id ?? 0), $change, Storage::disk('refunds')->path('')], base_path(), null, null, 20);
+        try {
+            DB::transaction(function () use ($actor, $payment, $process, $action, $change) {
+                if ($change === 'membership') {
+                    Organization::whereKey($payment->organizationInvoice->organization_id)->lockForUpdate()->firstOrFail();
+                } else {
+                    User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+                }
+                $process->start();
+                $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'CHECKED')), $process->getErrorOutput());
+                if ($change === 'activity') {
+                    User::whereKey($actor->id)->update(['is_active' => false]);
+                } elseif ($change === 'membership') {
+                    $payment->organizationInvoice->organization->members()->detach($actor->id);
+                } else {
+                    $actor->roles()->detach(Role::where('key', $action === 'request' ? 'org_admin' : 'admin')->value('id'));
+                }
+            });
+            $process->wait();
+            $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+            $this->assertStringEndsWith('403', $process->getOutput());
+        } finally {
+            if ($process->isRunning()) {
+                $process->stop();
+            }
+        }
+        $this->assertSame($before, $snapshot());
+        $this->assertSame([], Storage::disk('refunds')->allFiles());
     }
 }
