@@ -41,6 +41,8 @@ class OrganizationEnrollment
                 $this->fail('برای این سازمان و نوبت سهمیه وجود دارد؛ همان سهمیه را ویرایش کنید.');
             }
             $organization = Organization::whereKey($organization->id)->lockForUpdate()->firstOrFail();
+            $actor = User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+            abort_unless($actor->is_active && $actor->hasRole('admin'), 403);
             $used = $license?->seats()->count() ?? 0;
             if ((int) $data['seat_limit'] < $used) {
                 $this->fail('سقف سهمیه نمی‌تواند از تعداد صندلی‌های مصرف‌شده کمتر باشد.');
@@ -78,7 +80,9 @@ class OrganizationEnrollment
             $cohort = Cohort::whereKey($license->cohort_id)->lockForUpdate()->firstOrFail();
             $license = OrganizationLicense::whereKey($license->id)->lockForUpdate()->firstOrFail();
             $org = Organization::whereKey($organization->id)->lockForUpdate()->firstOrFail();
-            abort_unless($org->status === 'active' && $org->members()->where('users.id', $actor->id)->wherePivot('kind', 'manager')->exists(), 403);
+            User::whereIn('id', array_unique([$actor->id, ...$memberIds]))->orderBy('id')->lockForUpdate()->get();
+            $actor = User::findOrFail($actor->id);
+            abort_unless($actor->is_active && $actor->hasRole('org_admin') && $org->status === 'active' && $org->members()->where('users.id', $actor->id)->wherePivot('kind', 'manager')->exists(), 403);
             if ($license->revision !== $revision || ! $license->active || $license->expires_on->toDateString() < now()->toDateString() || ! $cohort->registration_open || ! $cohort->course->is_published) {
                 $this->fail('سهمیه یا ثبت‌نام نوبت تغییر کرده یا مهلت آن تمام شده است.');
             }

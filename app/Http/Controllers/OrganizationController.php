@@ -48,13 +48,18 @@ class OrganizationController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $actor = $request->user();
+        abort_unless($actor && $actor->is_active && $actor->hasRole('admin'), 403);
         $data = $request->validate(['name' => 'required|string|max:150', 'type' => 'required|in:university,company', 'phone' => 'required|string|max:30']);
         $manager = User::where('phone', Phone::normalize($data['phone']))->where('is_active', true)->whereNotNull('phone_verified_at')->first();
         if (! $manager) {
             throw ValidationException::withMessages(['phone' => 'مدیر ابتدا باید ثبت‌نام کند و شماره‌اش را تأیید کند.']);
         }
-        DB::transaction(function () use ($data, $manager, $request) {
-            $manager = User::whereKey($manager->id)->lockForUpdate()->firstOrFail();
+        DB::transaction(function () use ($data, $manager, $actor) {
+            User::whereIn('id', [$actor->id, $manager->id])->orderBy('id')->lockForUpdate()->get();
+            $actor = User::findOrFail($actor->id);
+            abort_unless($actor->is_active && $actor->hasRole('admin'), 403);
+            $manager = User::findOrFail($manager->id);
             if (! $manager->is_active || ! $manager->phone_verified_at) {
                 throw ValidationException::withMessages(['phone' => 'حساب مدیر باید فعال و شماره او تأییدشده باشد.']);
             }
@@ -64,7 +69,7 @@ class OrganizationController extends Controller
             if ($roleChanges['attached'] !== []) {
                 $manager->increment('access_revision');
             }
-            AuditEvent::create(['actor_id' => $request->user()->id, 'action' => 'organization.created', 'subject_type' => 'organization', 'subject_id' => $org->id]);
+            AuditEvent::create(['actor_id' => $actor->id, 'action' => 'organization.created', 'subject_type' => 'organization', 'subject_id' => $org->id]);
         });
 
         return back()->with('success', 'سازمان ساخته و مدیر آن تعیین شد.');

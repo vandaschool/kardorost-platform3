@@ -4356,4 +4356,217 @@ CODE;
             $this->assertDatabaseHas('enrollment_consultation_benefits', ['enrollment_id' => $enrollment->id, 'coach_id' => $participants[1 - $index]->id]);
         }
     }
+
+    private function workflowUser(string $role): User
+    {
+        $user = User::factory()->create();
+        $user->roles()->attach(Role::where('key', $role)->value('id'));
+
+        return $user;
+    }
+
+    private function workflowCsv(User $candidate): UploadedFile
+    {
+        return UploadedFile::fake()->createWithContent('software-only-members70.csv', "phone\n".$candidate->phone."\n");
+    }
+
+    private function workflowLicenseData(int $revision = 0): array
+    {
+        return ['revision' => $revision, 'seat_limit' => 3, 'expires_on' => now()->addMonth()->toDateString(), 'active' => true, 'contract_reference' => 'SOFTWARE-ONLY-QUOTA70'];
+    }
+
+    private function workflowFixture(string $action): array
+    {
+        $admin = $this->workflowUser('admin');
+        $manager = $this->workflowUser('org_admin');
+        $member = $this->workflowUser('student');
+        $candidate = $this->workflowUser('student');
+        $backup = $this->workflowUser('org_admin');
+        $organization = Organization::factory()->create(['status' => 'active']);
+        $organization->members()->attach($manager->id, ['kind' => 'manager']);
+        $organization->members()->attach($member->id, ['kind' => 'member']);
+        $organization->members()->attach($backup->id, ['kind' => 'manager']);
+        $cohort = Cohort::factory()->create(['course_id' => Course::factory()->state(['price' => 1000000, 'is_published' => true]), 'capacity' => 10]);
+        $invitation = in_array($action, ['revoke', 'renew'], true) ? OrganizationInvitation::factory()->create(['organization_id' => $organization->id, 'created_by' => $manager->id, 'phone' => $candidate->phone, 'status' => $action === 'renew' ? 'revoked' : 'pending']) : null;
+        $import = in_array($action, ['commit', 'commit_committed'], true) ? app(OrganizationMembership::class)->preview($manager, $organization, $this->workflowCsv($candidate)) : null;
+        if ($action === 'commit_committed') {
+            app(OrganizationMembership::class)->commit($manager, $import);
+        }
+        $license = in_array($action, ['license_edit', 'enroll', 'enroll_duplicate'], true) ? app(OrganizationEnrollment::class)->configure($admin, $organization, $cohort, [...$this->workflowLicenseData(), 'seat_limit' => 2]) : null;
+        if ($action === 'enroll_duplicate') {
+            app(OrganizationEnrollment::class)->enroll($manager, $organization, $license, 1, [$member->id]);
+        }
+
+        return compact('admin', 'manager', 'member', 'candidate', 'backup', 'organization', 'cohort', 'invitation', 'import', 'license');
+    }
+
+    private function workflowActor(string $action, array $fixture): User
+    {
+        return match ($action) {
+            'leave' => $fixture['member'],
+            'remove_admin', 'revoke_manager', 'assign_manager', 'assign_existing', 'license_new', 'license_edit', 'create_organization' => $fixture['admin'],
+            default => $fixture['manager'],
+        };
+    }
+
+    private function workflowKey(Organization $organization, User $member): string
+    {
+        return $organization->members()->where('users.id', $member->id)->firstOrFail()->pivot->membership_key;
+    }
+
+    private function workflowSnapshot(): string
+    {
+        $state = [];
+        foreach (['users', 'role_user', 'organizations', 'organization_user', 'organization_invitations', 'organization_invitation_imports', 'invitation_sms', 'organization_licenses', 'organization_seats', 'enrollments', 'installments', 'payments', 'enrollment_consultation_benefits', 'audit_events', 'notifications', 'jobs'] as $table) {
+            $rows = DB::table($table)->get()->map(fn ($row) => json_encode($row, JSON_THROW_ON_ERROR))->all();
+            sort($rows, SORT_STRING);
+            $state[$table] = $rows;
+        }
+
+        return hash('sha256', json_encode($state, JSON_THROW_ON_ERROR));
+    }
+
+    public static function organizationWorkflowRaces(): array
+    {
+        $cases = [];
+        foreach (['invite', 'revoke', 'renew', 'preview', 'commit', 'commit_committed', 'leave', 'remove', 'remove_admin', 'revoke_manager', 'assign_manager', 'assign_existing', 'license_new', 'license_edit', 'enroll', 'enroll_duplicate', 'create_organization'] as $action) {
+            $cases[$action.'_activity'] = [$action, 'activity'];
+            if ($action !== 'leave') {
+                $cases[$action.'_role'] = [$action, 'role'];
+            }
+        }
+        $cases['leave_phone'] = ['leave', 'phone'];
+        foreach (['invite', 'revoke', 'renew', 'preview', 'commit', 'commit_committed', 'remove', 'enroll', 'enroll_duplicate'] as $action) {
+            $cases[$action.'_membership'] = [$action, 'membership'];
+        }
+
+        return $cases;
+    }
+
+    #[DataProvider('organizationWorkflowRaces')]
+    public function test_current_organization_authorization_after_concurrent_access_change(string $action, string $change): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Organization workflow row locks require PostgreSQL.');
+        }
+        config(['platform.sms.driver' => 'disabled', 'platform.sms.melipayamak.invitations_enabled' => true, 'platform.zibal.enabled' => false]);
+        $fixture = $this->workflowFixture($action);
+        $actor = $this->workflowActor($action, $fixture);
+        $ids = array_map(fn ($model) => $model?->id, $fixture);
+        $ids['actor'] = $actor->id;
+        $ids['key'] = $this->workflowKey($fixture['organization'], $action === 'revoke_manager' || $action === 'assign_existing' ? $fixture['manager'] : $fixture['member']);
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$ids=json_decode($argv[1],true,512,JSON_THROW_ON_ERROR);$action=$argv[2];$change=$argv[3];
+$actor=\App\Models\User::findOrFail($ids['actor']);$org=\App\Models\Organization::findOrFail($ids['organization']);$member=\App\Models\User::findOrFail($ids['member']);$candidate=\App\Models\User::findOrFail($ids['candidate']);$cohort=\App\Models\Cohort::findOrFail($ids['cohort']);$invitation=$ids['invitation']?\App\Models\OrganizationInvitation::findOrFail($ids['invitation']):null;$import=$ids['import']?\App\Models\OrganizationInvitationImport::findOrFail($ids['import']):null;$license=$ids['license']?\App\Models\OrganizationLicense::findOrFail($ids['license']):null;
+config(['platform.sms.driver'=>'disabled','platform.sms.melipayamak.invitations_enabled'=>true,'platform.zibal.enabled'=>false]);
+$checked=false;$signal=function()use(&$checked){if(!$checked){$checked=true;echo "CHECKED\n";flush();}};
+\Illuminate\Support\Facades\DB::connection()->beforeExecuting(function($sql)use($change,$signal){if(str_contains($sql,'for update')&&str_contains($sql,$change==='membership'?'"organizations"':'"users"')){$signal();}});
+$roleReads=0;$role=in_array($action,['remove_admin','revoke_manager','assign_manager','assign_existing','license_new','license_edit','create_organization'],true)?'admin':'org_admin';
+\Illuminate\Support\Facades\DB::listen(function($query)use($action,$change,$role,&$roleReads,$signal){if($change==='membership'){return;}if(str_contains($query->sql,'roles')&&in_array($role,$query->bindings,true)&&++$roleReads>=($action==='preview'?2:1)){$signal();}if($action==='leave'&&\Illuminate\Support\Facades\DB::transactionLevel()>0&&str_contains($query->sql,'from "users"')&&!str_contains($query->sql,'for update')){$signal();}});
+try{$service=app(\App\Services\OrganizationMembership::class);$csv=fn()=>\Illuminate\Http\UploadedFile::fake()->createWithContent('software-only70.csv',"phone\n".$candidate->phone."\n");
+$data=['revision'=>$license?->revision??0,'seat_limit'=>3,'expires_on'=>now()->addMonth()->toDateString(),'active'=>true,'contract_reference'=>'SOFTWARE-ONLY-QUOTA70'];
+if($action==='create_organization'){$request=\Illuminate\Http\Request::create('/admin/organizations','POST',['name'=>'Software-only organization70','type'=>'company','phone'=>$candidate->phone]);$request->setUserResolver(fn()=>$actor);app(\App\Http\Controllers\OrganizationController::class)->store($request);}
+else{match($action){
+'invite'=>$service->invite($actor,$org,$candidate->phone),
+'revoke','renew'=>$service->change($actor,$invitation,1,$action),
+'preview'=>$service->preview($actor,$org,$csv()),
+'commit','commit_committed'=>$service->commit($actor,$import),
+'leave'=>$service->endMembership($actor,$org,$member,$ids['key'],'Software-only departure','leave'),
+'remove','remove_admin'=>$service->endMembership($actor,$org,$member,$ids['key'],'Software-only removal','remove'),
+'revoke_manager'=>$service->endMembership($actor,$org,\App\Models\User::findOrFail($ids['manager']),$ids['key'],'Software-only manager change','revoke_manager'),
+'assign_manager'=>$service->assignManager($actor,$org,$candidate->phone,null),
+'assign_existing'=>$service->assignManager($actor,$org,\App\Models\User::findOrFail($ids['manager'])->phone,$ids['key']),
+'license_new','license_edit'=>app(\App\Services\OrganizationEnrollment::class)->configure($actor,$org,$cohort,$data,$license),
+'enroll','enroll_duplicate'=>app(\App\Services\OrganizationEnrollment::class)->enroll($actor,$org,$license,1,[$member->id]),
+};}echo 'ALLOWED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo 'HTTP:'.$e->getStatusCode();}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, json_encode($ids, JSON_THROW_ON_ERROR), $action, $change], base_path(), null, null, 20);
+        $expected = null;
+        try {
+            DB::transaction(function () use ($fixture, $actor, $change, $process, &$expected) {
+                if ($change === 'membership') {
+                    Organization::whereKey($fixture['organization']->id)->lockForUpdate()->firstOrFail();
+                } else {
+                    User::whereKey($actor->id)->lockForUpdate()->firstOrFail();
+                }
+                $process->start();
+                $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'CHECKED')), $process->getErrorOutput());
+                if ($change === 'activity') {
+                    $actor->forceFill(['is_active' => false])->save();
+                    $this->assertFalse($actor->fresh()->is_active);
+                } elseif ($change === 'phone') {
+                    $actor->update(['phone_verified_at' => null]);
+                } elseif ($change === 'role') {
+                    $actor->roles()->sync([Role::where('key', 'coach')->value('id')]);
+                } else {
+                    $fixture['organization']->members()->detach($actor->id);
+                }
+                $expected = $this->workflowSnapshot();
+            });
+            $process->wait();
+            $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+            $this->assertStringEndsWith('HTTP:403', $process->getOutput());
+        } finally {
+            if ($process->isRunning()) {
+                $process->stop();
+            }
+        }
+        $this->assertSame($expected, $this->workflowSnapshot());
+    }
+
+    public function test_reciprocal_organization_student_managers_enroll_without_account_lock_cycle_or_retry(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Reciprocal group account row locks require PostgreSQL.');
+        }
+        $admin = $this->workflowUser('admin');
+        $actors = User::factory()->count(2)->create();
+        foreach ($actors as $actor) {
+            $actor->roles()->sync(Role::whereIn('key', ['org_admin', 'student'])->pluck('id'));
+        }
+        $fixtures = [];
+        foreach ($actors as $index => $actor) {
+            $other = $actors[1 - $index];
+            $org = Organization::factory()->create(['status' => 'active']);
+            $org->members()->attach($actor->id, ['kind' => 'manager']);
+            $org->members()->attach($other->id, ['kind' => 'member']);
+            $cohort = Cohort::factory()->create(['course_id' => Course::factory()->state(['price' => 1000000, 'is_published' => true]), 'capacity' => 5]);
+            $license = app(OrganizationEnrollment::class)->configure($admin, $org, $cohort, $this->workflowLicenseData());
+            $fixtures[] = [$actor, $other, $org, $cohort, $license];
+        }
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$actor=\App\Models\User::findOrFail((int)$argv[1]);$org=\App\Models\Organization::findOrFail((int)$argv[2]);$license=\App\Models\OrganizationLicense::findOrFail((int)$argv[3]);$transactions=0;\Illuminate\Support\Facades\DB::connection()->beforeStartingTransaction(function()use(&$transactions){$transactions++;});$checked=false;\Illuminate\Support\Facades\DB::connection()->beforeExecuting(function($sql)use(&$checked){if(!$checked&&str_contains($sql,'"cohorts"')&&str_contains($sql,'for update')){$checked=true;echo "CHECKED\n";flush();}});$result=app(\App\Services\OrganizationEnrollment::class)->enroll($actor,$org,$license,1,[(int)$argv[4]]);echo 'ENROLLED:'.$result['enrolled'].':TX:'.$transactions;
+CODE;
+        $processes = [];
+        foreach ($fixtures as [$actor, $other, $org, $cohort, $license]) {
+            $processes[] = new Process([PHP_BINARY, '-r', $code, (string) $actor->id, (string) $org->id, (string) $license->id, (string) $other->id], base_path(), null, null, 20);
+        }
+        try {
+            DB::transaction(function () use ($fixtures, $processes) {
+                Cohort::whereIn('id', array_map(fn ($item) => $item[3]->id, $fixtures))->orderBy('id')->lockForUpdate()->get();
+                foreach ($processes as $process) {
+                    $process->start();
+                }
+                foreach ($processes as $process) {
+                    $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'CHECKED')), $process->getErrorOutput());
+                }
+            });
+            foreach ($processes as $process) {
+                $process->wait();
+                $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+                $this->assertStringEndsWith('ENROLLED:1:TX:1', $process->getOutput());
+            }
+        } finally {
+            foreach ($processes as $process) {
+                if ($process->isRunning()) {
+                    $process->stop();
+                }
+            }
+        }
+        $this->assertDatabaseCount('organization_seats', 2);
+        $this->assertSame(2, Enrollment::where('status', 'active')->where('payment_plan', 'organization')->count());
+        $this->assertSame(0, (int) Enrollment::sum('amount'));
+        $this->assertDatabaseCount('payments', 0);
+    }
 }

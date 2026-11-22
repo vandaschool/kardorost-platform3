@@ -26,6 +26,14 @@ class OrganizationMembership
         abort_unless($actor->is_active && $actor->hasRole('org_admin') && $organization->status === 'active' && $organization->members()->where('users.id', $actor->id)->wherePivot('kind', 'manager')->exists(), 403);
     }
 
+    /** Caller holds the organization root; acquire all mutation accounts together by id. */
+    private function lockAccounts(User $actor, array $otherIds = []): User
+    {
+        User::whereIn('id', array_filter([$actor->id, ...$otherIds]))->orderBy('id')->lockForUpdate()->get();
+
+        return User::findOrFail($actor->id);
+    }
+
     private function audit(User $actor, OrganizationInvitation $invitation, string $action): void
     {
         AuditEvent::create(['actor_id' => $actor->id, 'action' => 'organization_invitation.'.$action, 'subject_type' => 'organization_invitation', 'subject_id' => $invitation->id, 'metadata' => ['organization_id' => $invitation->organization_id, 'revision' => $invitation->revision, 'status' => $invitation->status]]);
@@ -57,6 +65,7 @@ class OrganizationMembership
 
         return DB::transaction(function () use ($actor, $organization, $phone) {
             $organization = Organization::whereKey($organization->id)->lockForUpdate()->firstOrFail();
+            $actor = $this->lockAccounts($actor);
             $this->manager($actor, $organization);
 
             return $this->createLocked($actor, $organization, $phone);
@@ -67,6 +76,7 @@ class OrganizationMembership
     {
         DB::transaction(function () use ($actor, $invitation, $revision, $action) {
             $organization = Organization::whereKey($invitation->organization_id)->lockForUpdate()->firstOrFail();
+            $actor = $this->lockAccounts($actor);
             $this->manager($actor, $organization);
             $invitation = OrganizationInvitation::whereKey($invitation->id)->lockForUpdate()->firstOrFail();
             if ($invitation->revision !== $revision || $invitation->status === 'accepted') {
@@ -170,6 +180,7 @@ class OrganizationMembership
 
         return DB::transaction(function () use ($actor, $organization, $parsed) {
             $organization = Organization::whereKey($organization->id)->lockForUpdate()->firstOrFail();
+            $actor = $this->lockAccounts($actor);
             $this->manager($actor, $organization);
             $import = OrganizationInvitationImport::create([...$parsed, 'organization_id' => $organization->id, 'created_by' => $actor->id, 'expires_at' => now()->addMinutes(15)]);
             AuditEvent::create(['actor_id' => $actor->id, 'action' => 'organization_import.previewed', 'subject_type' => 'organization_invitation_import', 'subject_id' => $import->id, 'metadata' => ['organization_id' => $organization->id]]);
@@ -182,6 +193,7 @@ class OrganizationMembership
     {
         return DB::transaction(function () use ($actor, $import) {
             $organization = Organization::whereKey($import->organization_id)->lockForUpdate()->firstOrFail();
+            $actor = $this->lockAccounts($actor);
             $this->manager($actor, $organization);
             $import = OrganizationInvitationImport::whereKey($import->id)->lockForUpdate()->firstOrFail();
             abort_unless($import->created_by === $actor->id, 403);
@@ -208,7 +220,12 @@ class OrganizationMembership
         abort_unless(in_array($action, ['leave', 'remove', 'revoke_manager'], true), 422);
         DB::transaction(function () use ($actor, $organization, $member, $membershipKey, $reason, $action) {
             $organization = Organization::whereKey($organization->id)->lockForUpdate()->firstOrFail();
-            $actor = $actor->fresh();
+            $accounts = [$member->id];
+            if ($action === 'revoke_manager') {
+                $accounts = [...$accounts, ...$organization->members()->wherePivot('kind', 'manager')->pluck('users.id')->all()];
+            }
+            $actor = $this->lockAccounts($actor, $accounts);
+            $member = User::findOrFail($member->id);
             abort_unless($actor->is_active && $actor->phone_verified_at, 403);
             if ($action === 'leave') {
                 abort_unless($actor->id === $member->id, 403);
@@ -240,10 +257,11 @@ class OrganizationMembership
         $phone = Phone::normalize($phone);
         DB::transaction(function () use ($actor, $organization, $phone, $expectedKey) {
             $organization = Organization::whereKey($organization->id)->lockForUpdate()->firstOrFail();
-            $actor = $actor->fresh();
+            $memberId = User::where('phone', $phone)->value('id');
+            $actor = $this->lockAccounts($actor, [$memberId]);
             abort_unless($actor->is_active && $actor->hasRole('admin'), 403);
-            $member = User::where('phone', $phone)->lockForUpdate()->first();
-            if (! $member || ! $member->is_active || ! $member->phone_verified_at) {
+            $member = $memberId ? User::findOrFail($memberId) : null;
+            if (! $member || $member->phone !== $phone || ! $member->is_active || ! $member->phone_verified_at) {
                 $this->fail('مدیر باید حساب فعال با شماره تأییدشده داشته باشد.');
             }
             $existing = $organization->members()->where('users.id', $member->id)->first();
