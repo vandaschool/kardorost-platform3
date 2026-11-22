@@ -341,8 +341,17 @@ try {
             await networkIdle();
         }
         current = state();
-        assert.equal(current.paid, index === 0 ? 400000 : 1000000);
-        assert.equal(current.remaining, index === 0 ? 600000 : 0);
+        assert.equal(current.receipts[index].status, "approved");
+        const approvedAmount = current.receipts
+            .filter((row) => row.status === "approved")
+            .reduce(
+                (total, row) =>
+                    total +
+                    (row.transfer_reference.endsWith("A") ? 400000 : 600000),
+                0,
+            );
+        assert.equal(current.paid, approvedAmount);
+        assert.equal(current.remaining, 1000000 - approvedAmount);
     }
     await managerLogin();
     await goto("/organization/invoices/" + invoiceId);
