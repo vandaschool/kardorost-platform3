@@ -119,6 +119,9 @@ class CapacityConcurrencyTest extends TestCase
         }
         $a = User::factory()->create();
         $b = User::factory()->create();
+        foreach ([$a, $b] as $student) {
+            $student->roles()->attach(Role::where('key', 'student')->value('id'));
+        }
         $course = Course::create(['title' => 'همزمان', 'slug' => 'concurrency', 'description' => 'ظرفیت', 'price' => 1000000, 'is_published' => true]);
         $cohort = Cohort::create(['course_id' => $course->id, 'title' => 'آخرین صندلی', 'format' => 'live', 'capacity' => 1]);
         $code = <<<'CODE'
@@ -204,6 +207,7 @@ CODE;
 
     private function financialInvoice(User $user): Installment
     {
+        $user->roles()->syncWithoutDetaching([Role::where('key', 'student')->value('id')]);
         $course = Course::factory()->create(['price' => 1000000]);
         $cohort = Cohort::factory()->create(['course_id' => $course->id, 'manual_payment_enabled' => true]);
 
@@ -769,6 +773,7 @@ CODE;
         $admin = User::factory()->create();
         $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
         $u = User::factory()->create();
+        $u->roles()->attach(Role::where('key', 'student')->value('id'));
         $code = <<<'CODE'
 require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$c=\App\Models\Cohort::findOrFail((int)$argv[1]);
 try {if($argv[2]==='license') {app(\App\Services\OrganizationEnrollment::class)->configure(\App\Models\User::findOrFail((int)$argv[3]),\App\Models\Organization::findOrFail((int)$argv[4]),$c,['seat_limit'=>1,'expires_on'=>now()->addMonth()->toDateString(),'active'=>true,'contract_reference'=>'Race']);echo 'LICENSED';}else {app(\App\Services\EnrollmentService::class)->reserve(\App\Models\User::findOrFail((int)$argv[3]),$c);echo 'RESERVED';}}
@@ -4207,6 +4212,148 @@ CODE;
         $this->assertDatabaseCount('consultation_grants', 2);
         foreach ($fixtures as [$actor, $cohort, $receipt]) {
             Storage::disk('receipts')->assertExists($receipt->file_path);
+        }
+    }
+
+    public static function enrollmentAccessRaces(): array
+    {
+        $cases = [];
+        foreach (['free_new', 'paid_new', 'held_reuse', 'expired_renew', 'active_reuse'] as $scenario) {
+            foreach (['activity', 'role', 'phone'] as $change) {
+                $cases[$scenario.'_'.$change] = [$scenario, $change];
+            }
+        }
+        foreach (['installments', 'manual', 'replace'] as $action) {
+            foreach (['activity', 'role'] as $change) {
+                $cases['plan_'.$action.'_'.$change] = ['plan_'.$action, $change];
+            }
+        }
+        foreach (['coach_role', 'coach_activity'] as $change) {
+            $cases[$change] = ['paid_new', $change];
+        }
+
+        return $cases;
+    }
+
+    #[DataProvider('enrollmentAccessRaces')]
+    public function test_waiting_signup_or_payment_plan_rechecks_current_account_authorization(string $scenario, string $change): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Signup and payment-plan authorization races require PostgreSQL.');
+        }
+        $student = User::factory()->create();
+        $student->roles()->attach(Role::where('key', 'student')->value('id'));
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $coach = User::factory()->create();
+        $coach->roles()->attach(Role::where('key', 'coach')->value('id'));
+        $cohort = Cohort::factory()->create(['course_id' => Course::factory()->state(['price' => in_array($scenario, ['free_new', 'active_reuse'], true) ? 0 : 1000000, 'is_published' => true]), 'capacity' => 10]);
+        if ($cohort->course->price > 0) {
+            app(CourseConsultationBenefits::class)->configure($admin, $cohort, ['revision' => 0, 'enabled' => true, 'coach_id' => $coach->id, 'title' => 'Software-only signup race69', 'sessions' => 2, 'session_minutes' => 60, 'valid_days' => 30, 'activation' => 'first_payment']);
+        }
+        if (in_array($scenario, ['held_reuse', 'expired_renew', 'active_reuse'], true)) {
+            $existing = app(EnrollmentService::class)->reserve($student, $cohort);
+            if ($scenario === 'expired_renew') {
+                $existing->update(['expires_at' => now()->subMinute()]);
+            }
+        }
+        if ($scenario === 'plan_replace') {
+            $cohort->forceFill(['billing_revision' => 1, 'installment_enabled' => true])->save();
+            $cohort->installmentPlan()->createMany([['sequence' => 1, 'amount' => 400000, 'due_date' => now()->toDateString()], ['sequence' => 2, 'amount' => 600000, 'due_date' => now()->addMonth()->toDateString()]]);
+        }
+        $actor = str_starts_with($scenario, 'plan_') ? $admin : $student;
+        $target = str_starts_with($change, 'coach_') ? $coach : $actor;
+        $snapshot = function () {
+            $state = [];
+            foreach (['cohorts', 'cohort_installments', 'enrollments', 'installments', 'payments', 'cohort_consultation_benefits', 'enrollment_consultation_benefits', 'consultation_grants', 'audit_events', 'notifications'] as $table) {
+                $state[$table] = DB::table($table)->orderBy('id')->get()->toJson();
+            }
+
+            return hash('sha256', json_encode($state, JSON_THROW_ON_ERROR));
+        };
+        $before = $snapshot();
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$scenario=$argv[1];$actor=\App\Models\User::findOrFail((int)$argv[2]);$cohort=\App\Models\Cohort::findOrFail((int)$argv[3]);config(['platform.finance.transfer_destination'=>'6037991234567890']);$checked=false;\Illuminate\Support\Facades\DB::listen(function($query)use(&$checked){if(!$checked&&str_contains($query->sql,'"cohorts"')&&str_contains($query->sql,'for update')){$checked=true;echo "CHECKED\n";flush();}});
+try{if(str_starts_with($scenario,'plan_')){$action=substr($scenario,5);$data=['expected_revision'=>$action==='replace'?1:0,'installment_enabled'=>$action!=='manual','manual_payment_enabled'=>$action==='manual','parts'=>$action==='manual'?[]:[['amount'=>$action==='replace'?50000:40000],['amount'=>$action==='replace'?50000:60000,'due_date'=>now()->addMonth()->toDateString()]]];$request=\Illuminate\Http\Request::create('/admin/cohorts/'.$cohort->id.'/billing','PATCH',$data);$request->setUserResolver(fn()=>$actor);app(\App\Http\Controllers\BillingPlanController::class)->update($request,$cohort);}else{app(\App\Services\EnrollmentService::class)->reserve($actor,$cohort);}echo 'COMMITTED';}catch(\Symfony\Component\HttpKernel\Exception\HttpException $e){echo (string)$e->getStatusCode();}catch(\Illuminate\Validation\ValidationException){echo '422';}
+CODE;
+        $process = new Process([PHP_BINARY, '-r', $code, $scenario, (string) $actor->id, (string) $cohort->id], base_path(), null, null, 20);
+        try {
+            DB::transaction(function () use ($target, $process, $change, $scenario) {
+                User::whereKey($target->id)->lockForUpdate()->firstOrFail();
+                $process->start();
+                $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'CHECKED')), $process->getErrorOutput());
+                if (in_array($change, ['activity', 'coach_activity'], true)) {
+                    User::whereKey($target->id)->update(['is_active' => false]);
+                } elseif ($change === 'phone') {
+                    User::whereKey($target->id)->update(['phone_verified_at' => null]);
+                } else {
+                    $target->roles()->detach(Role::where('key', $change === 'coach_role' ? 'coach' : (str_starts_with($scenario, 'plan_') ? 'admin' : 'student'))->value('id'));
+                }
+            });
+            $process->wait();
+            $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+            $this->assertStringEndsWith(str_starts_with($change, 'coach_') ? '422' : '403', $process->getOutput());
+        } finally {
+            if ($process->isRunning()) {
+                $process->stop();
+            }
+        }
+        $this->assertSame($before, $snapshot());
+    }
+
+    public function test_simultaneous_reciprocal_student_coach_signups_freeze_both_promises_without_account_lock_cycle(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Reciprocal signup participant locks require PostgreSQL.');
+        }
+        $participants = User::factory()->count(2)->create();
+        foreach ($participants as $participant) {
+            $participant->roles()->sync(Role::whereIn('key', ['student', 'coach'])->pluck('id'));
+        }
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('key', 'admin')->value('id'));
+        $cohorts = [];
+        foreach ($participants as $index => $student) {
+            $coach = $participants[1 - $index];
+            $cohort = Cohort::factory()->create(['course_id' => Course::factory()->state(['price' => 1000000, 'is_published' => true]), 'capacity' => 10]);
+            app(CourseConsultationBenefits::class)->configure($admin, $cohort, ['revision' => 0, 'enabled' => true, 'coach_id' => $coach->id, 'title' => 'Software-only reciprocal signup', 'sessions' => 2, 'session_minutes' => 60, 'valid_days' => 30, 'activation' => 'first_payment']);
+            $cohorts[] = $cohort;
+        }
+        $code = <<<'CODE'
+require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$student=\App\Models\User::findOrFail((int)$argv[1]);$cohort=\App\Models\Cohort::findOrFail((int)$argv[2]);echo "CHECKED\n";flush();$enrollment=app(\App\Services\EnrollmentService::class)->reserve($student,$cohort);echo 'HELD:'.$enrollment->amount;
+CODE;
+        $processes = [];
+        foreach ($participants as $index => $student) {
+            $processes[] = new Process([PHP_BINARY, '-r', $code, (string) $student->id, (string) $cohorts[$index]->id], base_path(), null, null, 20);
+        }
+        try {
+            DB::transaction(function () use ($cohorts, $processes) {
+                Cohort::whereIn('id', array_map(fn ($item) => $item->id, $cohorts))->orderBy('id')->lockForUpdate()->get();
+                foreach ($processes as $process) {
+                    $process->start();
+                }
+                foreach ($processes as $process) {
+                    $this->assertTrue($process->waitUntil(fn ($type, $output) => str_contains($output, 'CHECKED')), $process->getErrorOutput());
+                }
+            });
+            foreach ($processes as $process) {
+                $process->wait();
+                $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
+                $this->assertStringEndsWith('HELD:1000000', $process->getOutput());
+            }
+        } finally {
+            foreach ($processes as $process) {
+                if ($process->isRunning()) {
+                    $process->stop();
+                }
+            }
+        }
+        $this->assertSame(2, Enrollment::where('status', 'pending_payment')->count());
+        $this->assertDatabaseCount('enrollment_consultation_benefits', 2);
+        $this->assertDatabaseCount('payments', 0);
+        foreach ($participants as $index => $student) {
+            $enrollment = Enrollment::where('user_id', $student->id)->sole();
+            $this->assertDatabaseHas('enrollment_consultation_benefits', ['enrollment_id' => $enrollment->id, 'coach_id' => $participants[1 - $index]->id]);
         }
     }
 }

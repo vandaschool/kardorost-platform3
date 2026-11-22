@@ -1,5 +1,5 @@
 {
-  "phase": "current-course-payment-and-benefit-authorization",
+  "phase": "current-course-signup-and-plan-authorization",
   "completed": [
     "phone-verification",
     "password-login",
@@ -426,17 +426,18 @@
     "current-refund-workflow-authorization",
     "current-organization-billing-authorization",
     "current-financial-container-acceptance",
-    "current-course-payment-and-benefit-authorization"
+    "current-course-payment-and-benefit-authorization",
+    "current-course-signup-and-plan-authorization"
   ],
   "tests": {
     "postgresql": {
-      "passed": 1287,
-      "assertions": 10397
+      "passed": 1341,
+      "assertions": 10610
     },
     "sqlite": {
-      "passed": 1055,
-      "skipped": 232,
-      "assertions": 9103
+      "passed": 1085,
+      "skipped": 256,
+      "assertions": 9213
     },
     "javascript": {
       "passed": 6
@@ -740,7 +741,8 @@
     "phase66_owned_five_user_native8032_same_preserved_fixture_explicit_software_only_manual_account_actual_admin_draft_edit_issue_manager_selects_org_two_partial_receipts_independent_review_private_hash_no_store_student403_personal_payment_unchanged_320_390_768_1440_refund65_regression_preserved",
     "phase67_current_f399edf_php8_4_28_nginx_pg_four_panels_private_credentials_consented_resume_error_pages_and_real429_budget_all_pass_before_backup_and_restored_workers_stopped_running_320_390_768_1440",
     "phase67_completed_native_organization_invoice_fixture_replay_preserves_both_approved_receipts_uses_exact_expected_cumulative_approved_amount_no_reset_no_new_deposits_private_hashes_retained",
-    "phase68_owned_new_zero_course_five_user_native8033_actual_course_create_publish_coach_assign_manual_payment_benefit_config_and_next_edition_student_checkout_jalali_private_receipt_admin_coach_deactivate_review_money_retained_grant_blocked_reactivate_retry_one_frozen_grant_disable_future_private_hash_peer403_320_390_768_1440_no_real_funds"
+    "phase68_owned_new_zero_course_five_user_native8033_actual_course_create_publish_coach_assign_manual_payment_benefit_config_and_next_edition_student_checkout_jalali_private_receipt_admin_coach_deactivate_review_money_retained_grant_blocked_reactivate_retry_one_frozen_grant_disable_future_private_hash_peer403_320_390_768_1440_no_real_funds",
+    "phase69_actual_admin40_60_installment_plan_jalali_date_peer_student_signup_future50_50_keeps_held40_60_quote_original_paid_contract_grant_receipt_hash_same_held_quote_reused_true_no_new_payment_student_plan403_320_390_768_1440_preserved_native68_owner_fixture_with_shared_course_peer_privacy_bound_to_original_receipt_reference_and_file403"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -817,9 +819,9 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase68_verified_ready_to_merge_then_course_enrollment_and_cohort_billing_plan_current_actor_authorization_review_keep_existing_frozen_quotes_and_owned_debt_rights",
+    "current_work": "phase69_verified_ready_to_merge_then_organization_membership_and_seat_current_actor_authorization_review_without_new_organization_benefit_or_cancellation_terms",
     "next_groups": [
-      "course_enrollment_and_cohort_billing_plan_current_actor_authorization_then_organization_membership_and_seat_workflows",
+      "organization_membership_invitation_import_manager_lifecycle_and_seat_workflow_current_actor_authorization",
       "career_and_assessment_extensions_without_invented_instruments",
       "remaining_purchase_cancellation_refunds_awaiting_owner_policy",
       "coach_settlement_and_organization_benefits_requiring_business_terms",
@@ -965,7 +967,7 @@
   "implicit_action_rate_budgets_isolated": true,
   "implicit_action_rate_budgets_scope": "throttle_alias_numeric_or_unnamed_limits_without_explicit_prefix_normalized_route_template_and_declared_methods_no_query_or_record_id_variation_original_framework_identity_counts_durations_storage_named_limiters_and_explicit_shared_prefix_unchanged",
   "container_acceptance_matches_current_application_code": false,
-  "container_acceptance_pending_changes": "phase68_course_financial_actor_authorization_not_in_last_f399edf_image",
+  "container_acceptance_pending_changes": "phase68_course_finance_and_phase69_signup_billing_plan_current_authorization_not_in_last_f399edf_image",
   "persian_error_recovery_pages_complete": true,
   "persian_error_recovery_pages_scope": "403/404/405/419/429/500/503 HTML private no-store noindex no-referrer, minimal Inertia props without session/database shares, standalone inline CSS with no asset dependency, Retry-After/Allow/rate headers and HEAD preserved; API/JSON/validation/redirect/debug5xx contracts unchanged; fixed GET recovery without replay, history or reload",
   "consultation_management_current_authorization_complete": true,
@@ -981,5 +983,7 @@
   "financial_current_authorization_production_acceptance_complete": true,
   "financial_current_authorization_production_acceptance_scope": "Guarded four-synthetic-user production/debug-false image without dev dependencies: 22 stale-activity refusals cover package product/create/edit/allocation/receipt, organization invoice create/edit/issue/void/receipt decisions, package and organization refund review/completion, owner existing purchase reuse/refund request and manager new/reused charge/receipt/refund; positive frozen purchase survives next product edition; entire touched table rows and stored-file paths preserved after refusals and outer rollback; temp upload removed; PostgreSQL sequences may advance; native four-refund-parent tests and current-role races remain separate coverage",
   "course_payment_and_benefit_current_authorization_complete": true,
-  "course_payment_and_benefit_current_authorization_scope": "BillingService new/reused attempt and allocation resolution, ReceiptService submission/review including paid shortcuts, CourseConsultationBenefits configure/retry including issued shortcut reload current owner/admin under parent financial locks; shared sorted actor/student/frozen-benefit-coach accounts acquired before payment/receipt and grant issuance, reciprocal admin/coach concurrent reviews succeed; current eligible coach locked for future benefit configuration; active owner debt-payment rights survive student-role loss, received-money capture remains independent, original frozen benefit definition remains unchanged; enrollment signup and cohort billing-plan authorization are separate next review scope"
+  "course_payment_and_benefit_current_authorization_scope": "BillingService new/reused attempt and allocation resolution, ReceiptService submission/review including paid shortcuts, CourseConsultationBenefits configure/retry including issued shortcut reload current owner/admin under parent financial locks; shared sorted actor/student/frozen-benefit-coach accounts acquired before payment/receipt and grant issuance, reciprocal admin/coach concurrent reviews succeed; current eligible coach locked for future benefit configuration; active owner debt-payment rights survive student-role loss, received-money capture remains independent, original frozen benefit definition remains unchanged; enrollment signup and cohort billing-plan authorization are separate next review scope",
+  "course_signup_and_cohort_billing_plan_current_authorization_complete": true,
+  "course_signup_and_cohort_billing_plan_current_authorization_scope": "EnrollmentService rechecks current active verified student under cohort/enrollment then sorted account locks before new/free/renewed signup or existing active/held return; only new quotes include current future-benefit coach in sorted locks, held quote reuse preserves original terms even when future coach is unavailable; public student-route eligibility now enforced inside service; BillingPlanController requires current active admin under cohort then actor lock before revision/plan/manual-toggle/audit writes; owner debt-payment rights from phase68 unchanged; existing concurrency fixtures explicitly initialize eligible student roles without changing default UserFactory"
 }
