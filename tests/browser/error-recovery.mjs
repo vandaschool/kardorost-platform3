@@ -182,7 +182,7 @@ if (environmentFile) {
     );
     const code =
         bootstrap +
-        String.raw`if(config('app.debug')||\App\Models\User::count()!==4||\App\Models\User::where('name','like','بررسی کانتینر %')->count()!==4){throw new RuntimeException('Only production-mode synthetic source.');}$share=\App\Models\ResumeShare::sole();$data=app(\App\Services\ResumeSharing::class)->metadata($share);echo json_encode(['public_url'=>route('public.resume',$data['token'],false),'download_url'=>route('career.linkedin.download',['resume'=>$share->career_resume_id,'version'=>$share->resume_version_id],false)]);`;
+        String.raw`if(config('app.debug')||\App\Models\User::count()!==4||\App\Models\User::where('name','like','بررسی کانتینر %')->count()!==4){throw new RuntimeException('Only production-mode synthetic source.');}$share=\App\Models\ResumeShare::sole();$data=app(\App\Services\ResumeSharing::class)->metadata($share);echo json_encode(['public_url'=>route('public.resume',$data['token'],false),'expires_timestamp'=>$share->expires_at->timestamp,'download_url'=>route('career.linkedin.download',['resume'=>$share->career_resume_id,'version'=>$share->resume_version_id],false)]);`;
     const python = String.raw`import importlib.util,sys
 from pathlib import Path
 s=importlib.util.spec_from_file_location('recovery','resources/operations/recovery.py');r=importlib.util.module_from_spec(s);s.loader.exec_module(r);c=r.Composition(Path(sys.argv[1]));assert c.config['name'].startswith('kardorost-validation-');assert c.settings['APP_URL']==sys.argv[2];assert c.settings['SMS_DRIVER']=='disabled' and c.settings['ZIBAL_ENABLED']=='false';print(c.run(['exec','-T','app','php','-r',sys.stdin.read()]))`;
@@ -424,7 +424,7 @@ try {
     await send("Network.clearBrowserCookies");
     await goto("/login");
     const limited = await evaluate(
-        `(async()=>{let last;for(let i=0;i<61;i++){const r=await fetch(${JSON.stringify(fixture.public_url)},{headers:{Accept:'text/html'}});await r.text();last={status:r.status,retry:Number(r.headers.get('retry-after')),cache:r.headers.get('cache-control'),robots:r.headers.get('x-robots-tag'),referrer:r.headers.get('referrer-policy')};if(r.status===429)break;if(r.status!==200)throw Error('Unexpected isolated share status');}return last})()`,
+        `(async()=>{let last;for(let i=0;i<61;i++){const r=await fetch(${JSON.stringify(fixture.public_url)},{headers:{Accept:'text/html'}});await r.text();last={status:r.status,retry:Number(r.headers.get('retry-after')),cache:r.headers.get('cache-control'),robots:r.headers.get('x-robots-tag'),referrer:r.headers.get('referrer-policy')};if(r.status===429)break;const expectedStatus=Date.now()>=${JSON.stringify(fixture.expires_timestamp ?? Number.MAX_SAFE_INTEGER)}*1000?404:200;if(r.status!==expectedStatus)throw Error('Unexpected isolated share status');}return last})()`,
     );
     assert.equal(limited.status, 429);
     assert(limited.retry > 0 && limited.retry <= 60);

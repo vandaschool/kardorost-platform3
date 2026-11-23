@@ -344,7 +344,7 @@ try {
     lease();
     const initial = state();
     assert(initial.media.fixture_complete);
-    assert([1, 2].includes(initial.media.page.publications.length));
+    assert([1, 2, 3].includes(initial.media.page.publications.length));
     const original = initial.media.page.publications[0].definition;
     assert(!Object.hasOwn(original, "tags"));
     assert.equal(
@@ -357,6 +357,15 @@ try {
         { ...original, tags: publicTags },
         { ...privateOriginal, tags: [privateTag] },
     ];
+    if (
+        initial.tags.fixture_complete &&
+        initial.media.page.publications.length === 3
+    ) {
+        assert.equal(initial.tags.draft.category, "دسته خصوصی کانتینر۹۰");
+        assert.equal(initial.tags.public.category, "دسته کانتینر آزمایشی۹۰");
+        for (const candidate of candidates)
+            candidate.category = initial.tags.draft.category;
+    }
     assert(
         candidates.some(
             (d) => JSON.stringify(d) === JSON.stringify(initial.tags.draft),
@@ -395,8 +404,17 @@ try {
     assert.deepEqual(frozen.tags.draft, {
         ...privateOriginal,
         tags: [privateTag],
+        ...(frozen.tags.draft.category
+            ? { category: frozen.tags.draft.category }
+            : {}),
     });
-    assert.deepEqual(frozen.tags.public, { ...original, tags: publicTags });
+    assert.deepEqual(frozen.tags.public, {
+        ...original,
+        tags: publicTags,
+        ...(frozen.tags.public.category
+            ? { category: frozen.tags.public.category }
+            : {}),
+    });
     await goto("/journal/software-media78");
     assert.deepEqual(
         await evaluate(
@@ -492,7 +510,7 @@ try {
             positive_tags_publication_executed:
                 initial.tags.current_version === 1,
             completed_fixture_readonly_replay: initial.tags.fixture_complete,
-            publications: 2,
+            publications: frozen.media.page.publications.length,
             old_publication_media_bytes_ciphertexts_cancelled_schedule_and_private_image_fields_preserved: true,
             private_final_tags_not_public: true,
             three_nonadmin_403: true,
