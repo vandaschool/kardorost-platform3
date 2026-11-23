@@ -274,6 +274,8 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
         Route::get('/admin/content', [ContentController::class, 'index'])->name('admin.content');
         Route::post('/admin/content', [ContentController::class, 'create']);
         Route::get('/admin/content/{page}', [ContentController::class, 'edit'])->name('admin.content.edit');
+        Route::post('/admin/content/{page}/redirects', [ContentController::class, 'createRedirect']);
+        Route::post('/admin/content/{page}/redirects/{redirect}', [ContentController::class, 'changeRedirect']);
         Route::patch('/admin/content/{page}/draft', [ContentController::class, 'draft']);
         Route::post('/admin/content/{page}/schedule', [ContentController::class, 'schedule']);
         Route::post('/admin/content/{page}/schedules/{schedule}/cancel', [ContentController::class, 'cancelSchedule']);

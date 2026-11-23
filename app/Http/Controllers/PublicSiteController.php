@@ -10,10 +10,12 @@ use App\Services\CoachProfilePhotos;
 use App\Services\CoachProfiles;
 use App\Services\CohortCapacity;
 use App\Services\ContentPublishing;
+use App\Services\ContentRedirects;
 use App\Services\ContentTags;
 use App\Services\PublicJournalFeed;
 use App\Services\PublicMentorDirectory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Str;
@@ -121,8 +123,12 @@ class PublicSiteController extends Controller
             ->withHeaders(['Content-Type' => 'application/rss+xml; charset=UTF-8', 'Cache-Control' => 'no-store', 'X-Content-Type-Options' => 'nosniff', 'X-Robots-Tag' => 'noindex, follow']);
     }
 
-    private function content(string $kind, string $slug): Response
+    private function content(string $kind, string $slug): Response|RedirectResponse
     {
+        $target = app(ContentRedirects::class)->target($kind, $slug);
+        if ($target !== null) {
+            return new RedirectResponse($target, 302, ['Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff', 'X-Robots-Tag' => 'noindex, follow']);
+        }
         $page = $this->visible()->where('kind', $kind)->where('slug', $slug)->firstOrFail();
         $definition = app(ContentPublishing::class)->publicDefinition($page);
         abort_unless($definition, 404);
@@ -130,12 +136,12 @@ class PublicSiteController extends Controller
         return $this->render('content', $definition['title'], $definition['meta_description'] ?: mb_substr($definition['excerpt'], 0, 160), compact('page', 'definition'));
     }
 
-    public function article(string $slug): Response
+    public function article(string $slug): Response|RedirectResponse
     {
         return $this->content('article', $slug);
     }
 
-    public function page(string $slug): Response
+    public function page(string $slug): Response|RedirectResponse
     {
         return $this->content('page', $slug);
     }

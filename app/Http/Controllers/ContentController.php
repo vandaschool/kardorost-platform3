@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\ContentPage;
+use App\Models\ContentRedirect;
 use App\Models\ContentSchedule;
 use App\Services\ContentPublishing;
+use App\Services\ContentRedirects;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,7 +30,23 @@ class ContentController extends Controller
 
     public function edit(ContentPage $page): Response
     {
-        return Inertia::render('ContentEditor', ['page' => [...$page->only('id', 'slug', 'kind', 'revision', 'current_version', 'available', 'draft'), 'public_path' => $page->publicPath()], 'pending_schedule' => $page->pendingSchedule?->only('id', 'scheduled_for'), 'schedules' => $page->schedules()->with('author:id,name', 'publication:id,number')->latest('id')->paginate(10, ['*'], 'schedules_page')->withQueryString()->through(fn ($row) => [...$row->only('id', 'source_revision', 'definition', 'scheduled_for', 'status', 'reason', 'closed_at'), 'author_name' => $row->author->name, 'publication_number' => $row->publication?->number]), 'publications' => $page->publications()->latest('number')->paginate(10)->through(fn ($publication) => $publication->only('id', 'number', 'definition', 'published_at'))]);
+        return Inertia::render('ContentEditor', ['page' => [...$page->only('id', 'slug', 'kind', 'revision', 'current_version', 'available', 'draft'), 'public_path' => $page->publicPath()], 'pending_schedule' => $page->pendingSchedule?->only('id', 'scheduled_for'), 'schedules' => $page->schedules()->with('author:id,name', 'publication:id,number')->latest('id')->paginate(10, ['*'], 'schedules_page')->withQueryString()->through(fn ($row) => [...$row->only('id', 'source_revision', 'definition', 'scheduled_for', 'status', 'reason', 'closed_at'), 'author_name' => $row->author->name, 'publication_number' => $row->publication?->number]), 'redirects' => $page->redirects()->orderBy('id')->limit(25)->get()->map(fn ($row) => [...$row->only('id', 'from_slug', 'enabled', 'revision'), 'source_path' => $row->sourcePath()]), 'publications' => $page->publications()->latest('number')->paginate(10)->through(fn ($publication) => $publication->only('id', 'number', 'definition', 'published_at'))]);
+    }
+
+    public function createRedirect(Request $request, ContentPage $page, ContentRedirects $service): RedirectResponse
+    {
+        $data = $request->validate(['from_slug' => 'required|string|max:80']);
+        $service->create($request->user(), $page, $data['from_slug']);
+
+        return back()->with('success', 'انتقال موقت نشانی ثبت شد.');
+    }
+
+    public function changeRedirect(Request $request, ContentPage $page, ContentRedirect $redirect, ContentRedirects $service): RedirectResponse
+    {
+        $data = $request->validate(['revision' => 'required|integer|min:1', 'enabled' => 'required|boolean']);
+        $service->change($request->user(), $page, $redirect, $data['revision'], $data['enabled']);
+
+        return back()->with('success', 'وضعیت انتقال نشانی تغییر کرد.');
     }
 
     public function draft(Request $request, ContentPage $page, ContentPublishing $publishing): RedirectResponse
