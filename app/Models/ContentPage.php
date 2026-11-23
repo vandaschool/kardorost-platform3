@@ -35,6 +35,11 @@ class ContentPage extends Model
         return $this->hasMany(ContentSchedule::class);
     }
 
+    public function redirects(): HasMany
+    {
+        return $this->hasMany(ContentRedirect::class);
+    }
+
     public function pendingSchedule(): HasOne
     {
         return $this->hasOne(ContentSchedule::class)->ofMany(['id' => 'max'], fn ($query) => $query->where('status', 'pending'));

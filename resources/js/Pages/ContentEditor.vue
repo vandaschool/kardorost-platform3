@@ -6,6 +6,7 @@ import JalaliDateInput from "../Components/JalaliDateInput.vue";
 import { computed, ref } from "vue";
 import ContentDocumentPreview from "../Components/ContentDocumentPreview.vue";
 import ContentDocumentEditor from "../Components/ContentDocumentEditor.vue";
+import ContentRedirects from "../Components/ContentRedirects.vue";
 import ContentTagsEditor from "../Components/ContentTagsEditor.vue";
 import ContentTagsPreview from "../Components/ContentTagsPreview.vue";
 import { documentFromText, documentText } from "../content-document";
@@ -15,6 +16,7 @@ const props = defineProps({
     publications: Object,
     pending_schedule: Object,
     schedules: Object,
+    redirects: { type: Array, default: () => [] },
 });
 const draft = useForm({
     revision: props.page.revision,
@@ -356,6 +358,7 @@ function toggle() {
             </details>
             <Pagination :page="schedules" />
         </section>
+        <ContentRedirects :page="page" :redirects="redirects" />
         <section class="glass panel-card consultation-section">
             <h2>نسخه‌های منتشرشده</h2>
             <p v-if="!publications.data.length" class="muted">
