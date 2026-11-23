@@ -4,6 +4,7 @@ import Shell from "../Layouts/Shell.vue";
 import Pagination from "../Components/Pagination.vue";
 import { dateTime } from "../dates";
 import ContentCategory from "../Components/ContentCategory.vue";
+import ContentByline from "../Components/ContentByline.vue";
 import ContentTagsEditor from "../Components/ContentTagsEditor.vue";
 const props = defineProps({ pages: Object });
 const form = useForm({
@@ -88,6 +89,12 @@ function create() {
                         name="meta_description"
                         maxlength="160"
                 /></label>
+                <ContentByline
+                    v-if="form.kind === 'article'"
+                    v-model="form.definition.byline"
+                    editable
+                    :disabled="form.processing"
+                />
                 <ContentCategory
                     v-if="form.kind === 'article'"
                     v-model="form.definition.category"

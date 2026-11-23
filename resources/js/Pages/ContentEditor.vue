@@ -8,6 +8,7 @@ import ContentDocumentPreview from "../Components/ContentDocumentPreview.vue";
 import ContentDocumentEditor from "../Components/ContentDocumentEditor.vue";
 import ContentRedirects from "../Components/ContentRedirects.vue";
 import ContentCategory from "../Components/ContentCategory.vue";
+import ContentByline from "../Components/ContentByline.vue";
 import ContentTagsEditor from "../Components/ContentTagsEditor.vue";
 import ContentTagsPreview from "../Components/ContentTagsPreview.vue";
 import { documentFromText, documentText } from "../content-document";
@@ -172,6 +173,12 @@ function toggle() {
                     متن ساده نمایش داده می‌شود؛ کد HTML اجرا نمی‌شود. بین بندها
                     یک خط خالی بگذارید.
                 </p>
+                <ContentByline
+                    v-if="page.kind === 'article'"
+                    v-model="draft.definition.byline"
+                    editable
+                    :disabled="busy"
+                />
                 <ContentCategory
                     v-if="page.kind === 'article'"
                     v-model="draft.definition.category"
@@ -356,6 +363,7 @@ function toggle() {
                     نسخه عمومی حاصل: {{ fa(item.publication_number) }}
                 </p>
                 <h4>{{ item.definition.title }}</h4>
+                <ContentByline :model-value="item.definition.byline" />
                 <ContentCategory :model-value="item.definition.category" />
                 <ContentTagsPreview :tags="item.definition.tags" />
                 <ContentDocumentPreview
@@ -383,6 +391,7 @@ function toggle() {
                 </summary>
                 <h3>{{ publication.definition.title }}</h3>
                 <p>{{ publication.definition.excerpt }}</p>
+                <ContentByline :model-value="publication.definition.byline" />
                 <ContentCategory
                     :model-value="publication.definition.category"
                 />
