@@ -363,7 +363,7 @@ try {
         assert.equal(state().page.version, 1);
     }
     current = state();
-    assert.equal(current.page.publications.length, 1);
+    assert([1, 2].includes(current.page.publications.length));
     const publicHash = current.page.publications[0].hash;
     if (!current.page.schedules.length) {
         await setAlt("شرح خصوصی برنامه۷۸");
@@ -492,7 +492,7 @@ try {
             active_public_image: 1,
             private_jpeg: 1,
             withdrawn_image: 1,
-            immutable_image_publication: 1,
+            immutable_image_publications: current.page.publications.length,
             cancelled_image_schedule: 1,
             all_media_rows_ciphertexts_original_bytes_and_CMS_history_preserved: true,
             financial_rows_unchanged: true,
