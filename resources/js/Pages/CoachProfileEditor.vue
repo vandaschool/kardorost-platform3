@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 import { Head, Link, router, useForm, usePage } from "@inertiajs/vue3";
 import Shell from "../Layouts/Shell.vue";
 import CoachProfileDefinition from "../Components/CoachProfileDefinition.vue";
+import CoachProfileLinksEditor from "../Components/CoachProfileLinksEditor.vue";
 import CoachProfileHistory from "../Components/CoachProfileHistory.vue";
 const props = defineProps({
     profile: Object,
@@ -21,6 +22,7 @@ const form = useForm({
         city: draft?.city || "",
         focus_areas: draft?.focus_areas || [""],
         languages: draft?.languages || [""],
+        links: (draft?.links || []).map((link) => ({ ...link })),
         ...(draft?.photo ? { photo: { ...draft.photo } } : {}),
     },
 });
@@ -237,9 +239,13 @@ function save() {
                     افزودن زبان
                 </button>
             </fieldset>
+            <CoachProfileLinksEditor
+                v-model="form.definition.links"
+                :disabled="form.processing"
+            />
             <p class="muted">
-                نام، معرفی، شهر، زمینه‌ها و زبان‌ها عمومی می‌شوند. محتوای نسخه
-                عمومی قبلی با ذخیره پیش‌نویس عوض نمی‌شود.
+                نام، معرفی، شهر، زمینه‌ها، زبان‌ها و پیوندهای انتخاب‌شده عمومی
+                می‌شوند. محتوای نسخه عمومی قبلی با ذخیره پیش‌نویس عوض نمی‌شود.
             </p>
             <p
                 v-for="(error, key) in form.errors"
@@ -272,8 +278,8 @@ function save() {
                     name="coach_public_consent"
                     v-model="submit.public_consent"
                     required
-                />با نمایش عمومی نام، اطلاعات و عکس انتخاب‌شدهٔ همین نسخه
-                ذخیره‌شده پس از بررسی مدیریت موافقم.</label
+                />با نمایش عمومی نام، اطلاعات، عکس و پیوندهای انتخاب‌شدهٔ همین
+                نسخه ذخیره‌شده پس از بررسی مدیریت موافقم.</label
             >
             <p
                 v-for="(error, key) in submit.errors"

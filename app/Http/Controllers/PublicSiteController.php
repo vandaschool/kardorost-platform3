@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ContentPage;
 use App\Models\Course;
+use App\Services\CoachProfileLinks;
 use App\Services\CoachProfilePhotos;
 use App\Services\CoachProfiles;
 use App\Services\CohortCapacity;
@@ -74,9 +75,11 @@ class PublicSiteController extends Controller
     public function mentor(string $slug, CoachProfiles $service): Response
     {
         $profile = $service->visible()->where('slug', $slug)->firstOrFail();
-        $definition = $profile->currentPublication->definition;
+        $definition = $service->publishedDefinition($profile);
+        abort_unless($definition, 404);
+        $links = app(CoachProfileLinks::class)->display($definition['links'] ?? null);
 
-        return $this->render('mentor', $definition['display_name'], mb_substr($definition['headline'], 0, 160), [...compact('profile', 'definition'), 'photo' => app(CoachProfilePhotos::class)->publicImage($profile)]);
+        return $this->render('mentor', $definition['display_name'], mb_substr($definition['headline'], 0, 160), [...compact('profile', 'definition', 'links'), 'photo' => app(CoachProfilePhotos::class)->publicImage($profile)]);
     }
 
     public function journal(Request $request): Response

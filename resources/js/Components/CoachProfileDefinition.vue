@@ -1,4 +1,5 @@
 <script setup>
+import CoachProfileLinks from "./CoachProfileLinks.vue";
 import ContentMediaThumbnail from "./ContentMediaThumbnail.vue";
 defineProps({ definition: Object });
 </script>
@@ -17,6 +18,7 @@ defineProps({ definition: Object });
         <p v-if="definition.city">شهر: {{ definition.city }}</p>
         <p>زمینه‌ها: {{ definition.focus_areas.join("، ") }}</p>
         <p>زبان‌ها: {{ definition.languages.join("، ") }}</p>
+        <CoachProfileLinks :links="definition.links" />
     </section>
 </template>
 

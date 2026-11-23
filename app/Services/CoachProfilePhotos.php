@@ -200,23 +200,9 @@ class CoachProfilePhotos
         });
     }
 
-    private function publicationDefinition(CoachProfile $profile): ?array
-    {
-        try {
-            $publication = $profile->currentPublication;
-            if (! $publication || $publication->coach_profile_id !== $profile->id || ! $publication->consented_at || ! is_array($publication->definition) || ! hash_equals($publication->definition_hash, hash('sha256', json_encode($publication->definition, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)))) {
-                return null;
-            }
-
-            return $publication->definition;
-        } catch (Throwable) {
-            return null;
-        }
-    }
-
     public function publicImage(CoachProfile $profile): ?array
     {
-        $definition = $this->publicationDefinition($profile);
+        $definition = app(CoachProfiles::class)->publishedDefinition($profile);
         if (! isset($definition['photo']) || ! $profile->public_enabled || ! app(CoachProfiles::class)->eligible(User::findOrFail($profile->user_id))) {
             return null;
         }
@@ -242,7 +228,7 @@ class CoachProfilePhotos
             abort_unless(app(CoachProfiles::class)->eligible($owner), 404);
             $profile = CoachProfile::whereKey($initial->id)->sharedLock()->firstOrFail();
             abort_unless($profile->user_id === $owner->id && $profile->slug === $slug && $profile->public_enabled, 404);
-            $definition = $this->publicationDefinition($profile);
+            $definition = app(CoachProfiles::class)->publishedDefinition($profile);
             try {
                 $ref = $this->reference($definition['photo'] ?? null);
             } catch (ValidationException) {
