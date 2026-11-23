@@ -1,4 +1,5 @@
 """Mutates ONLY synthetic validation-prefixed Compose projects and preserves source volumes."""
+from contextlib import nullcontext
 import importlib.util
 import json
 import os
@@ -7,7 +8,7 @@ import secrets
 import subprocess
 import tempfile
 
-from container_runtime_probes import DISCUSSION_ATTACHMENT_FIXTURE_STATE, RICH_CONTENT_FIXTURE_STATE, CONTENT_MEDIA_FIXTURE_STATE, COACH_PHOTO_FIXTURE_STATE
+from container_runtime_probes import DISCUSSION_ATTACHMENT_FIXTURE_STATE, RICH_CONTENT_FIXTURE_STATE, CONTENT_MEDIA_FIXTURE_STATE, COACH_PHOTO_FIXTURE_STATE, COACH_LINK_FIXTURE_STATE
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location('recovery', ROOT / 'resources/operations/recovery.py')
@@ -60,6 +61,12 @@ if os.environ.get('CONTAINER_EXPECT_COACH_PHOTOS') == '1':
     assert coach_photo_original['fixture_complete'], 'Only the completed owner-consented active/private/withdrawn coach photo fixture.'
 
 
+coach_links_original = None
+if os.environ.get('CONTAINER_EXPECT_COACH_LINKS') == '1':
+    coach_links_original = json.loads(source.run(['exec', '-T', 'app', 'php', '-r', COACH_LINK_FIXTURE_STATE]))
+    assert coach_links_original['fixture_complete'], 'Only the completed reviewed links fixture with retained photos and history.'
+
+
 latest_probe = r"""require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$credential=\App\Models\CoachCredential::sole();$service=app(\App\Services\CoachCredentials::class);$metadata=$service->metadata($credential);$fileHash=hash('sha256',\Illuminate\Support\Facades\Storage::disk('learning')->get($credential->file_path));$share=\App\Models\ResumeShare::sole();$sharing=app(\App\Services\ResumeSharing::class);$data=$sharing->metadata($share);$public=$sharing->publicPayload($data['token']);echo json_encode(['credential_source_valid'=>$metadata!==null&&$metadata['credential_id']===$credential->id&&$metadata['user_id']===$credential->user_id,'credential_cipher_hash'=>hash('sha256',$credential->getRawOriginal('definition')),'credential_hash'=>$metadata['sha256'],'original_file_hash'=>$fileHash,'credential_cipher_private'=>!str_contains($credential->getRawOriginal('definition'),'مدرک صرفاً آزمایشی'),'share_cipher_hash'=>hash('sha256',$share->getRawOriginal('definition')),'share_source_valid'=>$data['share_id']===$share->id&&$data['version_id']===$share->resume_version_id,'public_source_name'=>$public['definition']['name']==='نام نسخه آزمایشی کانتینر','public_contacts_omitted'=>$public['definition']['phone']===''&&$public['definition']['email']==='','token_encrypted'=>!str_contains($share->getRawOriginal('definition'),$data['token'])]);"""
 latest_original = None
 if os.environ.get('CONTAINER_EXPECT_LATEST_FIXTURES') == '1':
@@ -84,7 +91,18 @@ def invoke(command, *args, expected=0):
     return result
 
 
-with tempfile.TemporaryDirectory(prefix='kardorost-recovery-acceptance-') as temporary:
+snapshot_directory = os.environ.get('RECOVERY_RETAIN_SNAPSHOT_DIRECTORY')
+if snapshot_directory:
+    retained = Path(snapshot_directory).resolve()
+    assert retained.parent == Path('/tmp') and retained.name.startswith('kardorost-retained-recovery-')
+    assert not retained.exists(), 'Preserve an existing retained recovery snapshot.'
+    heartbeat()
+    retained.mkdir(mode=0o700)
+    snapshot_context = nullcontext(str(retained))
+else:
+    snapshot_context = tempfile.TemporaryDirectory(prefix='kardorost-recovery-acceptance-')
+
+with snapshot_context as temporary:
     private = Path(temporary)
     key = private / 'backup.key';backup = private / 'snapshot.gpg'
     invoke('generate-key', '--output', key)
@@ -159,6 +177,9 @@ with tempfile.TemporaryDirectory(prefix='kardorost-recovery-acceptance-') as tem
     if coach_photo_original is not None:
         coach_photo_restored = json.loads(target.run(['exec', '-T', 'app', 'php', '-r', COACH_PHOTO_FIXTURE_STATE]))
         assert coach_photo_restored == coach_photo_original, 'Prepared photos, bound consent/ciphertexts, withdrawal, profile versions, private draft or audit history changed.'
+    if coach_links_original is not None:
+        coach_links_restored = json.loads(target.run(['exec', '-T', 'app', 'php', '-r', COACH_LINK_FIXTURE_STATE]))
+        assert coach_links_restored == coach_links_original, 'Reviewed links, private draft, source-bound publications, photos or history changed.'
     # Save only the synthetic private destination environment for separate browser acceptance.
     destination = Path(os.environ.get('RECOVERY_DESTINATION_ENV_FILE', '/tmp/kardorost-compose-restored.env')).resolve()
     assert destination.is_relative_to('/tmp') and destination.name.startswith('kardorost-compose-restored')
@@ -168,6 +189,7 @@ with tempfile.TemporaryDirectory(prefix='kardorost-recovery-acceptance-') as tem
         output.write(contents)
     report = {'result': 'passed', 'local_storage_mode': 'vfs_flattened_filesystem_and_verified_runtime_config',
               'source_running_services_restored': sorted(source_services),
+              'encrypted_snapshot_retained_locally': bool(snapshot_directory),
               'checks': ['real-quiesced-encrypted-postgresql-and-private-storage-snapshot', 'authenticated-quiesced-reconciliation-boundary-and-snapshot-restart-times', 'source-running-state-restored',
                          'existing-backup-preserved', 'wrong-app-key-wrong-backup-key-live-effects-refused-before-db-start',
                          'nonempty-private-storage-refused-with-empty-db-preserved', 'separate-target-project-volumes-db-passwords',
@@ -183,6 +205,8 @@ with tempfile.TemporaryDirectory(prefix='kardorost-recovery-acceptance-') as tem
         report['checks'].append('active_private_and_withdrawn_raster_bytes_source_bound_ciphertexts_rights_review_publication_draft_cancelled_image_schedule_and_audit_history_restored_without_republication')
     if coach_photo_original is not None:
         report['checks'].append('exact_owner_consented_prepared_coach_photo_bytes_ciphertexts_active_private_withdrawn_statuses_profile_publications_private_draft_and_audit_restored_without_reconsent')
+    if coach_links_original is not None:
+        report['checks'].append('exact_reviewed_public_links_private_links_frozen_versions_consents_photos_and_financial_rows_restored_without_reconsent')
     heartbeat()
     Path('/tmp/kardorost-recovery-acceptance.json').write_text(json.dumps(report))
     print(json.dumps(report))
