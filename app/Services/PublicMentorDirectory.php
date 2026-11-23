@@ -42,7 +42,7 @@ class PublicMentorDirectory
         $facets = ['city' => [], 'focus' => [], 'language' => []];
         // Only reviewed current public snapshots are decrypted; private drafts are never searched.
         // Chunking bounds memory while keeping encrypted snapshots out of a plaintext search index.
-        foreach (app(CoachProfiles::class)->visible()->select(['id', 'slug', 'current_publication_id', 'public_published_at'])->orderByDesc('public_published_at')->orderByDesc('id')->lazy(200) as $profile) {
+        foreach (app(CoachProfiles::class)->visible()->select(['id', 'slug', 'user_id', 'public_enabled', 'current_publication_id', 'public_published_at'])->orderByDesc('public_published_at')->orderByDesc('id')->lazy(200) as $profile) {
             $visible = true;
             $definition = $profile->currentPublication->definition;
             $values = ['city' => [$definition['city']], 'focus' => $definition['focus_areas'], 'language' => $definition['languages']];

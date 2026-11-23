@@ -51,7 +51,9 @@ class CoachProfiles
         }
         $data = Validator::make($input, ['display_name' => 'required|string|min:3|max:160', 'headline' => 'required|string|min:3|max:160', 'bio' => 'required|string|min:20|max:6000', 'city' => 'nullable|string|max:100', 'focus_areas' => 'required|array|list|min:1|max:12', 'focus_areas.*' => 'required|string|min:3|max:60|distinct', 'languages' => 'required|array|list|min:1|max:5', 'languages.*' => 'required|string|min:2|max:40|distinct'])->validate();
 
-        return ['display_name' => trim($data['display_name']), 'headline' => trim($data['headline']), 'bio' => trim($data['bio']), 'city' => trim($data['city'] ?? ''), 'focus_areas' => array_map('trim', $data['focus_areas']), 'languages' => array_map('trim', $data['languages'])];
+        $photo = app(CoachProfilePhotos::class)->reference($input['photo'] ?? null);
+
+        return [...['display_name' => trim($data['display_name']), 'headline' => trim($data['headline']), 'bio' => trim($data['bio']), 'city' => trim($data['city'] ?? ''), 'focus_areas' => array_map('trim', $data['focus_areas']), 'languages' => array_map('trim', $data['languages'])], ...($photo ? ['photo' => $photo] : [])];
     }
 
     private function hash(array $definition): string
@@ -70,6 +72,7 @@ class CoachProfiles
             if (($profile?->revision ?? 0) !== $revision) {
                 $this->fail();
             }
+            app(CoachProfilePhotos::class)->validateReference($actor, $definition['photo'] ?? null);
             if (! $profile) {
                 $profile = CoachProfile::create(['user_id' => $actor->id, 'slug' => (string) Str::uuid(), 'draft' => $definition]);
             } else {
@@ -97,6 +100,7 @@ class CoachProfiles
             if (! $consented) {
                 throw ValidationException::withMessages(['public_consent' => 'تأیید صریح نمایش عمومی همین نسخه لازم است.']);
             }
+            app(CoachProfilePhotos::class)->validateReference($actor, $profile->draft['photo'] ?? null, true);
             $submission = CoachProfileSubmission::create(['coach_profile_id' => $profile->id, 'profile_revision' => $profile->revision, 'definition' => $profile->draft, 'definition_hash' => $this->hash($profile->draft), 'consented_at' => now()]);
             $profile->update(['latest_submission_id' => $submission->id, 'state' => 'submitted', 'revision' => $profile->revision + 1]);
             $this->audit($actor, $profile, 'submitted');
@@ -121,6 +125,7 @@ class CoachProfiles
                 if (! $submission->consented_at || ! hash_equals($submission->definition_hash, $this->hash($submission->definition))) {
                     $this->fail();
                 }
+                app(CoachProfilePhotos::class)->validateReference($owner, $submission->definition['photo'] ?? null, true);
                 $publication = CoachProfilePublication::create(['coach_profile_id' => $profile->id, 'coach_profile_submission_id' => $submission->id, 'number' => 1 + (int) $profile->publications()->max('number'), 'definition' => $submission->definition, 'definition_hash' => $submission->definition_hash, 'consented_at' => $submission->consented_at, 'published_by' => $actor->id, 'published_at' => now()]);
                 $profile->update(['current_publication_id' => $publication->id, 'public_enabled' => true, 'public_published_at' => now(), 'state' => 'approved', 'revision' => $profile->revision + 1]);
                 $submission->update(['status' => 'published']);

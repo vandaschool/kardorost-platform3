@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from "vue";
-import { Head, useForm, usePage } from "@inertiajs/vue3";
+import { Head, Link, router, useForm, usePage } from "@inertiajs/vue3";
 import Shell from "../Layouts/Shell.vue";
 import CoachProfileDefinition from "../Components/CoachProfileDefinition.vue";
 import CoachProfileHistory from "../Components/CoachProfileHistory.vue";
@@ -8,6 +8,7 @@ const props = defineProps({
     profile: Object,
     can_edit: Boolean,
     history: Object,
+    photo_options: Array,
 });
 const page = usePage();
 const draft = props.profile?.draft;
@@ -20,8 +21,32 @@ const form = useForm({
         city: draft?.city || "",
         focus_areas: draft?.focus_areas || [""],
         languages: draft?.languages || [""],
+        ...(draft?.photo ? { photo: { ...draft.photo } } : {}),
     },
 });
+const refreshingPhotos = ref(false);
+function refreshPhotos() {
+    router.reload({
+        only: ["photo_options", "can_edit"],
+        preserveState: true,
+        preserveScroll: true,
+        onStart: () => (refreshingPhotos.value = true),
+        onFinish: () => (refreshingPhotos.value = false),
+    });
+}
+const photoKey = ref(draft?.photo?.key || "");
+const photos = computed(() =>
+    (props.photo_options || []).filter((p) => p.metadata && !p.withdrawn_at),
+);
+function choosePhoto() {
+    const photo = photos.value.find((p) => p.public_key === photoKey.value);
+    if (photo)
+        form.definition.photo = {
+            key: photo.public_key,
+            sha256: photo.metadata.sha256,
+        };
+    else if (!photoKey.value) delete form.definition.photo;
+}
 const saved = ref(JSON.stringify(form.definition));
 const dirty = computed(() => saved.value !== JSON.stringify(form.definition));
 const submit = useForm({
@@ -112,6 +137,48 @@ function save() {
                     name="coach_city"
                     maxlength="100"
             /></label>
+            <label
+                >عکس این نسخه (اختیاری)<select
+                    v-model="photoKey"
+                    @change="choosePhoto"
+                    name="coach_photo"
+                >
+                    <option value="">بدون عکس</option>
+                    <option
+                        v-if="
+                            photoKey &&
+                            !photos.some((p) => p.public_key === photoKey)
+                        "
+                        :value="photoKey"
+                        disabled
+                    >
+                        عکس قبلی در دسترس نیست؛ دوباره انتخاب کنید.
+                    </option>
+                    <option
+                        v-for="photo in photos"
+                        :key="photo.public_key"
+                        :value="photo.public_key"
+                    >
+                        {{ photo.metadata.title }}
+                    </option>
+                </select></label
+            >
+            <p class="caption muted">
+                فقط عکس‌های حساب خودتان قابل انتخاب‌اند؛ همان انتخاب همراه متن
+                این نسخه برای رضایت و بررسی ارسال می‌شود.
+                <Link href="/coach/profile-photos" target="_blank"
+                    >ثبت و مدیریت عکس‌های من</Link
+                >
+            </p>
+            <button
+                type="button"
+                class="btn secondary"
+                :disabled="refreshingPhotos || form.processing"
+                @click="refreshPhotos"
+                data-refresh-photo-options
+            >
+                به‌روزرسانی فهرست عکس‌ها
+            </button>
             <fieldset>
                 <legend>زمینه‌های فعالیت</legend>
                 <label
@@ -205,8 +272,8 @@ function save() {
                     name="coach_public_consent"
                     v-model="submit.public_consent"
                     required
-                />با نمایش عمومی نام و اطلاعات همین نسخه ذخیره‌شده پس از بررسی
-                مدیریت موافقم.</label
+                />با نمایش عمومی نام، اطلاعات و عکس انتخاب‌شدهٔ همین نسخه
+                ذخیره‌شده پس از بررسی مدیریت موافقم.</label
             >
             <p
                 v-for="(error, key) in submit.errors"

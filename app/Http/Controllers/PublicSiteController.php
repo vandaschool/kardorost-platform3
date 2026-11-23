@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ContentPage;
 use App\Models\Course;
+use App\Services\CoachProfilePhotos;
 use App\Services\CoachProfiles;
 use App\Services\CohortCapacity;
 use App\Services\PublicMentorDirectory;
@@ -75,7 +76,7 @@ class PublicSiteController extends Controller
         $profile = $service->visible()->where('slug', $slug)->firstOrFail();
         $definition = $profile->currentPublication->definition;
 
-        return $this->render('mentor', $definition['display_name'], mb_substr($definition['headline'], 0, 160), compact('profile', 'definition'));
+        return $this->render('mentor', $definition['display_name'], mb_substr($definition['headline'], 0, 160), [...compact('profile', 'definition'), 'photo' => app(CoachProfilePhotos::class)->publicImage($profile)]);
     }
 
     public function journal(Request $request): Response

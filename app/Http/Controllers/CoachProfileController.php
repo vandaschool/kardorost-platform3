@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CoachProfile;
 use App\Models\CoachProfileWithdrawal;
+use App\Services\CoachProfilePhotos;
 use App\Services\CoachProfiles;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,7 +17,7 @@ class CoachProfileController extends Controller
     {
         $profile->loadMissing('owner:id,name,phone,is_active,phone_verified_at', 'currentPublication', 'latestSubmission');
 
-        return [...$profile->only('id', 'revision', 'state', 'public_enabled', 'public_published_at', 'draft'), 'owner' => $profile->owner->only('id', 'name', 'phone'), 'public_url' => route('public.mentor', $profile->slug), 'published' => $profile->currentPublication?->only('number', 'definition', 'published_at'), 'submission' => $profile->latestSubmission?->only('id', 'profile_revision', 'definition', 'status', 'consented_at', 'note', 'reviewed_at')];
+        return [...$profile->only('id', 'revision', 'state', 'public_enabled', 'public_published_at', 'draft'), 'owner' => $profile->owner->only('id', 'name', 'phone'), 'public_url' => route('public.mentor', $profile->slug), 'published' => $profile->currentPublication?->only('number', 'definition', 'published_at'), 'submission' => $profile->latestSubmission?->only('id', 'profile_revision', 'definition', 'status', 'consented_at', 'note', 'reviewed_at'), 'photos' => app(CoachProfilePhotos::class)->listing(request()->user(), $profile->user_id)];
     }
 
     private function history(CoachProfile $profile): array
@@ -31,7 +32,7 @@ class CoachProfileController extends Controller
         $eligible = $service->eligible($user);
         abort_unless($eligible || $profile, 403);
 
-        return Inertia::render('CoachProfileEditor', ['profile' => $profile ? $this->data($profile) : null, 'can_edit' => $eligible, 'history' => $profile ? $this->history($profile) : null]);
+        return Inertia::render('CoachProfileEditor', ['profile' => $profile ? $this->data($profile) : null, 'can_edit' => $eligible, 'photo_options' => app(CoachProfilePhotos::class)->listing($user, $user->id), 'history' => $profile ? $this->history($profile) : null]);
     }
 
     public function save(Request $request, CoachProfiles $service): RedirectResponse
