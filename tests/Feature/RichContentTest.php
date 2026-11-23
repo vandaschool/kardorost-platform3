@@ -218,7 +218,8 @@ class RichContentTest extends TestCase
     {
         $page = $this->page();
         $publication = app(ContentPublishing::class)->publish($this->admin, $page, 1);
-        $publication->update(['definition' => [...$publication->definition, 'document' => ['version' => 1, 'blocks' => [['type' => 'script', 'children' => [['text' => 'alert(1)']]]]]]]);
+        $definition = [...$publication->definition, 'document' => ['version' => 1, 'blocks' => [['type' => 'script', 'children' => [['text' => 'alert(1)']]]]]];
+        $publication->update(['definition' => $definition, 'content_hash' => app(ContentPublishing::class)->hash($definition)]);
         $this->get($page->publicPath())->assertOk()->assertSee('نسخه متن ساده قبلی')->assertDontSee('data-rich-document', false)->assertDontSee('<script>alert(1)</script>', false);
     }
 
