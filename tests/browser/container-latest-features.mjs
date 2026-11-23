@@ -190,7 +190,7 @@ assert(
     environmentFile?.startsWith("/tmp/") && new URL(base).port === "18089",
     "Use only the private four-user Compose fixture.",
 );
-const php = String.raw`require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();if(\App\Models\User::count()!==4||\App\Models\User::where('name','like','بررسی کانتینر %')->count()!==4){throw new RuntimeException('Only the owned synthetic source.');}$credential=\App\Models\CoachCredential::sole();$metadata=app(\App\Services\CoachCredentials::class)->metadata($credential);$share=\App\Models\ResumeShare::sole();$data=app(\App\Services\ResumeSharing::class)->metadata($share);echo json_encode(['credential_id'=>$credential->id,'file_hash'=>$metadata['sha256'],'share_manage'=>route('career.shares',['resume'=>$share->career_resume_id,'version'=>$share->resume_version_id],false),'public_url'=>route('public.resume',$data['token'],false)]);`;
+const php = String.raw`require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();if(\App\Models\User::count()!==4||\App\Models\User::where('name','like','بررسی کانتینر %')->count()!==4){throw new RuntimeException('Only the owned synthetic source.');}$credential=\App\Models\CoachCredential::sole();$metadata=app(\App\Services\CoachCredentials::class)->metadata($credential);$share=\App\Models\ResumeShare::sole();$data=app(\App\Services\ResumeSharing::class)->metadata($share);echo json_encode(['credential_id'=>$credential->id,'file_hash'=>$metadata['sha256'],'share_manage'=>route('career.shares',['resume'=>$share->career_resume_id,'version'=>$share->resume_version_id],false),'public_url'=>route('public.resume',$data['token'],false),'expires_timestamp'=>$share->expires_at->timestamp]);`;
 const python = String.raw`import importlib.util,json,sys
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('recovery','resources/operations/recovery.py');r=importlib.util.module_from_spec(spec);spec.loader.exec_module(r);c=r.Composition(Path(sys.argv[1]));assert c.config['name'].startswith('kardorost-validation-');assert c.settings['APP_URL']==sys.argv[2];print(c.run(['exec','-T','app','php','-r',sys.stdin.read()]))`;
@@ -216,7 +216,14 @@ async function awaitPublicQuota() {
         const reply = await evaluate(
             `(async()=>{const r=await fetch(${JSON.stringify(fixture.public_url)},{headers:{Accept:'text/html'}});await r.text();return {status:r.status,retry:Number(r.headers.get('retry-after'))};})()`,
         );
-        if (reply.status === 200) return;
+        if (reply.status === 200 || reply.status === 404) {
+            assert.equal(
+                reply.status,
+                Date.now() >= fixture.expires_timestamp * 1000 ? 404 : 200,
+                "Current public access must follow the original expiry without renewal",
+            );
+            return reply.status;
+        }
         assert.equal(reply.status, 429, "Unexpected public fixture status");
         assert(
             reply.retry > 0 && reply.retry <= 60,
@@ -269,22 +276,38 @@ try {
         403,
     );
     await goto(fixture.share_manage);
-    await until("!!document.querySelector('[data-open-resume-share]')");
-    assert.equal(
-        await evaluate(
-            "document.querySelector('[data-open-resume-share]').getAttribute('href')",
-        ),
-        fixture.public_url,
-    );
+    await until("!!document.querySelector('[data-resume-share]')");
+    const expiredAtOwnerView = Date.now() >= fixture.expires_timestamp * 1000;
+    if (expiredAtOwnerView) {
+        assert.equal(
+            await evaluate(
+                "!!document.querySelector('[data-open-resume-share]')",
+            ),
+            false,
+        );
+        assert(
+            await evaluate(
+                "document.body.innerText.includes('مهلت لینک تمام شده')",
+            ),
+        );
+    } else {
+        assert.equal(
+            await evaluate(
+                "document.querySelector('[data-open-resume-share]').getAttribute('href')",
+            ),
+            fixture.public_url,
+        );
+    }
     await responsive("Container private resume sharing");
     await networkIdle();
     await send("Network.clearBrowserCookies");
-    await awaitPublicQuota();
+    const publicStatus = await awaitPublicQuota();
     await goto(fixture.public_url);
-    assert(
+    assert.equal(
         await evaluate(
             "document.body.innerText.includes('نام نسخه آزمایشی کانتینر')",
         ),
+        publicStatus === 200,
     );
     for (const privateValue of [
         "09120000099",
@@ -299,7 +322,7 @@ try {
     const headers = await evaluate(
         "fetch(location.pathname).then(async r=>{await r.text();return {status:r.status,cache:r.headers.get('cache-control'),robots:r.headers.get('x-robots-tag'),referrer:r.headers.get('referrer-policy')}})",
     );
-    assert.equal(headers.status, 200);
+    assert.equal(headers.status, publicStatus);
     assert(
         headers.cache.includes("no-store") &&
             headers.robots.includes("noindex") &&
@@ -333,10 +356,14 @@ try {
         JSON.stringify({
             result: "passed",
             quota_waits: quotaWaits,
+            public_share_status: publicStatus,
+            expired_original_share_no_public_copy: publicStatus === 404,
             checks: [
                 "non-development-container-owner-and-admin-original-credential-file-hash-download",
                 "student-organization-role-private-credential-isolation",
-                "restored-owner-visible-consented-sharing-and-anonymous-fixed-public-copy",
+                publicStatus === 200
+                    ? "restored-owner-visible-consented-sharing-and-anonymous-fixed-public-copy"
+                    : "original-expired-link404-owner-history-and-frozen-private-consent-preserved-without-reconsent",
                 "default-contact-omission-private-public-headers-and-admin-owner-consent-boundary",
                 "320-390-768-1440",
             ],

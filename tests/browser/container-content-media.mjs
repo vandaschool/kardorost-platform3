@@ -363,7 +363,7 @@ try {
         assert.equal(state().page.version, 1);
     }
     current = state();
-    assert([1, 2].includes(current.page.publications.length));
+    assert([1, 2, 3].includes(current.page.publications.length));
     const publicHash = current.page.publications[0].hash;
     if (!current.page.schedules.length) {
         await setAlt("شرح خصوصی برنامه۷۸");

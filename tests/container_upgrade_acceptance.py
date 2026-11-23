@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 import subprocess
 
-from container_runtime_probes import CURRENT_CONSULTATION_AUTHORIZATION, CURRENT_FINANCIAL_AUTHORIZATION, CURRENT_COURSE_ORGANIZATION_AUTHORIZATION, CURRENT_DISCUSSION_ATTACHMENT_AUTHORIZATION, CURRENT_COACH_PHOTO_AUTHORIZATION, JOURNAL_RSS_FIXTURE_STATE
+from container_runtime_probes import CURRENT_CONSULTATION_AUTHORIZATION, CURRENT_FINANCIAL_AUTHORIZATION, CURRENT_COURSE_ORGANIZATION_AUTHORIZATION, CURRENT_DISCUSSION_ATTACHMENT_AUTHORIZATION, CURRENT_COACH_PHOTO_AUTHORIZATION, JOURNAL_RSS_FIXTURE_STATE, LATEST_PRIVATE_FIXTURE_STATE
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location('recovery', ROOT / 'resources/operations/recovery.py')
@@ -96,8 +96,10 @@ actual = json.loads(run(target, ['exec', '-T', 'app', 'php', '-r', code]))
 assert actual == expected, 'The running image does not contain the exact checked-out application source.'
 fixture = bootstrap + r"""if(\App\Models\User::count()!==4||\App\Models\User::where('name','like','بررسی کانتینر %')->count()!==4||\App\Models\ResumeShare::exists()||\App\Models\CoachCredential::exists()){throw new RuntimeException('Use only the owned four-user pre-fixture source.');}$owner=\App\Models\User::where('phone','989121234560')->firstOrFail();$coach=\App\Models\User::where('phone','989121234561')->firstOrFail();$handle=tmpfile();fwrite($handle,"%PDF-1.4\n% SOFTWARE-ONLY-CONTAINER-PRIVATE-CREDENTIAL\n%%EOF\n");$file=new \Illuminate\Http\UploadedFile(stream_get_meta_data($handle)['uri'],'container-software-only.pdf','application/pdf',UPLOAD_ERR_OK,true);$credential=app(\App\Services\CoachCredentials::class)->submit($coach,['title'=>'مدرک صرفاً آزمایشی کانتینر، بدون اعتبار واقعی','issuer'=>'نمونه نرم‌افزاری','consent'=>true,'request_key'=>(string)\Illuminate\Support\Str::uuid()],$file);$builder=app(\App\Services\ResumeBuilder::class);$resume=$builder->create($owner,'اشتراک رزومه صرفاً آزمایشی کانتینر');$builder->save($owner,$resume,1,$resume->title,[...$resume->draft,'name'=>'نام نسخه آزمایشی کانتینر','headline'=>'توسعه‌دهنده نمونه نرم‌افزاری','summary'=>'این متن فقط برای بررسی بازیابی کانتینر است.','phone'=>'09120000099','email'=>'container-private-source@example.test']);$version=$builder->snapshot($owner,$resume,2);app(\App\Services\ResumeSharing::class)->publish($owner,$resume,$version,['revision'=>3,'request_key'=>(string)\Illuminate\Support\Str::uuid(),'duration_days'=>7,'include_contacts'=>false,'reviewed'=>true,'consent'=>true]);echo 'SYNTHETIC_LATEST_FIXTURES_CREATED';"""
 if os.environ.get('CONTAINER_UPGRADE_REUSE_LATEST_FIXTURES') == '1':
-    retained = bootstrap + r"""$c=\App\Models\CoachCredential::sole();$s=\App\Models\ResumeShare::sole();$m=app(\App\Services\CoachCredentials::class)->metadata($c);$data=app(\App\Services\ResumeSharing::class)->metadata($s);$payload=app(\App\Services\ResumeSharing::class)->publicPayload($data['token']);if($m['title']!=='مدرک صرفاً آزمایشی کانتینر، بدون اعتبار واقعی'||$payload['definition']['name']!=='نام نسخه آزمایشی کانتینر'||hash('sha256',\Illuminate\Support\Facades\Storage::disk('learning')->get($c->file_path))!==$m['sha256']){throw new RuntimeException('Preserved synthetic fixture changed.');}echo 'LATEST_FIXTURES_RETAINED';"""
-    assert run(target, ['exec', '-T', 'app', 'php', '-r', retained]).strip() == 'LATEST_FIXTURES_RETAINED'
+    retained = json.loads(run(target, ['exec', '-T', 'app', 'php', '-r', LATEST_PRIVATE_FIXTURE_STATE]))
+    assert retained['credential_hash'] == retained['original_file_hash']
+    assert all(retained[key] for key in ['credential_source_valid', 'credential_cipher_private', 'share_source_valid', 'frozen_source_name', 'frozen_contacts_omitted', 'token_encrypted', 'original_consent_and_expiry_bound_to_source', 'current_public_availability_verified'])
+
 else:
     assert run(target, ['exec', '-T', 'app', 'php', '-r', fixture]).strip() == 'SYNTHETIC_LATEST_FIXTURES_CREATED'
 
@@ -119,10 +121,14 @@ if os.environ.get('CONTAINER_EXPECT_COACH_PHOTO_AUTH') == '1':
 if os.environ.get('CONTAINER_EXPECT_JOURNAL_RSS') == '1':
     assert json.loads(run(target, ['exec', '-T', 'app', 'php', '-r', JOURNAL_RSS_FIXTURE_STATE]))['fixture_complete']
 
-run(target, ['up', '-d', '--no-build', '--no-deps', '--wait', '--wait-timeout', '120', 'web', 'worker-default', 'worker-sms', 'scheduler'])
-assert target.running() == {'postgres', 'app', 'web', 'worker-default', 'worker-sms', 'scheduler'}
-report = {'result': 'passed', 'scope': 'owned_loopback_four_synthetic_users_same_project_volumes_and_keys', 'before_migrations': before['migration_count'], 'upgrade_kind': 'schema_and_code' if after['migration_count'] > before['migration_count'] else 'code_only', 'after_migrations': after['migration_count'], 'tracked_source_files_matched': len(files), 'checks': ['existing_encrypted_lead_ciphertext_and_plaintext_preserved', 'existing_private_support_file_hash_preserved', 'all_pending_migrations_applied_without_reseeding', 'exact_checked_out_application_source_in_non_development_image', 'encrypted_coach_credential_and_original_private_file_checked', 'owner_consented_source_bound_resume_share_checked', 'six_services_started_with_external_effects_disabled']}
+start_workers = os.environ.get('CONTAINER_UPGRADE_START_WORKERS', '1') != '0'
+workers = ['worker-default', 'worker-sms', 'scheduler'] if start_workers else []
+run(target, ['up', '-d', '--no-build', '--no-deps', '--wait', '--wait-timeout', '120', 'web', *workers])
+assert target.running() == {'postgres', 'app', 'web', *workers}
+
+report = {'result': 'passed', 'scope': 'owned_loopback_four_synthetic_users_same_project_volumes_and_keys', 'before_migrations': before['migration_count'], 'upgrade_kind': 'schema_and_code' if after['migration_count'] > before['migration_count'] else 'code_only', 'after_migrations': after['migration_count'], 'tracked_source_files_matched': len(files), 'checks': ['existing_encrypted_lead_ciphertext_and_plaintext_preserved', 'existing_private_support_file_hash_preserved', 'all_pending_migrations_applied_without_reseeding', 'exact_checked_out_application_source_in_non_development_image', 'encrypted_coach_credential_and_original_private_file_checked', 'owner_consented_source_bound_resume_share_checked', ('six_services_started_with_external_effects_disabled' if start_workers else 'three_core_services_started_workers_intentionally_stopped_external_effects_disabled')]}
 report['postgres_identical_image_container_retained'] = postgres_retained_identical_image
+report['workers_started'] = start_workers
 report['latest_fixture_mode'] = 'retained' if os.environ.get('CONTAINER_UPGRADE_REUSE_LATEST_FIXTURES') == '1' else 'created'
 if os.environ.get('CONTAINER_EXPECT_CURRENT_CONSULTATION_AUTH') == '1':
     report['checks'].append('nine_current_actor_production_authorization_refusals_all_fixture_rows_rolled_back')
