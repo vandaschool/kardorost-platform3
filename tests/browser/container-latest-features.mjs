@@ -29,8 +29,22 @@ let id = 0;
 const pending = new Map();
 const exceptions = [];
 const activeRequests = new Set();
+let loginRetryAfter = 0;
 socket.addEventListener("message", (event) => {
     const m = JSON.parse(event.data);
+    if (
+        m.method === "Network.responseReceived" &&
+        m.params.response.status === 429 &&
+        new URL(m.params.response.url).pathname === "/login"
+    ) {
+        const entry = Object.entries(m.params.response.headers).find(
+            ([name]) => name.toLowerCase() === "retry-after",
+        );
+        const seconds = Number(entry?.[1]);
+        if (Number.isInteger(seconds) && seconds > 0 && seconds <= 60)
+            loginRetryAfter = seconds;
+    }
+
     if (
         m.method === "Network.requestWillBeSent" &&
         ["XHR", "Fetch"].includes(m.params.type)
@@ -100,7 +114,20 @@ async function fill(selector, value) {
         `(()=>{const el=document.querySelector(${JSON.stringify(selector)});if(!el)throw Error('Missing input');el.value=${JSON.stringify(value)};el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));})()`,
     );
 }
+function lease() {
+    assert(process.env.KARDOROST_LEASE_OWNER);
+    execFileSync(
+        "python3",
+        [
+            "/workspace/work/kardorost-autonomy-lease.py",
+            "touch",
+            process.env.KARDOROST_LEASE_OWNER,
+        ],
+        { stdio: "pipe" },
+    );
+}
 async function submit(selector) {
+    lease();
     await evaluate(
         `document.querySelector(${JSON.stringify(selector)}).requestSubmit()`,
     );
@@ -116,19 +143,46 @@ async function networkIdle() {
         "Previous navigation did not finish before switching fixture accounts",
     );
 }
-async function login(role) {
-    await networkIdle();
-    await send("Network.clearBrowserCookies");
-    await send("Page.navigate", { url: base + "/login" });
-    await until(`!!document.querySelector('input[name=password]')`);
-    await networkIdle();
-    await fill(
-        "[name=phone]",
-        process.env["BROWSER_" + role.toUpperCase() + "_PHONE"],
+async function login(
+    role,
+    phone = process.env["BROWSER_" + role.toUpperCase() + "_PHONE"],
+) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+        await networkIdle();
+        await send("Page.navigate", { url: "about:blank" });
+        await until("location.href==='about:blank'");
+        await send("Network.clearBrowserCookies");
+        await send("Page.navigate", { url: base + "/login" });
+        await until("!!document.querySelector('input[name=password]')");
+        await networkIdle();
+        await fill("[name=phone]", phone);
+        await fill("[name=password]", password);
+        loginRetryAfter = 0;
+        await submit("form");
+        for (let index = 0; index < 100; index++) {
+            if (await evaluate(`location.pathname==='/${role}'`)) return;
+            if (loginRetryAfter > 0) break;
+            await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        assert(
+            loginRetryAfter > 0,
+            "Fixture login must either finish or return an actual bounded Retry-After.",
+        );
+        await networkIdle();
+        console.log(
+            "Honoring actual login Retry-After: " +
+                loginRetryAfter +
+                " seconds.",
+        );
+        const deadline = Date.now() + loginRetryAfter * 1000 + 250;
+        while (Date.now() < deadline)
+            await new Promise((resolve) =>
+                setTimeout(resolve, Math.min(20000, deadline - Date.now())),
+            );
+    }
+    throw new Error(
+        "Fixture login remained rate limited after three bounded attempts.",
     );
-    await fill("[name=password]", password);
-    await submit("form");
-    await until(`location.pathname==='/${role}'`);
 }
 
 const environmentFile = process.env.CONTAINER_ENV_FILE;
