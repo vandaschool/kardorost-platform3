@@ -8,6 +8,7 @@ use App\Services\CoachProfileLinks;
 use App\Services\CoachProfilePhotos;
 use App\Services\CoachProfiles;
 use App\Services\CohortCapacity;
+use App\Services\PublicJournalFeed;
 use App\Services\PublicMentorDirectory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -89,6 +90,12 @@ class PublicSiteController extends Controller
         $articles = $this->visible()->where('kind', 'article')->when($query !== '', fn ($q) => $q->whereHas('currentPublication', fn ($publication) => $publication->where('definition->title', 'like', '%'.$query.'%')))->latest('updated_at')->paginate(12)->withQueryString();
 
         return $this->render('journal', 'مجله کاردرست', 'یادداشت‌ها و مقاله‌های منتشرشده درباره رشد و مسیر حرفه‌ای.', compact('articles', 'query'));
+    }
+
+    public function journalFeed(PublicJournalFeed $feed): Response
+    {
+        return response()->view('public.journal-feed', ['entries' => $feed->entries(), 'base' => rtrim(config('app.url'), '/')])
+            ->withHeaders(['Content-Type' => 'application/rss+xml; charset=UTF-8', 'Cache-Control' => 'no-store', 'X-Content-Type-Options' => 'nosniff', 'X-Robots-Tag' => 'noindex, follow']);
     }
 
     private function content(string $kind, string $slug): Response
