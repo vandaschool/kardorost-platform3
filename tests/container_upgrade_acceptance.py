@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 import subprocess
 
-from container_runtime_probes import CURRENT_CONSULTATION_AUTHORIZATION, CURRENT_FINANCIAL_AUTHORIZATION, CURRENT_COURSE_ORGANIZATION_AUTHORIZATION, CURRENT_DISCUSSION_ATTACHMENT_AUTHORIZATION, CURRENT_COACH_PHOTO_AUTHORIZATION
+from container_runtime_probes import CURRENT_CONSULTATION_AUTHORIZATION, CURRENT_FINANCIAL_AUTHORIZATION, CURRENT_COURSE_ORGANIZATION_AUTHORIZATION, CURRENT_DISCUSSION_ATTACHMENT_AUTHORIZATION, CURRENT_COACH_PHOTO_AUTHORIZATION, JOURNAL_RSS_FIXTURE_STATE
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location('recovery', ROOT / 'resources/operations/recovery.py')
@@ -116,6 +116,9 @@ if os.environ.get('CONTAINER_EXPECT_DISCUSSION_AUTH') == '1':
 if os.environ.get('CONTAINER_EXPECT_COACH_PHOTO_AUTH') == '1':
     assert run(target, ['exec', '-T', 'app', 'php', '-r', CURRENT_COACH_PHOTO_AUTHORIZATION]).strip() == 'TWENTY_FIVE_PRODUCTION_COACH_PHOTO_REFUSALS_FOUR_VALIDATIONS_PRIVATE_BYTES_CONSENT_AND_ROWS_ROLLED_BACK'
 
+if os.environ.get('CONTAINER_EXPECT_JOURNAL_RSS') == '1':
+    assert json.loads(run(target, ['exec', '-T', 'app', 'php', '-r', JOURNAL_RSS_FIXTURE_STATE]))['fixture_complete']
+
 run(target, ['up', '-d', '--no-build', '--no-deps', '--wait', '--wait-timeout', '120', 'web', 'worker-default', 'worker-sms', 'scheduler'])
 assert target.running() == {'postgres', 'app', 'web', 'worker-default', 'worker-sms', 'scheduler'}
 report = {'result': 'passed', 'scope': 'owned_loopback_four_synthetic_users_same_project_volumes_and_keys', 'before_migrations': before['migration_count'], 'upgrade_kind': 'schema_and_code' if after['migration_count'] > before['migration_count'] else 'code_only', 'after_migrations': after['migration_count'], 'tracked_source_files_matched': len(files), 'checks': ['existing_encrypted_lead_ciphertext_and_plaintext_preserved', 'existing_private_support_file_hash_preserved', 'all_pending_migrations_applied_without_reseeding', 'exact_checked_out_application_source_in_non_development_image', 'encrypted_coach_credential_and_original_private_file_checked', 'owner_consented_source_bound_resume_share_checked', 'six_services_started_with_external_effects_disabled']}
@@ -131,6 +134,8 @@ if os.environ.get('CONTAINER_EXPECT_DISCUSSION_AUTH') == '1':
     report['checks'].append('twenty_seven_private_discussion_file_refusals_three_specific_validations_original_bytes_history_and_synthetic_rows_rolled_back')
 if os.environ.get('CONTAINER_EXPECT_COACH_PHOTO_AUTH') == '1':
     report['checks'].append('twenty_five_current_coach_photo_refusals_four_specific_validations_prepared_bytes_consent_and_probe_rows_rolled_back')
+if os.environ.get('CONTAINER_EXPECT_JOURNAL_RSS') == '1':
+    report['checks'].append('public_journal_RSS_derived_only_from_current_frozen_articles_without_republication')
 heartbeat()
 Path('/tmp/kardorost-container-upgrade-acceptance.json').write_text(json.dumps(report))
 print(json.dumps(report))
