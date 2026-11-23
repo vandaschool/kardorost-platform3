@@ -1,5 +1,5 @@
 {
-  "phase": "cms-redirect-production-upgrade-and-independent-recovery",
+  "phase": "optional-versioned-public-article-category",
   "completed": [
     "phone-verification",
     "password-login",
@@ -446,7 +446,8 @@
     "versioned-public-article-tags-and-journal-filter",
     "public-article-tags-production-upgrade-independent-recovery",
     "safe-internal-cms-legacy-slug-redirects",
-    "cms-redirect-production-upgrade-independent-recovery"
+    "cms-redirect-production-upgrade-independent-recovery",
+    "optional-versioned-public-article-category"
   ],
   "tests": {
     "postgresql": {
@@ -639,6 +640,20 @@
       "production_authorization_refusals": 115,
       "specific_validations": 7,
       "six_services_healthy": true
+    },
+    "public_article_category": {
+      "postgresql": {
+        "passed": 172,
+        "assertions": 1133
+      },
+      "sqlite": {
+        "passed": 172,
+        "assertions": 1133
+      },
+      "new_cases": 18,
+      "new_assertions": 140,
+      "native_positive_and_completed_fixture_readonly_replay": true,
+      "heading_text_bounds_320_to1440_and_fresh_mobile_capture": true
     }
   },
   "browser_qa": true,
@@ -948,7 +963,8 @@
     "phase85_native8041_four_synthetic_users_two_articles_three_main_publications_frozen_cancelled_schedule_private_final_tags_escaped_HTML_exact_filter_three_nonadmin403_320_to1440_readonly_completed_replay",
     "phase86_production_image_source10_restore_workers_off10_on10_groups_seven_exact_snapshots_new_media78_publication2_only_tags_and_private_next_draft_old_media_and_audit_prefix_preserved",
     "phase87_native8042_four_fake_users_two_articles_one_page_two_retained_aliases_actual_UI_lifecycle_private_draft_source_history_canonical_shadow_even_private_relative302_untrustedHost_query_omission_nonadmin403_zero_external_320to1440_completed_readonly_replay",
-    "phase88_production_schema57_single_alias_actual_UI_lifecycle_no_republish_all7old_snapshots_unchanged8equal_on_independent_restore_11source11off11on_browsergroups_real_HB_false_to_true_sixhealthy"
+    "phase88_production_schema57_single_alias_actual_UI_lifecycle_no_republish_all7old_snapshots_unchanged8equal_on_independent_restore_11source11off11on_browsergroups_real_HB_false_to_true_sixhealthy",
+    "phase89_native8043_four_fake_users_two_articles_three_main_versions_frozen_cancelled_schedule_old_tags_pub1_pub2_preserved_private_final_category_overlength_rejected_without_write_exact_filter_plainHTML_noindex_canonical_three_nonadmin403_320to1440_heading_bounds_completed_readonly_replay"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -1025,7 +1041,7 @@
   "continuous_delivery": {
     "requested": true,
     "mode": "continue_after_each_verified_merge_without_user_prompt",
-    "current_work": "phase88_verified_production_redirect_upgrade_restore_ready_PR_then_phase89_optional_versioned_article_category",
+    "current_work": "phase89_verified_category_ready_PR_then_phase90_actual_image_upgrade_and_independent_recovery",
     "next_groups": [
       "safe_structured_rich_CMS_editor_and_public_renderer_with_legacy_plain_text_compatibility",
       "career_and_assessment_extensions_without_invented_instruments",
@@ -1172,8 +1188,8 @@
   "container_current_production_images_published": false,
   "implicit_action_rate_budgets_isolated": true,
   "implicit_action_rate_budgets_scope": "throttle_alias_numeric_or_unnamed_limits_without_explicit_prefix_normalized_route_template_and_declared_methods_no_query_or_record_id_variation_original_framework_identity_counts_durations_storage_named_limiters_and_explicit_shared_prefix_unchanged",
-  "container_acceptance_matches_current_application_code": true,
-  "container_acceptance_pending_changes": null,
+  "container_acceptance_matches_current_application_code": false,
+  "container_acceptance_pending_changes": "phase89_optional_versioned_article_category_not_in_actual9bcdeac_schema57_image",
   "persian_error_recovery_pages_complete": true,
   "persian_error_recovery_pages_scope": "403/404/405/419/429/500/503 HTML private no-store noindex no-referrer, minimal Inertia props without session/database shares, standalone inline CSS with no asset dependency, Retry-After/Allow/rate headers and HEAD preserved; API/JSON/validation/redirect/debug5xx contracts unchanged; fixed GET recovery without replay, history or reload",
   "consultation_management_current_authorization_complete": true,
@@ -1205,9 +1221,9 @@
   "discussion_attachment_production_acceptance_scope": "Guarded four-user production/debug-false image:27 refusal cases +3 specific validation guards, 90 total combined authorization refusals, opened private stream bytes and encrypted bound metadata, idempotent upload, current student/staff roles/eligibility/assignment, hidden content, byte/cipher substitution, active owner withdrawal after role loss, retained history/bytes, precise owned temporary-file cleanup after outer rollback; actual persistent software-only UI fixture with1active and1withdrawn PDF, exact cipher/consent/hash/enrollment/revision-history equality on independent restore, no financial rows changed and no republishing; four browser groups across pre-backup and restored workers stopped/running all12 pass",
   "public_rich_text_editor_scope": "typed_document_v1_heading_h2_h3_paragraph_bold_italic_lists_quote_divider_safe_web_internal_links_text_only_paste_escaped_static_public_and_history_rendering_http_run_whitespace_preserved_no_raw_HTML_execution_immutable_legacy_and_rich_publications_schedules; approved_library_images_and_text_only_drop",
   "current_work": {
-    "completed_phase": 88,
-    "next_phase": 89,
-    "next_scope": "optional_versioned_article_category_admin_edit_preview_history_public_category_chips_and_exact_journal_filter_legacy_hash_compatibility",
+    "completed_phase": 89,
+    "next_phase": 90,
+    "next_scope": "versioned_article_category_actual_production_image_upgrade_and_independent_restore_with_real_old_share_expiry_policy",
     "current_runtime_environment_private_path": "/tmp/kardorost-compose-restored-phase88.env",
     "restored_project": "kardorost-validation-restore-d44bcb9d",
     "source_environment_private_path": "/tmp/kardorost-compose-upgraded-phase88.env",
@@ -1235,14 +1251,14 @@
       86
     ],
     "cold_images_restore": "gzip_decompress_selected_phase_archive_to_docker_image_load_before_using_old_environment_or_snapshot; original IDs roundtrip verified",
-    "native_test_postgresql": "temporarily stopped; whole owned55432 cluster1315files archived byte/hash/mode verified then removed for space; /tmp/kardorost-phase88-native-test-postgres-preserved.tar.gz + manifest.json; exact restore helper ready",
+    "native_test_postgresql": "original1315files restored hash/size/mode verified fromphase88archive; running55432; archive+manifest kept",
     "node_dependencies": "same package-lock installed; native dates/build passed83; actual Docker frontend build passed84",
-    "resume": "Merge verified phase88 via PR then begin89optional versionedarticlecategory fromblueprint. BEFOREnativePHPtests pauseonly3ownedDockerworkers with8snapshots unchanged, then /tmp/kardorost-phase88-restore-native-postgres.py restores original1315files/hash/bytes/mode from48.3MBverified archive and starts55432; keep archive/manifest. Currentaccepted restored88.env/projectd44bcb9d/code9bc/schema57 sixhealthy source9bbdownvolumeskept. Rawdata unchanged all7prior plus1aliasrev3; no republish/reconsent/expirychange. Source11/off11/on11 browsergroups passed; lastFeatures429fixed boundedactualRetryAfter, onlyremaining2rerun, finalproof8equal. Permission-limited6VFSorphanroots of failed17:00workerstart emptied866398208B andallregisteredobjects/8hashes unchanged; no globalprune.3lockedNPMtarballs removed25723736B, installednode/Prettier retained. Cold82/84/86 archives loadroundtripverified; allvolumes/backups retained. NativePGcurrentlyarchivedstoppedmustrestorebeforetests; no datareset. OriginalResumeShare realexpiry17:33:53UTCpublic404afterward, neverextend/reconsent; adapt acceptance onlywhenactualexpiryneeded. Futurecategory mustomit emptykey preservelegacyhash,savedpublic/schedule snapshots only,nofakedtaxonomyseeds. ValidatebothDB/Pint/build/dates/nativebrowser PRmerge, nextactualimageacceptance separately.",
+    "resume": "Merge verified89 PR then90actual categoryimage. NativePGexact1315files restored andrunning55432; installednode_modules/Prettier intact. Currentacceptedrestored88/projectd44/core3only afterintentionalpause,8snapshots /tmp/kardorost-phase89-paused-fixture-fingerprints.json unchanged. Beforewritingnewcategoryproductionfixture inspect Media78 public/draft differences; publishPUB3 onlyadds category while retaining oldpublictags/ALT andPUB1/PUB2, thenrestore originalprivateALT/tags withprivatecategory. Update bounded media/tag fixtures maxpub3 and new9thcategory snapshot; preserve5unaffected(oldalias/links/photos/rich/discussion),oldmediafiles/PUB1/PUB2/schedule/privatefields/auditprefix. Real sourceResumeShare expires17:33:53UTCpublic404, no extension/reconsent; acceptanceupgrader/recovery/browser musthandle naturalexpired404 and preserveencryptedmetadata/source/consent/history whenexpiryoccurs acrosslongrun. CategoryRSSformatunchanged butnewpublicationdate maychangeXML hash intentionally, comparepostpublication source/restore. BothDB172/1133/Pint/build/dates6/nativepositive+readonly passed. Newdependencies/migrationnone. Actualimageacceptancepending next; encryptedbackupbeforeupgrade, guardedscopedresourcecleanup only, PRmergecontinue.",
     "lease_owner": "automation-20261116-resume-045432",
-    "in_progress_phase": 89,
+    "in_progress_phase": 90,
     "phase84_pr": 80,
     "phase84_merge": "a22ff27a9dbce50a72a8ad17abde4570b66e496e",
-    "runtime_services": "six healthy services with actual fresh heartbeats;33browsergroups final8snapshots andall7preupgrade equal",
+    "runtime_services": "core3only after intentional3workerpause with8snapshots unchanged forphase89nativework",
     "native_phase85_browser_database": "/tmp/kardorost-content-tags-browser.sqlite",
     "native_phase85_browser_port": 8041,
     "phase85_pr": 81,
@@ -1257,7 +1273,11 @@
     "native_phase87_browser_database": "/tmp/kardorost-content-redirects-browser.sqlite",
     "native_phase87_browser_port": 8042,
     "phase87_pr": 83,
-    "phase87_merge": "9bcdeac385aca16c9835dc6797c464cadc876ba7"
+    "phase87_merge": "9bcdeac385aca16c9835dc6797c464cadc876ba7",
+    "phase88_pr": 84,
+    "phase88_merge": "8fc98ed36440b43449b3a7723e1f3260f20fad98",
+    "native_phase89_browser_database": "/tmp/kardorost-content-category-browser.sqlite",
+    "native_phase89_browser_port": 8043
   },
   "rich_content_production_acceptance_complete": true,
   "rich_content_production_acceptance_scope": "real387aa61_image_same_volume_upgrade_and_independent_fd526bbb_GPG_PG17_restore_exact_publications_private_draft_cancelled_schedule_definition_status_hashes_and_financial_rows_no_republishing_real_toolbar_whitespace_plain_paste_conversion_and_student403_all15_browser_groups",
@@ -1291,5 +1311,8 @@
   "public_cms_redirects_complete": true,
   "public_cms_redirects_production_acceptance_complete": true,
   "public_cms_redirects_scope": "max25_retained_same_kind_article_page_aliases_fixed_parent_FK_current_valid_due_public_snapshot_only_relative302_no_store_noindex_query_dropped_no_external_or_chain_canonical_content_always_priority_including_private_admin_current_locks_row_revision_atomic_audit_no_delete",
-  "public_cms_redirects_production_acceptance_scope": "actual9bcdeac_PHP8.4.28_images_same_key_volume56to57_543files_initial_empty_alias_table_7old_snapshots_unchanged_actualsingle_alias_UI_create_off_on_rev3_no_republication_independentd44bcb9d_GPG_PG17_restore_8equal_snapshots33browsergroups115refusals7validations6healthy_real_HB"
+  "public_cms_redirects_production_acceptance_scope": "actual9bcdeac_PHP8.4.28_images_same_key_volume56to57_543files_initial_empty_alias_table_7old_snapshots_unchanged_actualsingle_alias_UI_create_off_on_rev3_no_republication_independentd44bcb9d_GPG_PG17_restore_8equal_snapshots33browsergroups115refusals7validations6healthy_real_HB",
+  "public_article_category_complete": true,
+  "public_article_category_production_acceptance_complete": false,
+  "public_article_category_scope": "one_optional_normalized_UTF8_label1to40_per_frozen_article_version_legacy_empty_omission_hash_compatibility_zero_string_safe_text_admin_create_edit_preview_history_schedules_top50_current_public_facets_exact_categoryANDtagANDtitle_query_only_pagination_noindex_parentcanonical_no_taxonomy_tree_or_seed_RSS_schema_unchanged_invalid_metadata_failclosed"
 }

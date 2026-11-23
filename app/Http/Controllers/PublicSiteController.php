@@ -9,6 +9,7 @@ use App\Services\CoachProfileLinks;
 use App\Services\CoachProfilePhotos;
 use App\Services\CoachProfiles;
 use App\Services\CohortCapacity;
+use App\Services\ContentCategories;
 use App\Services\ContentPublishing;
 use App\Services\ContentRedirects;
 use App\Services\ContentTags;
@@ -99,18 +100,20 @@ class PublicSiteController extends Controller
 
     public function journal(Request $request): Response
     {
-        $data = $request->validate(['q' => 'nullable|string|max:100', 'tag' => 'nullable|string|max:40']);
+        $data = $request->validate(['q' => 'nullable|string|max:100', 'tag' => 'nullable|string|max:40', 'category' => 'nullable|string|max:40']);
         $query = trim($data['q'] ?? '');
         if (! mb_check_encoding($query, 'UTF-8')) {
             throw ValidationException::withMessages(['q' => 'متن جست‌وجو معتبر نیست.']);
         }
         $tag = ($data['tag'] ?? '') !== '' ? app(ContentTags::class)->filter($data['tag']) : '';
+        $category = app(ContentCategories::class)->normalize($data['category'] ?? null) ?? '';
+        $categories = app(ContentCategories::class)->facets($this->visible()->where('kind', 'article'));
         $tags = app(ContentTags::class)->facets($this->visible()->where('kind', 'article'));
-        $articles = $this->publishedArticles()->when($query !== '', fn ($q) => $q->whereHas('currentPublication', fn ($publication) => $publication->where('definition->title', 'like', '%'.$query.'%')))->when($tag !== '', fn ($q) => $q->whereHas('currentPublication', fn ($publication) => $publication->whereJsonContains('definition->tags', $tag)))->paginate(12)->appends(array_filter(['q' => $query, 'tag' => $tag], fn ($value) => $value !== ''));
+        $articles = $this->publishedArticles()->when($query !== '', fn ($q) => $q->whereHas('currentPublication', fn ($publication) => $publication->where('definition->title', 'like', '%'.$query.'%')))->when($tag !== '', fn ($q) => $q->whereHas('currentPublication', fn ($publication) => $publication->whereJsonContains('definition->tags', $tag)))->when($category !== '', fn ($q) => $q->whereHas('currentPublication', fn ($publication) => $publication->where('definition->category', $category)))->paginate(12)->appends(array_filter(['q' => $query, 'tag' => $tag, 'category' => $category], fn ($value) => $value !== ''));
         $articles->setCollection($articles->getCollection()->filter(fn ($page) => app(ContentPublishing::class)->publicDefinition($page)));
 
-        $response = $this->render('journal', 'مجله کاردرست', 'یادداشت‌ها و مقاله‌های منتشرشده درباره رشد و مسیر حرفه‌ای.', [...compact('articles', 'query', 'tag', 'tags'), 'noindex' => $query !== '' || $tag !== '']);
-        if ($query !== '' || $tag !== '') {
+        $response = $this->render('journal', 'مجله کاردرست', 'یادداشت‌ها و مقاله‌های منتشرشده درباره رشد و مسیر حرفه‌ای.', [...compact('articles', 'query', 'tag', 'tags', 'category', 'categories'), 'noindex' => $query !== '' || $tag !== '' || $category !== '']);
+        if ($query !== '' || $tag !== '' || $category !== '') {
             $response->headers->set('X-Robots-Tag', 'noindex, follow');
         }
 

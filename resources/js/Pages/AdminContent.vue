@@ -3,6 +3,7 @@ import { Head, Link, useForm } from "@inertiajs/vue3";
 import Shell from "../Layouts/Shell.vue";
 import Pagination from "../Components/Pagination.vue";
 import { dateTime } from "../dates";
+import ContentCategory from "../Components/ContentCategory.vue";
 import ContentTagsEditor from "../Components/ContentTagsEditor.vue";
 const props = defineProps({ pages: Object });
 const form = useForm({
@@ -87,6 +88,12 @@ function create() {
                         name="meta_description"
                         maxlength="160"
                 /></label>
+                <ContentCategory
+                    v-if="form.kind === 'article'"
+                    v-model="form.definition.category"
+                    editable
+                    :disabled="form.processing"
+                />
                 <ContentTagsEditor
                     v-if="form.kind === 'article'"
                     v-model="form.definition.tags"
