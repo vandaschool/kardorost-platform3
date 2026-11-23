@@ -7,7 +7,7 @@ import secrets
 import subprocess
 import tempfile
 
-from container_runtime_probes import DISCUSSION_ATTACHMENT_FIXTURE_STATE, RICH_CONTENT_FIXTURE_STATE
+from container_runtime_probes import DISCUSSION_ATTACHMENT_FIXTURE_STATE, RICH_CONTENT_FIXTURE_STATE, CONTENT_MEDIA_FIXTURE_STATE
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location('recovery', ROOT / 'resources/operations/recovery.py')
@@ -33,7 +33,8 @@ assert source_file.is_relative_to('/tmp')
 source = GuardedComposition(source_file)
 assert source.config['name'].startswith('kardorost-validation-')
 assert source.settings['APP_URL'].startswith('http://127.0.0.1:')
-assert 'app' in source.running()
+source_services = source.running()
+assert source_services.issuperset({'app', 'web', 'postgres'})
 probe = r"""require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$lead=\App\Models\ContactLead::sole();$file=\Illuminate\Support\Facades\Storage::disk('support')->get('container-acceptance.txt');echo json_encode(['users'=>\App\Models\User::count(),'synthetic'=>\App\Models\User::where('name','like','بررسی کانتینر %')->count(),'lead_id'=>$lead->id,'lead_ok'=>$lead->name==='درخواست آزمایشی کانتینر','encrypted'=>$lead->getRawOriginal('name')!==$lead->name,'file_hash'=>hash('sha256',$file),'queue_probes'=>array_map(fn($s)=>app(\App\Services\OperationalHeartbeats::class)->status($s)['fresh'],['scheduler','queue.default','queue.sms'])]);"""
 original = json.loads(source.run(['exec', '-T', 'app', 'php', '-r', probe]))
 assert original['users'] == original['synthetic'] == 4 and original['lead_ok'] and original['encrypted']
@@ -47,6 +48,11 @@ rich_content_original = None
 if os.environ.get('CONTAINER_EXPECT_RICH_CONTENT') == '1':
     rich_content_original = json.loads(source.run(['exec', '-T', 'app', 'php', '-r', RICH_CONTENT_FIXTURE_STATE]))
     assert rich_content_original['fixture_complete'], 'Only the completed owned software-only rich CMS fixture.'
+
+content_media_original = None
+if os.environ.get('CONTAINER_EXPECT_CONTENT_MEDIA') == '1':
+    content_media_original = json.loads(source.run(['exec', '-T', 'app', 'php', '-r', CONTENT_MEDIA_FIXTURE_STATE]))
+    assert content_media_original['fixture_complete'], 'Only the completed owned active/private/withdrawn media fixture.'
 
 latest_probe = r"""require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();$credential=\App\Models\CoachCredential::sole();$service=app(\App\Services\CoachCredentials::class);$metadata=$service->metadata($credential);$fileHash=hash('sha256',\Illuminate\Support\Facades\Storage::disk('learning')->get($credential->file_path));$share=\App\Models\ResumeShare::sole();$sharing=app(\App\Services\ResumeSharing::class);$data=$sharing->metadata($share);$public=$sharing->publicPayload($data['token']);echo json_encode(['credential_source_valid'=>$metadata!==null&&$metadata['credential_id']===$credential->id&&$metadata['user_id']===$credential->user_id,'credential_cipher_hash'=>hash('sha256',$credential->getRawOriginal('definition')),'credential_hash'=>$metadata['sha256'],'original_file_hash'=>$fileHash,'credential_cipher_private'=>!str_contains($credential->getRawOriginal('definition'),'مدرک صرفاً آزمایشی'),'share_cipher_hash'=>hash('sha256',$share->getRawOriginal('definition')),'share_source_valid'=>$data['share_id']===$share->id&&$data['version_id']===$share->resume_version_id,'public_source_name'=>$public['definition']['name']==='نام نسخه آزمایشی کانتینر','public_contacts_omitted'=>$public['definition']['phone']===''&&$public['definition']['email']==='','token_encrypted'=>!str_contains($share->getRawOriginal('definition'),$data['token'])]);"""
 latest_original = None
@@ -62,7 +68,13 @@ def invoke(command, *args, expected=0):
     result = subprocess.run(['python3', 'resources/operations/recovery.py', command, *map(str, args)],
                             cwd=ROOT, capture_output=True, text=True)
     # Do not print raw subprocess output or values from either environment.
-    assert result.returncode == expected, f'Recovery {command} returned unexpected status; diagnostics remain private.'
+    if result.returncode != expected:
+        heartbeat()
+        diagnostic = Path('/tmp') / ('kardorost-recovery-failure-' + command + '-' + secrets.token_hex(4) + '.log')
+        descriptor = os.open(diagnostic, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, 'w') as output:
+            output.write(result.stdout + '\n' + result.stderr)
+        raise AssertionError(f'Recovery {command} returned unexpected status; private diagnostic: {diagnostic.name}')
     return result
 
 
@@ -79,7 +91,7 @@ with tempfile.TemporaryDirectory(prefix='kardorost-recovery-acceptance-') as tem
         window = recovery.reconciliation_window(manifest)
         assert window['external_reconciliation_from_utc'] is not None
         assert manifest['quiesced_at'] <= manifest['snapshot_completed_at'] <= manifest['source_restart_acknowledged_at'] <= manifest['created_at']
-    assert source.running().issuperset({'app', 'web', 'postgres', 'worker-default', 'worker-sms', 'scheduler'})
+    assert source.running() == source_services
     before = recovery.digest(backup)
     invoke('backup', '--env-file', source_file, '--passphrase-file', key, '--output', backup, expected=1)
     assert before == recovery.digest(backup)
@@ -135,6 +147,9 @@ with tempfile.TemporaryDirectory(prefix='kardorost-recovery-acceptance-') as tem
     if rich_content_original is not None:
         rich_content_restored = json.loads(target.run(['exec', '-T', 'app', 'php', '-r', RICH_CONTENT_FIXTURE_STATE]))
         assert rich_content_restored == rich_content_original, 'Rich content, public versions, private draft or cancelled schedule snapshot changed.'
+    if content_media_original is not None:
+        content_media_restored = json.loads(target.run(['exec', '-T', 'app', 'php', '-r', CONTENT_MEDIA_FIXTURE_STATE]))
+        assert content_media_restored == content_media_original, 'Media bytes, ciphertexts, publication/withdrawal, private draft, frozen image references or audit history changed.'
     # Save only the synthetic private destination environment for separate browser acceptance.
     destination = Path(os.environ.get('RECOVERY_DESTINATION_ENV_FILE', '/tmp/kardorost-compose-restored.env')).resolve()
     assert destination.is_relative_to('/tmp') and destination.name.startswith('kardorost-compose-restored')
@@ -143,6 +158,7 @@ with tempfile.TemporaryDirectory(prefix='kardorost-recovery-acceptance-') as tem
     with os.fdopen(descriptor, 'w') as output:
         output.write(contents)
     report = {'result': 'passed', 'local_storage_mode': 'vfs_flattened_filesystem_and_verified_runtime_config',
+              'source_running_services_restored': sorted(source_services),
               'checks': ['real-quiesced-encrypted-postgresql-and-private-storage-snapshot', 'authenticated-quiesced-reconciliation-boundary-and-snapshot-restart-times', 'source-running-state-restored',
                          'existing-backup-preserved', 'wrong-app-key-wrong-backup-key-live-effects-refused-before-db-start',
                          'nonempty-private-storage-refused-with-empty-db-preserved', 'separate-target-project-volumes-db-passwords',
@@ -154,6 +170,8 @@ with tempfile.TemporaryDirectory(prefix='kardorost-recovery-acceptance-') as tem
         report['checks'].append('private_discussion_original_file_hashes_encrypted_bound_metadata_consent_withdrawal_and_revision_history_restored_without_republishing')
     if rich_content_original is not None:
         report['checks'].append('exact_rich_CMS_publications_private_draft_cancelled_schedule_snapshot_and_financial_rows_restored_without_republication')
+    if content_media_original is not None:
+        report['checks'].append('active_private_and_withdrawn_raster_bytes_source_bound_ciphertexts_rights_review_publication_draft_cancelled_image_schedule_and_audit_history_restored_without_republication')
     heartbeat()
     Path('/tmp/kardorost-recovery-acceptance.json').write_text(json.dumps(report))
     print(json.dumps(report))
