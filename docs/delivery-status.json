@@ -1,5 +1,5 @@
 {
-  "phase": "coach-photo-container-acceptance",
+  "phase": "reviewed-owner-consented-coach-public-links",
   "completed": [
     "phone-verification",
     "password-login",
@@ -438,7 +438,8 @@
     "public-media-library-and-cms-images",
     "public-media-container-acceptance",
     "owner-consented-coach-profile-photos",
-    "coach-photo-container-acceptance"
+    "coach-photo-container-acceptance",
+    "reviewed-owner-consented-coach-public-links"
   ],
   "tests": {
     "postgresql": {
@@ -529,6 +530,20 @@
       "refusals": 25,
       "specific_validations": 4,
       "included_in_production_total": true
+    },
+    "coach_profile_links_related_postgresql": {
+      "passed": 117,
+      "assertions": 520,
+      "existing_photo_concurrency_included": 10
+    },
+    "coach_profile_links_related_sqlite": {
+      "passed": 107,
+      "assertions": 471
+    },
+    "coach_profile_links_photo_concurrency_postgresql": {
+      "passed": 10,
+      "assertions": 49,
+      "included_in_related_total": true
     }
   },
   "browser_qa": true,
@@ -833,7 +848,8 @@
     "phase76_actual387aa61_schema54to54_PHP8_4_28_VFS9953_2342_509_source_files_four_user_production_CMS_UI_plain_rich_publications_private_draft_cancelled_schedule_exact_fingerprints_independent_fd526bbb_restore_private_active_withdrawn_file_history_retained90_refusals3_validations15_browser_groups_three_heartbeats_320_390_768_1440",
     "phase77_native8038_four_synthetic_users_zero_media_content_two32x24_rasters_private_upload_explicit_publication_picker_alt_caption_public_decode_SHA_headers_private_draft_remove_reinsert_publication_immutable_terminal_withdrawal404_public_editor_history_placeholders_bytes_cipher_retained_student_org403_text_only_drop_completed_replay_320_390_768_1440",
     "phase78_actual79d28c6_PHP8_4_28_schema54to55_518files_VFS9965_2345_four_synthetic_users_3raster_states_public_decode_SHA_private_withdrawn404_student_org403_frozen_publication_draft_cancelled_schedule_audit_independent90e8ef21_restore90_refusals3_validations18_browser_groups_real_RetryAfter12_three_heartbeats_proven_orphan_only_disk_recovery_320_390_768_1440",
-    "phase80_real_dc272db_PHP8.4.28_three_prepared_coach_photos_active_private_withdrawn_two_frozen_publications_private_draft_exact_crypto_consent_bytes_audit_and_financial_hashes_115_production_refusals_plus7_validations_all21_Chromium_groups_before_backup_after_restore_workers_off_on_320_390_768_1440_actual_login_RetryAfter6_and8_seconds_no_reset_or_fake_clock"
+    "phase80_real_dc272db_PHP8.4.28_three_prepared_coach_photos_active_private_withdrawn_two_frozen_publications_private_draft_exact_crypto_consent_bytes_audit_and_financial_hashes_115_production_refusals_plus7_validations_all21_Chromium_groups_before_backup_after_restore_workers_off_on_320_390_768_1440_actual_login_RetryAfter6_and8_seconds_no_reset_or_fake_clock",
+    "phase81_owned_four_user_native8040_actual_five_link_add_remove_server_rejects_bypassed_javascript_before_draft_same_version_consent_review_rejection_preserves_publication_plain_HTML_label_query_safe_new_tab_three_frozen_publications_reviewed_removal_private_next_draft_real_owner_role_loss_retained_history_and_withdrawal_other_roles403_zero_external_requests_320_390_768_1440_completed_replay_no_reset"
   ],
   "consultation_payments_complete": true,
   "consultation_package_quotas_complete": true,
@@ -1057,8 +1073,8 @@
   "container_current_production_images_published": false,
   "implicit_action_rate_budgets_isolated": true,
   "implicit_action_rate_budgets_scope": "throttle_alias_numeric_or_unnamed_limits_without_explicit_prefix_normalized_route_template_and_declared_methods_no_query_or_record_id_variation_original_framework_identity_counts_durations_storage_named_limiters_and_explicit_shared_prefix_unchanged",
-  "container_acceptance_matches_current_application_code": true,
-  "container_acceptance_pending_changes": null,
+  "container_acceptance_matches_current_application_code": false,
+  "container_acceptance_pending_changes": "phase81_public_profile_links_in_progress_not_in_actual_dc272db_schema56_image",
   "persian_error_recovery_pages_complete": true,
   "persian_error_recovery_pages_scope": "403/404/405/419/429/500/503 HTML private no-store noindex no-referrer, minimal Inertia props without session/database shares, standalone inline CSS with no asset dependency, Retry-After/Allow/rate headers and HEAD preserved; API/JSON/validation/redirect/debug5xx contracts unchanged; fixed GET recovery without replay, history or reload",
   "consultation_management_current_authorization_complete": true,
@@ -1090,33 +1106,17 @@
   "discussion_attachment_production_acceptance_scope": "Guarded four-user production/debug-false image:27 refusal cases +3 specific validation guards, 90 total combined authorization refusals, opened private stream bytes and encrypted bound metadata, idempotent upload, current student/staff roles/eligibility/assignment, hidden content, byte/cipher substitution, active owner withdrawal after role loss, retained history/bytes, precise owned temporary-file cleanup after outer rollback; actual persistent software-only UI fixture with1active and1withdrawn PDF, exact cipher/consent/hash/enrollment/revision-history equality on independent restore, no financial rows changed and no republishing; four browser groups across pre-backup and restored workers stopped/running all12 pass",
   "public_rich_text_editor_scope": "typed_document_v1_heading_h2_h3_paragraph_bold_italic_lists_quote_divider_safe_web_internal_links_text_only_paste_escaped_static_public_and_history_rendering_http_run_whitespace_preserved_no_raw_HTML_execution_immutable_legacy_and_rich_publications_schedules; approved_library_images_and_text_only_drop",
   "current_work": {
-    "completed_phase": 80,
-    "phase79_pr": 75,
-    "next_phase": 81,
-    "next_scope": "owner_consented_public_coach_profile_external_links_bound_to_frozen_reviewed_snapshot_no_external_account_connection_or_verification_claim",
+    "completed_phase": 81,
+    "phase80_pr": 76,
+    "phase80_merge": "14128193a5c41c71ce40e45fc6285b41e56e55eb",
+    "next_phase": 82,
+    "next_scope": "real_current_image_upgrade_and_independent_restore_for_reviewed_profile_links_preserving_all_existing_photo_CMS_discussion_credential_and_resume_fixtures",
     "current_runtime_environment_private_path": "/tmp/kardorost-compose-restored-phase80.env",
     "current_runtime_project": "kardorost-validation-restore-4f3d8eeb",
-    "actual_application_revision": "dc272db4067ace89d3e7c9388ec2c4fce329c3d5",
-    "actual_php": "8.4.28",
-    "actual_migrations": 56,
-    "actual_app_image": "sha256:5e8ea8877e637a5cb82a15b6d54cdd8291ff5dd2b257319ce298eca156b79ddb",
-    "actual_web_image": "sha256:59ae7e0200c6a3ccaa3d436557381ac572bd93ba7a72555609e767461652706b",
-    "current_runtime_services": [
-      "postgres",
-      "app",
-      "web",
-      "worker-default",
-      "worker-sms",
-      "scheduler"
-    ],
-    "source_environment_stopped_volumes_retained": "/tmp/kardorost-compose-upgraded-phase80.env",
-    "obsolete_env_image_schema_mismatch_do_not_start": "/tmp/kardorost-compose-restored-phase78.env",
-    "pre_upgrade_backup_private_path": "/tmp/kardorost-phase80-acceptance/before-upgrade.gpg",
-    "source_and_destination_browser_groups_passed": 21,
-    "production_refusals": 115,
-    "specific_validations": 7,
-    "final_four_fixture_fingerprints_equal": true,
-    "resume": "phase80_acceptance_complete_prepare_PR_merge_main_then_phase81_public_profile_links_preserve_all_existing_native_and_container_fixtures_images_volumes_backups_and_owner_decision_boundaries",
+    "native_fixture": "/tmp/kardorost-coach-links-browser.sqlite",
+    "native_port": 8040,
+    "native_final_state": "four_software_users_owner_coach_role_changed_to_student_three_frozen_publications_four_submissions_including_one_rejected_private_link_draft_public_profile_withdrawn_no_money_or_enrollment",
+    "resume": "phase81_both_databases107_471_and_photo_PG_races10_49_Pint_build_dates_native_initial_and_completed_replay_pass_prepare_PR_merge_then_phase82_use_proactive_low_space_serial_Docker_stages_flatten_PHP_base_early_extract_checked_compiled_contexts_and_cleanup_only_exact_owned_artifacts_before_runtime_start",
     "lease_owner": "automation-20261116-resume-045432"
   },
   "rich_content_production_acceptance_complete": true,
@@ -1135,5 +1135,8 @@
   "coach_profile_photo_antivirus_scanning_complete": false,
   "coach_profile_photo_physical_erasure_complete": false,
   "coach_profile_photo_production_acceptance_complete": true,
-  "coach_profile_photo_production_acceptance_scope": "actual_dc272db_PHP8.4.28_image_same_volume55to56_upgrade_529_exact_code_files_independent_4f3d8eeb_GPG_PG17_private_file_restore_exact_three_active_private_withdrawn_prepared_photos_source_bound_crypto_owner_consent_two_publications_private_draft_withdrawal_audit_and_financial_hashes_all21_browser_groups_without_reconsent_or_republication"
+  "coach_profile_photo_production_acceptance_scope": "actual_dc272db_PHP8.4.28_image_same_volume55to56_upgrade_529_exact_code_files_independent_4f3d8eeb_GPG_PG17_private_file_restore_exact_three_active_private_withdrawn_prepared_photos_source_bound_crypto_owner_consent_two_publications_private_draft_withdrawal_audit_and_financial_hashes_all21_browser_groups_without_reconsent_or_republication",
+  "public_coach_profile_links_complete": true,
+  "public_coach_profile_links_scope": "up_to5_labeled_absolute_HTTP_HTTPS_links_existing_safe_CMS_URL_rules_no_server_fetch_owner_saved_version_consent_admin_review_immutable_history_legacy_omission_hash_compatibility_plain_text_safe_new_tab_current_source_hash_guard",
+  "public_coach_profile_links_production_acceptance_complete": false
 }

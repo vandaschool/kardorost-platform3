@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class CoachProfiles
 {
@@ -25,6 +26,25 @@ class CoachProfiles
     public function visible(): Builder
     {
         return CoachProfile::where('public_enabled', true)->whereNotNull('current_publication_id')->whereHas('owner', fn ($q) => $q->where('is_active', true)->whereNotNull('phone_verified_at')->whereHas('roles', fn ($role) => $role->where('key', 'coach')))->with('currentPublication');
+    }
+
+    /** Only the current, consented snapshot bound to this public profile is returned. */
+    public function publishedDefinition(CoachProfile $profile): ?array
+    {
+        try {
+            $publication = $profile->currentPublication;
+            if (! $profile->public_enabled || ! $publication || $publication->coach_profile_id !== $profile->id || ! $publication->consented_at) {
+                return null;
+            }
+            $definition = $publication->definition;
+            if (! is_array($definition) || ! hash_equals($publication->definition_hash, $this->hash($definition))) {
+                return null;
+            }
+
+            return $definition;
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     private function fail(): never
@@ -52,8 +72,9 @@ class CoachProfiles
         $data = Validator::make($input, ['display_name' => 'required|string|min:3|max:160', 'headline' => 'required|string|min:3|max:160', 'bio' => 'required|string|min:20|max:6000', 'city' => 'nullable|string|max:100', 'focus_areas' => 'required|array|list|min:1|max:12', 'focus_areas.*' => 'required|string|min:3|max:60|distinct', 'languages' => 'required|array|list|min:1|max:5', 'languages.*' => 'required|string|min:2|max:40|distinct'])->validate();
 
         $photo = app(CoachProfilePhotos::class)->reference($input['photo'] ?? null);
+        $links = app(CoachProfileLinks::class)->normalize($input['links'] ?? null);
 
-        return [...['display_name' => trim($data['display_name']), 'headline' => trim($data['headline']), 'bio' => trim($data['bio']), 'city' => trim($data['city'] ?? ''), 'focus_areas' => array_map('trim', $data['focus_areas']), 'languages' => array_map('trim', $data['languages'])], ...($photo ? ['photo' => $photo] : [])];
+        return [...['display_name' => trim($data['display_name']), 'headline' => trim($data['headline']), 'bio' => trim($data['bio']), 'city' => trim($data['city'] ?? ''), 'focus_areas' => array_map('trim', $data['focus_areas']), 'languages' => array_map('trim', $data['languages'])], ...($photo ? ['photo' => $photo] : []), ...($links ? ['links' => $links] : [])];
     }
 
     private function hash(array $definition): string
