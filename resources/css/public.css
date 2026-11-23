@@ -540,3 +540,5 @@
 .public-coach-photo{display:block;width:140px;height:140px;max-width:100%;object-fit:cover;border-radius:50%;margin-block:1rem;border:3px solid var(--teal);}
 
 .public-coach-links{display:flex;flex-wrap:wrap;gap:.65rem;list-style:none;padding:0;margin-block:1rem 1.5rem}.public-coach-links li{min-width:0;max-width:100%}.public-coach-links a{display:inline-block;border:1px solid rgba(16,168,159,.35);border-radius:12px;padding:.5rem .8rem;overflow-wrap:anywhere}
+
+.public-article-tags{display:flex;flex-wrap:wrap;gap:.5rem;list-style:none;padding:0;margin-block:1rem}.public-article-tags li{min-width:0;max-width:100%}.public-article-tags a{display:inline-block;border:1px solid var(--line);border-radius:12px;padding:.3rem .65rem;overflow-wrap:anywhere;color:var(--teal)}

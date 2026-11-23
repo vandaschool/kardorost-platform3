@@ -39,8 +39,9 @@ class ContentPublishing
             }
         }
         $valid = Validator::make($input, ['title' => 'required|string|max:160', 'excerpt' => 'required|string|max:320', 'body' => 'required|string|max:60000', 'meta_description' => 'nullable|string|max:160'])->validate();
+        $tags = app(ContentTags::class)->normalize($input['tags'] ?? null);
 
-        return [...['title' => trim($valid['title']), 'excerpt' => trim($valid['excerpt']), 'body' => trim($valid['body']), 'meta_description' => trim($valid['meta_description'] ?? '')], ...($document ? ['document' => $document] : [])];
+        return [...['title' => trim($valid['title']), 'excerpt' => trim($valid['excerpt']), 'body' => trim($valid['body']), 'meta_description' => trim($valid['meta_description'] ?? '')], ...($document ? ['document' => $document] : []), ...($tags ? ['tags' => $tags] : [])];
     }
 
     public function create(User $actor, string $kind, string $slug, array $definition): ContentPage
@@ -134,6 +135,30 @@ class ContentPublishing
     public function hash(array $definition): string
     {
         return hash('sha256', json_encode($definition, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+    }
+
+    public function publicDefinition(ContentPage $page): ?array
+    {
+        try {
+            $publication = $page->currentPublication;
+            if (! $page->available || $page->current_version < 1 || ! $publication || $publication->content_page_id !== $page->id || $publication->number !== $page->current_version || ! $publication->published_at || $publication->published_at->isFuture()) {
+                return null;
+            }
+            $definition = $publication->definition;
+            if (! is_array($definition) || ! hash_equals($publication->content_hash, $this->hash($definition))) {
+                return null;
+            }
+            foreach (['title', 'excerpt', 'body', 'meta_description'] as $field) {
+                if (! is_string($definition[$field] ?? null) || ! mb_check_encoding($definition[$field], 'UTF-8')) {
+                    return null;
+                }
+            }
+            app(ContentTags::class)->normalize($definition['tags'] ?? null);
+
+            return $definition;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function cancelPending(User $actor, ContentPage $page, string $reason): void

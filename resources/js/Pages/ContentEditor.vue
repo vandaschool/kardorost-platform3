@@ -6,6 +6,8 @@ import JalaliDateInput from "../Components/JalaliDateInput.vue";
 import { computed, ref } from "vue";
 import ContentDocumentPreview from "../Components/ContentDocumentPreview.vue";
 import ContentDocumentEditor from "../Components/ContentDocumentEditor.vue";
+import ContentTagsEditor from "../Components/ContentTagsEditor.vue";
+import ContentTagsPreview from "../Components/ContentTagsPreview.vue";
 import { documentFromText, documentText } from "../content-document";
 import { dateTime, fa } from "../dates";
 const props = defineProps({
@@ -167,6 +169,15 @@ function toggle() {
                     متن ساده نمایش داده می‌شود؛ کد HTML اجرا نمی‌شود. بین بندها
                     یک خط خالی بگذارید.
                 </p>
+                <ContentTagsEditor
+                    v-if="page.kind === 'article'"
+                    v-model="draft.definition.tags"
+                    :disabled="busy"
+                />
+                <ContentTagsPreview
+                    v-if="page.kind === 'article'"
+                    :tags="draft.definition.tags"
+                />
                 <p
                     v-for="error in draft.errors"
                     class="field-error"
@@ -336,6 +347,7 @@ function toggle() {
                     نسخه عمومی حاصل: {{ fa(item.publication_number) }}
                 </p>
                 <h4>{{ item.definition.title }}</h4>
+                <ContentTagsPreview :tags="item.definition.tags" />
                 <ContentDocumentPreview
                     v-if="item.definition.document"
                     :document="item.definition.document"
@@ -360,6 +372,7 @@ function toggle() {
                 </summary>
                 <h3>{{ publication.definition.title }}</h3>
                 <p>{{ publication.definition.excerpt }}</p>
+                <ContentTagsPreview :tags="publication.definition.tags" />
                 <ContentDocumentPreview
                     v-if="publication.definition.document"
                     :document="publication.definition.document"
