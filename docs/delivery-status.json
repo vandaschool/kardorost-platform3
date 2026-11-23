@@ -1,5 +1,5 @@
 {
-  "phase": "public-media-container-acceptance",
+  "phase": "owner-consented-coach-profile-photos",
   "completed": [
     "phone-verification",
     "password-login",
@@ -436,7 +436,8 @@
     "safe-rich-public-cms-content",
     "rich-cms-container-acceptance",
     "public-media-library-and-cms-images",
-    "public-media-container-acceptance"
+    "public-media-container-acceptance",
+    "owner-consented-coach-profile-photos"
   ],
   "tests": {
     "postgresql": {
@@ -497,6 +498,27 @@
     "content_media_concurrency_postgresql": {
       "passed": 11,
       "assertions": 60,
+      "included_in_related_total": true
+    },
+    "coach_profile_photo_related_postgresql": {
+      "passed": 143,
+      "assertions": 925,
+      "new_photo_concurrency_included": 10,
+      "existing_shared_media_concurrency_included": 11
+    },
+    "coach_profile_photo_related_sqlite": {
+      "passed": 122,
+      "skipped": 10,
+      "assertions": 816
+    },
+    "coach_profile_photo_codec": {
+      "passed": 17,
+      "assertions": 30,
+      "included_in_related_total": true
+    },
+    "coach_profile_photo_concurrency_postgresql": {
+      "passed": 10,
+      "assertions": 49,
       "included_in_related_total": true
     }
   },
@@ -956,7 +978,7 @@
   "certificate_request_withdrawal_scope": "active_owner_pending_only_revision_checked_preserved_history_fresh_consent_for_new_request",
   "certificate_public_visibility_control_complete": true,
   "public_coach_profiles_scope": "self_authored_plain_text_consented_snapshot_current_admin_review_current_active_verified_coach_role",
-  "public_coach_photos_complete": false,
+  "public_coach_photos_complete": true,
   "coach_uploaded_credentials_complete": true,
   "public_coach_specialty_search_complete": true,
   "public_coach_specific_availability_link_complete": true,
@@ -1025,8 +1047,8 @@
   "container_current_production_images_published": false,
   "implicit_action_rate_budgets_isolated": true,
   "implicit_action_rate_budgets_scope": "throttle_alias_numeric_or_unnamed_limits_without_explicit_prefix_normalized_route_template_and_declared_methods_no_query_or_record_id_variation_original_framework_identity_counts_durations_storage_named_limiters_and_explicit_shared_prefix_unchanged",
-  "container_acceptance_matches_current_application_code": true,
-  "container_acceptance_pending_changes": "",
+  "container_acceptance_matches_current_application_code": false,
+  "container_acceptance_pending_changes": "phase79_coach_profile_photos_in_progress_not_in_actual79d28c6_schema55_image",
   "persian_error_recovery_pages_complete": true,
   "persian_error_recovery_pages_scope": "403/404/405/419/429/500/503 HTML private no-store noindex no-referrer, minimal Inertia props without session/database shares, standalone inline CSS with no asset dependency, Retry-After/Allow/rate headers and HEAD preserved; API/JSON/validation/redirect/debug5xx contracts unchanged; fixed GET recovery without replay, history or reload",
   "consultation_management_current_authorization_complete": true,
@@ -1058,10 +1080,15 @@
   "discussion_attachment_production_acceptance_scope": "Guarded four-user production/debug-false image:27 refusal cases +3 specific validation guards, 90 total combined authorization refusals, opened private stream bytes and encrypted bound metadata, idempotent upload, current student/staff roles/eligibility/assignment, hidden content, byte/cipher substitution, active owner withdrawal after role loss, retained history/bytes, precise owned temporary-file cleanup after outer rollback; actual persistent software-only UI fixture with1active and1withdrawn PDF, exact cipher/consent/hash/enrollment/revision-history equality on independent restore, no financial rows changed and no republishing; four browser groups across pre-backup and restored workers stopped/running all12 pass",
   "public_rich_text_editor_scope": "typed_document_v1_heading_h2_h3_paragraph_bold_italic_lists_quote_divider_safe_web_internal_links_text_only_paste_escaped_static_public_and_history_rendering_http_run_whitespace_preserved_no_raw_HTML_execution_immutable_legacy_and_rich_publications_schedules; approved_library_images_and_text_only_drop",
   "current_work": {
-    "completed_phase": 78,
-    "next": "phase79_owner_consented_coach_profile_photos_with_admin_review",
+    "completed_phase": 79,
+    "scope": "owner_consented_coach_photos_verified_native_and_both_database_scopes",
+    "next_phase": 80,
+    "next_scope": "real_current_image_upgrade_and_independent_restore_with_coach_photo_consent_private_bytes_publication_and_withdrawal_history_preserved",
+    "native_fixture": "/tmp/kardorost-coach-photos-browser.sqlite",
+    "native_port": 8039,
+    "native_final_state": "five_software_users_owner_role_changed_coach_to_student_two_prepared_images_withdrawn_two_immutable_publications_files_ciphertexts_consent_retained_no_money_or_enrollment",
     "restored_environment_private_path": "/tmp/kardorost-compose-restored-phase78.env",
-    "resume": "preserve90e8ef21_six_healthy_services3media_states_image_article_and_older_CMS_private_files_native8038_withdrawn_PNG_private_JPEG_no_reset",
+    "resume": "phase79_tests_Pint_build_dates_native_initial_and_completed_replay_pass_prepare_PR_then_phase80_acceptance_preserve_all_existing_fixtures",
     "lease_owner": "automation-20261116-resume-045432"
   },
   "rich_content_production_acceptance_complete": true,
@@ -1074,5 +1101,10 @@
   "public_media_image_processing_complete": false,
   "public_media_physical_erasure_complete": false,
   "public_media_production_acceptance_complete": true,
-  "public_media_production_acceptance_scope": "actual79d28c6_image_migration55_active_private_withdrawn_raster_bytes_source_bound_ciphertexts_rights_and_review_status_CMS_publication_private_draft_cancelled_image_schedule_and_audit_exact_on_independent_restore_all18_browser_groups_no_republication_no_financial_change"
+  "public_media_production_acceptance_scope": "actual79d28c6_image_migration55_active_private_withdrawn_raster_bytes_source_bound_ciphertexts_rights_and_review_status_CMS_publication_private_draft_cancelled_image_schedule_and_audit_exact_on_independent_restore_all18_browser_groups_no_republication_no_financial_change",
+  "public_coach_photos_scope": "private_owner_upload_canonical_bounded_RGB_PNG_local_JPEG_PNG_resize_no_extra_metadata_selected_photo_bound_to_frozen_owner_consent_and_admin_review_current_parent_and_owner_checks_at_receive_terminal_withdrawal_retains_prepared_file_crypto_consent_and_history",
+  "coach_profile_photo_lifetime_limit": 20,
+  "coach_profile_photo_antivirus_scanning_complete": false,
+  "coach_profile_photo_physical_erasure_complete": false,
+  "coach_profile_photo_production_acceptance_complete": false
 }

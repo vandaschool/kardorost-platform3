@@ -35,6 +35,7 @@ const group = (label, icon, items) => ({ label, icon, items });
 const accountItems = [
     ["پروفایل و امنیت", "UserRound", "/account"],
     ["ضمیمه‌های من", "FileText", "/discussion-attachments"],
+    ["عکس‌های پروفایل من", "UserRound", "/coach/profile-photos"],
     ["پرداخت‌ها و اقساط", "ReceiptText", "/finance"],
     ["امتیاز و نشان یادگیری", "Sparkles", "/learning-rewards"],
     ["بازپرداخت‌ها", "ReceiptText", "/refunds"],

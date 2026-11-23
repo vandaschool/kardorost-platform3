@@ -62,17 +62,11 @@ class ContentMediaLibrary
     {
         $this->admin($actor);
         $data = Validator::make($input, ['title' => 'required|string|max:160', 'rights_confirmed' => 'required|accepted', 'request_key' => 'required|uuid'])->validate();
-        Validator::make(['file' => $file], ['file' => 'required|file|mimes:png,jpg,jpeg|extensions:png,jpg,jpeg|max:4096'])->validate();
-        $mime = $file->getMimeType();
-        $dimensions = @getimagesize($file->getRealPath());
-        if (! in_array($mime, ['image/png', 'image/jpeg'], true) || ! $dimensions || ($dimensions['mime'] ?? null) !== $mime || min($dimensions[0], $dimensions[1]) < 1 || max($dimensions[0], $dimensions[1]) > 6000 || $dimensions[0] * $dimensions[1] > 12000000) {
-            $this->fail('تصویر PNG یا JPEG تا ۶۰۰۰ پیکسل و ۱۲ میلیون پیکسل کل انتخاب کنید.', 'file');
+        $fileInfo = app(RasterImages::class)->describe($file);
+        if (trim($data['title']) === '') {
+            $this->fail('عنوان معتبر لازم است.', 'file');
         }
-        $name = preg_replace('/[\x00-\x1F\x7F]/u', '', basename(str_replace(chr(92), '/', $file->getClientOriginalName())));
-        if (! is_string($name) || $name === '' || mb_strlen($name) > 255 || trim($data['title']) === '') {
-            $this->fail('نام فایل و عنوان معتبر لازم است.', 'file');
-        }
-        $attributes = ['title' => trim($data['title']), 'file_name' => $name, 'mime' => $mime, 'size' => (int) $file->getSize(), 'sha256' => hash_file('sha256', $file->getRealPath()), 'width' => $dimensions[0], 'height' => $dimensions[1]];
+        $attributes = ['title' => trim($data['title']), ...$fileInfo];
         $path = null;
         try {
             return DB::transaction(function () use ($actor, $data, $attributes, $file, &$path): ContentMedia {
@@ -112,18 +106,8 @@ class ContentMediaLibrary
     {
         $m = $this->metadata($media);
         abort_unless($m, 404);
-        $stream = Storage::disk('learning')->readStream($media->file_path);
-        abort_unless(is_resource($stream), 404);
-        try {
-            $hash = hash_init('sha256');
-            $size = hash_update_stream($hash, $stream);
-            abort_unless($size === $m['size'] && hash_equals($m['sha256'], hash_final($hash)) && rewind($stream), 404);
 
-            return ['stream' => $stream, 'mime' => $m['mime'], 'name' => $media->public_key.($m['mime'] === 'image/png' ? '.png' : '.jpg')];
-        } catch (Throwable $e) {
-            fclose($stream);
-            throw $e;
-        }
+        return app(RasterImages::class)->open($media->file_path, $m, $media->public_key.($m['mime'] === 'image/png' ? '.png' : '.jpg'));
     }
 
     public function decide(User $actor, ContentMedia $input, int $revision, bool $publish, bool $reviewed): void

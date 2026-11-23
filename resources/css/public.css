@@ -536,3 +536,5 @@
 [data-content-image] figcaption { font-size: .9rem; color: var(--muted); margin-top: .6rem; }
 
 .public-heading h1 { overflow-wrap: anywhere; }
+
+.public-coach-photo{display:block;width:140px;height:140px;max-width:100%;object-fit:cover;border-radius:50%;margin-block:1rem;border:3px solid var(--teal);}

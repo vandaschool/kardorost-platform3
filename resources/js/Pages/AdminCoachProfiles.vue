@@ -1,4 +1,6 @@
 <script setup>
+import CoachProfilePhotoCard from "../Components/CoachProfilePhotoCard.vue";
+import { usePage } from "@inertiajs/vue3";
 import { watch } from "vue";
 import { Head, Link, router, useForm } from "@inertiajs/vue3";
 import Shell from "../Layouts/Shell.vue";
@@ -33,6 +35,7 @@ watch(
         withdraw.revision = revision;
     },
 );
+const page = usePage();
 </script>
 <template>
     <Head title="بررسی پروفایل مربیان" /><Shell
@@ -189,6 +192,19 @@ watch(
                     >بررسی و سوابق</Link
                 >
             </article>
-            <Pagination :links="profiles.links" /></section
+            <Pagination :links="profiles.links" />
+        </section>
+        <details
+            v-if="selected?.photos?.length"
+            class="glass panel-card consultation-section"
+            data-admin-profile-photos
+        >
+            <summary>عکس‌های صاحب این پروفایل</summary>
+            <CoachProfilePhotoCard
+                v-for="photo in selected.photos"
+                :key="photo.id"
+                :photo="photo"
+                :needs-reason="selected.owner.id !== page.props.auth.user.id"
+            /></details
     ></Shell>
 </template>

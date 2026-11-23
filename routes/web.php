@@ -10,6 +10,7 @@ use App\Http\Controllers\CareerController;
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\CoachCredentialController;
 use App\Http\Controllers\CoachProfileController;
+use App\Http\Controllers\CoachProfilePhotoController;
 use App\Http\Controllers\CommunicationController;
 use App\Http\Controllers\ConsultationController;
 use App\Http\Controllers\ConsultationGrantController;
@@ -61,6 +62,7 @@ Route::get('/journal', [PublicSiteController::class, 'journal'])->name('public.j
 Route::get('/journal/{slug}', [PublicSiteController::class, 'article'])->name('public.article');
 Route::get('/pages/{slug}', [PublicSiteController::class, 'page'])->name('public.page');
 Route::get('/media/{key}/{sha}', [ContentMediaController::class, 'publicFile'])->whereUuid('key')->where('sha', '[a-f0-9]{64}')->name('public.media');
+Route::get('/mentor-photos/{slug}/{key}/{sha}', [CoachProfilePhotoController::class, 'publicFile'])->whereUuid('slug')->whereUuid('key')->where('sha', '[a-f0-9]{64}')->middleware('throttle:120,1,mentor-photo-public:')->name('public.mentor-photo');
 Route::get('/sitemap.xml', [PublicSiteController::class, 'sitemap']);
 Route::get('/robots.txt', [PublicSiteController::class, 'robots']);
 Route::middleware('guest')->group(function () {
@@ -111,6 +113,10 @@ Route::middleware(['auth', 'account.active', 'auth.session'])->group(function ()
     Route::get('/support-files/{message}', [SupportController::class, 'file'])->name('support.file');
     Route::get('/reminders/{reminder}', [CommunicationController::class, 'open'])->name('reminders.open');
     Route::patch('/notification-preferences', [NotificationController::class, 'preferences'])->middleware('throttle:20,1');
+    Route::get('/coach/profile-photos', [CoachProfilePhotoController::class, 'index'])->name('coach.photos');
+    Route::post('/coach/profile-photos', [CoachProfilePhotoController::class, 'upload'])->middleware('throttle:10,1');
+    Route::post('/coach/profile-photos/{photo}/withdraw', [CoachProfilePhotoController::class, 'withdraw']);
+    Route::get('/coach/profile-photos/{key}/preview', [CoachProfilePhotoController::class, 'preview'])->whereUuid('key');
     Route::get('/coach/profile', [CoachProfileController::class, 'own'])->name('coach.profile');
     Route::post('/coach/profile', [CoachProfileController::class, 'save']);
     Route::post('/coach/profile/submit', [CoachProfileController::class, 'submit'])->middleware('throttle:10,1');
