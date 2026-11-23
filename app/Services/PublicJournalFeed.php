@@ -36,6 +36,8 @@ class PublicJournalFeed
                 if (! is_string($definition['title'] ?? null) || ! is_string($definition['excerpt'] ?? null) || ! mb_check_encoding($definition['title'].$definition['excerpt'], 'UTF-8')) {
                     continue;
                 }
+                app(ContentTags::class)->normalize($definition['tags'] ?? null);
+                app(ContentCategories::class)->normalize($definition['category'] ?? null);
                 $title = $this->xmlText($definition['title']);
                 if ($title === '' || strlen($publication->public_slug) > 80 || ! preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/D', $publication->public_slug)) {
                     continue;

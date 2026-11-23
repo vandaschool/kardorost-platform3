@@ -7,6 +7,7 @@ import { computed, ref } from "vue";
 import ContentDocumentPreview from "../Components/ContentDocumentPreview.vue";
 import ContentDocumentEditor from "../Components/ContentDocumentEditor.vue";
 import ContentRedirects from "../Components/ContentRedirects.vue";
+import ContentCategory from "../Components/ContentCategory.vue";
 import ContentTagsEditor from "../Components/ContentTagsEditor.vue";
 import ContentTagsPreview from "../Components/ContentTagsPreview.vue";
 import { documentFromText, documentText } from "../content-document";
@@ -171,6 +172,12 @@ function toggle() {
                     متن ساده نمایش داده می‌شود؛ کد HTML اجرا نمی‌شود. بین بندها
                     یک خط خالی بگذارید.
                 </p>
+                <ContentCategory
+                    v-if="page.kind === 'article'"
+                    v-model="draft.definition.category"
+                    editable
+                    :disabled="busy"
+                />
                 <ContentTagsEditor
                     v-if="page.kind === 'article'"
                     v-model="draft.definition.tags"
@@ -349,6 +356,7 @@ function toggle() {
                     نسخه عمومی حاصل: {{ fa(item.publication_number) }}
                 </p>
                 <h4>{{ item.definition.title }}</h4>
+                <ContentCategory :model-value="item.definition.category" />
                 <ContentTagsPreview :tags="item.definition.tags" />
                 <ContentDocumentPreview
                     v-if="item.definition.document"
@@ -375,6 +383,9 @@ function toggle() {
                 </summary>
                 <h3>{{ publication.definition.title }}</h3>
                 <p>{{ publication.definition.excerpt }}</p>
+                <ContentCategory
+                    :model-value="publication.definition.category"
+                />
                 <ContentTagsPreview :tags="publication.definition.tags" />
                 <ContentDocumentPreview
                     v-if="publication.definition.document"
