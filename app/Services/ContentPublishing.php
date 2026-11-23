@@ -41,8 +41,9 @@ class ContentPublishing
         $valid = Validator::make($input, ['title' => 'required|string|max:160', 'excerpt' => 'required|string|max:320', 'body' => 'required|string|max:60000', 'meta_description' => 'nullable|string|max:160'])->validate();
         $tags = app(ContentTags::class)->normalize($input['tags'] ?? null);
         $category = app(ContentCategories::class)->normalize($input['category'] ?? null);
+        $byline = app(ContentBylines::class)->normalize($input['byline'] ?? null);
 
-        return [...['title' => trim($valid['title']), 'excerpt' => trim($valid['excerpt']), 'body' => trim($valid['body']), 'meta_description' => trim($valid['meta_description'] ?? '')], ...($document ? ['document' => $document] : []), ...($tags ? ['tags' => $tags] : []), ...($category !== null ? ['category' => $category] : [])];
+        return [...['title' => trim($valid['title']), 'excerpt' => trim($valid['excerpt']), 'body' => trim($valid['body']), 'meta_description' => trim($valid['meta_description'] ?? '')], ...($document ? ['document' => $document] : []), ...($tags ? ['tags' => $tags] : []), ...($category !== null ? ['category' => $category] : []), ...($byline !== null ? ['byline' => $byline] : [])];
     }
 
     public function create(User $actor, string $kind, string $slug, array $definition): ContentPage
@@ -156,6 +157,7 @@ class ContentPublishing
             }
             app(ContentTags::class)->normalize($definition['tags'] ?? null);
             app(ContentCategories::class)->normalize($definition['category'] ?? null);
+            app(ContentBylines::class)->normalize($definition['byline'] ?? null);
 
             return $definition;
         } catch (\Throwable) {

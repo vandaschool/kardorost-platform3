@@ -38,6 +38,7 @@ class PublicJournalFeed
                 }
                 app(ContentTags::class)->normalize($definition['tags'] ?? null);
                 app(ContentCategories::class)->normalize($definition['category'] ?? null);
+                app(ContentBylines::class)->normalize($definition['byline'] ?? null);
                 $title = $this->xmlText($definition['title']);
                 if ($title === '' || strlen($publication->public_slug) > 80 || ! preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/D', $publication->public_slug)) {
                     continue;
