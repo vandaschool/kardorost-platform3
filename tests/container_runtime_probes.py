@@ -274,3 +274,12 @@ $state['published_links']=$publicLinks;$state['private_links']=$privateLinks;
 $state['fixture_complete']=$state['fixture_complete']&&$p->publications()->count()===3&&$p->submissions()->count()===3&&array_column($publicLinks,'url')===['https://example.test/coach-links82/public','https://example.test/coach-links82/literal?x=1&y=2']&&array_column($privateLinks,'url')===['https://example.test/coach-links82/private'];
 echo json_encode($state,JSON_THROW_ON_ERROR);
 """
+
+
+JOURNAL_RSS_FIXTURE_STATE = r"""require 'vendor/autoload.php';$app=require 'bootstrap/app.php';$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+if(!app()->environment('production')||config('app.debug')||\App\Models\User::count()!==4||\App\Models\User::where('name','like','بررسی کانتینر %')->count()!==4){throw new RuntimeException('Owned four-user production RSS fixture only.');}
+if(\App\Models\ContentPage::count()!==2||\App\Models\ContentPage::whereNotIn('slug',['software-rich-content76','software-media78'])->exists()){throw new RuntimeException('Preserve unrelated journal content.');}
+$entries=app(\App\Services\PublicJournalFeed::class)->entries();$base=rtrim(config('app.url'),'/');$urls=array_column($entries,'url');sort($urls,SORT_STRING);$expected=[$base.'/journal/software-media78',$base.'/journal/software-rich-content76'];sort($expected,SORT_STRING);
+$xml=view('public.journal-feed',['entries'=>$entries,'base'=>$base])->render();$items=array_map(fn($e)=>['title'=>$e['title'],'description'=>htmlspecialchars_decode($e['description_html'],ENT_QUOTES),'url'=>$e['url'],'guid'=>$e['url']],$entries);
+echo json_encode(['entries'=>$entries,'browser_items'=>$items,'xml_hash'=>hash('sha256',$xml),'fixture_complete'=>count($entries)===2&&$urls===$expected&&!str_contains($xml,'تیتر خصوصی پایانی۷۶')&&!str_contains($xml,'شرح خصوصی پایانی۷۸')],JSON_THROW_ON_ERROR);
+"""
