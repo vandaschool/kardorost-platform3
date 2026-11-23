@@ -59,6 +59,7 @@ Route::get('/mentors/{slug}', [PublicSiteController::class, 'mentor'])->whereUui
 Route::get('/catalog', [PublicSiteController::class, 'catalog'])->name('public.catalog');
 Route::get('/catalog/{slug}', [PublicSiteController::class, 'course'])->name('public.course');
 Route::get('/journal', [PublicSiteController::class, 'journal'])->name('public.journal');
+Route::get('/journal/feed.xml', [PublicSiteController::class, 'journalFeed'])->middleware('throttle:60,1,public-journal-feed:')->name('public.journal-feed');
 Route::get('/journal/{slug}', [PublicSiteController::class, 'article'])->name('public.article');
 Route::get('/pages/{slug}', [PublicSiteController::class, 'page'])->name('public.page');
 Route::get('/media/{key}/{sha}', [ContentMediaController::class, 'publicFile'])->whereUuid('key')->where('sha', '[a-f0-9]{64}')->name('public.media');

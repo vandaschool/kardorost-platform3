@@ -131,7 +131,7 @@ class ContentPublishing
         $this->admin($actor);
     }
 
-    private function hash(array $definition): string
+    public function hash(array $definition): string
     {
         return hash('sha256', json_encode($definition, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
     }
