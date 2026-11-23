@@ -73,7 +73,14 @@ target = recovery.Composition(destination)
 assert target.config['name'] == source.config['name']
 assert target.settings == source.settings and target.key_hash == source.key_hash
 assert target.config['volumes'] == source.config['volumes']
-run(target, ['up', '-d', '--no-build', '--wait', '--wait-timeout', '120', 'app'])
+# An identical PostgreSQL image under a new validation tag needs no replacement.
+# Keep the healthy database container when its immutable image ID already matches.
+postgres_container = run(source, ['ps', '-q', 'postgres']).strip()
+postgres_running_image = source.docker(['inspect', '--format', '{{.Image}}', postgres_container]).strip()
+postgres_target_image = target.docker(['image', 'inspect', '--format', '{{.Id}}', target.config['services']['postgres']['image']]).strip()
+postgres_retained_identical_image = postgres_running_image == postgres_target_image
+app_dependencies = ['--no-deps'] if postgres_retained_identical_image else []
+run(target, ['up', '-d', '--no-build', *app_dependencies, '--wait', '--wait-timeout', '120', 'app'])
 run(target, ['exec', '-T', 'app', 'php', 'artisan', 'migrate', '--force', '--no-interaction'])
 after = json.loads(run(target, ['exec', '-T', 'app', 'php', '-r', probe]))
 assert {k: v for k, v in after.items() if k != 'migration_count'} == {k: v for k, v in before.items() if k != 'migration_count'}
@@ -109,9 +116,10 @@ if os.environ.get('CONTAINER_EXPECT_DISCUSSION_AUTH') == '1':
 if os.environ.get('CONTAINER_EXPECT_COACH_PHOTO_AUTH') == '1':
     assert run(target, ['exec', '-T', 'app', 'php', '-r', CURRENT_COACH_PHOTO_AUTHORIZATION]).strip() == 'TWENTY_FIVE_PRODUCTION_COACH_PHOTO_REFUSALS_FOUR_VALIDATIONS_PRIVATE_BYTES_CONSENT_AND_ROWS_ROLLED_BACK'
 
-run(target, ['up', '-d', '--no-build', '--wait', '--wait-timeout', '120', 'web', 'worker-default', 'worker-sms', 'scheduler'])
+run(target, ['up', '-d', '--no-build', '--no-deps', '--wait', '--wait-timeout', '120', 'web', 'worker-default', 'worker-sms', 'scheduler'])
 assert target.running() == {'postgres', 'app', 'web', 'worker-default', 'worker-sms', 'scheduler'}
 report = {'result': 'passed', 'scope': 'owned_loopback_four_synthetic_users_same_project_volumes_and_keys', 'before_migrations': before['migration_count'], 'upgrade_kind': 'schema_and_code' if after['migration_count'] > before['migration_count'] else 'code_only', 'after_migrations': after['migration_count'], 'tracked_source_files_matched': len(files), 'checks': ['existing_encrypted_lead_ciphertext_and_plaintext_preserved', 'existing_private_support_file_hash_preserved', 'all_pending_migrations_applied_without_reseeding', 'exact_checked_out_application_source_in_non_development_image', 'encrypted_coach_credential_and_original_private_file_checked', 'owner_consented_source_bound_resume_share_checked', 'six_services_started_with_external_effects_disabled']}
+report['postgres_identical_image_container_retained'] = postgres_retained_identical_image
 report['latest_fixture_mode'] = 'retained' if os.environ.get('CONTAINER_UPGRADE_REUSE_LATEST_FIXTURES') == '1' else 'created'
 if os.environ.get('CONTAINER_EXPECT_CURRENT_CONSULTATION_AUTH') == '1':
     report['checks'].append('nine_current_actor_production_authorization_refusals_all_fixture_rows_rolled_back')

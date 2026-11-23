@@ -1,5 +1,5 @@
 {
-  "phase": "reviewed-owner-consented-coach-public-links",
+  "phase": "reviewed-coach-links-container-upgrade-and-independent-recovery",
   "completed": [
     "phone-verification",
     "password-login",
@@ -439,7 +439,8 @@
     "public-media-container-acceptance",
     "owner-consented-coach-profile-photos",
     "coach-photo-container-acceptance",
-    "reviewed-owner-consented-coach-public-links"
+    "reviewed-owner-consented-coach-public-links",
+    "reviewed-coach-links-production-upgrade-independent-recovery"
   ],
   "tests": {
     "postgresql": {
@@ -544,6 +545,19 @@
       "passed": 10,
       "assertions": 49,
       "included_in_related_total": true
+    },
+    "coach_profile_links_acceptance_regression_phase82": {
+      "postgresql": {
+        "passed": 54,
+        "assertions": 153
+      },
+      "sqlite": {
+        "passed": 54,
+        "assertions": 153
+      },
+      "production_authorization_refusals": 115,
+      "production_specific_validations": 7,
+      "browser_groups": 24
     }
   },
   "browser_qa": true,
@@ -1073,7 +1087,7 @@
   "container_current_production_images_published": false,
   "implicit_action_rate_budgets_isolated": true,
   "implicit_action_rate_budgets_scope": "throttle_alias_numeric_or_unnamed_limits_without_explicit_prefix_normalized_route_template_and_declared_methods_no_query_or_record_id_variation_original_framework_identity_counts_durations_storage_named_limiters_and_explicit_shared_prefix_unchanged",
-  "container_acceptance_matches_current_application_code": false,
+  "container_acceptance_matches_current_application_code": true,
   "container_acceptance_pending_changes": "phase81_public_profile_links_in_progress_not_in_actual_dc272db_schema56_image",
   "persian_error_recovery_pages_complete": true,
   "persian_error_recovery_pages_scope": "403/404/405/419/429/500/503 HTML private no-store noindex no-referrer, minimal Inertia props without session/database shares, standalone inline CSS with no asset dependency, Retry-After/Allow/rate headers and HEAD preserved; API/JSON/validation/redirect/debug5xx contracts unchanged; fixed GET recovery without replay, history or reload",
@@ -1106,17 +1120,30 @@
   "discussion_attachment_production_acceptance_scope": "Guarded four-user production/debug-false image:27 refusal cases +3 specific validation guards, 90 total combined authorization refusals, opened private stream bytes and encrypted bound metadata, idempotent upload, current student/staff roles/eligibility/assignment, hidden content, byte/cipher substitution, active owner withdrawal after role loss, retained history/bytes, precise owned temporary-file cleanup after outer rollback; actual persistent software-only UI fixture with1active and1withdrawn PDF, exact cipher/consent/hash/enrollment/revision-history equality on independent restore, no financial rows changed and no republishing; four browser groups across pre-backup and restored workers stopped/running all12 pass",
   "public_rich_text_editor_scope": "typed_document_v1_heading_h2_h3_paragraph_bold_italic_lists_quote_divider_safe_web_internal_links_text_only_paste_escaped_static_public_and_history_rendering_http_run_whitespace_preserved_no_raw_HTML_execution_immutable_legacy_and_rich_publications_schedules; approved_library_images_and_text_only_drop",
   "current_work": {
-    "completed_phase": 81,
-    "phase80_pr": 76,
-    "phase80_merge": "14128193a5c41c71ce40e45fc6285b41e56e55eb",
-    "next_phase": 82,
-    "next_scope": "real_current_image_upgrade_and_independent_restore_for_reviewed_profile_links_preserving_all_existing_photo_CMS_discussion_credential_and_resume_fixtures",
-    "current_runtime_environment_private_path": "/tmp/kardorost-compose-restored-phase80.env",
-    "current_runtime_project": "kardorost-validation-restore-4f3d8eeb",
-    "native_fixture": "/tmp/kardorost-coach-links-browser.sqlite",
-    "native_port": 8040,
-    "native_final_state": "four_software_users_owner_coach_role_changed_to_student_three_frozen_publications_four_submissions_including_one_rejected_private_link_draft_public_profile_withdrawn_no_money_or_enrollment",
-    "resume": "phase81_both_databases107_471_and_photo_PG_races10_49_Pint_build_dates_native_initial_and_completed_replay_pass_prepare_PR_merge_then_phase82_use_proactive_low_space_serial_Docker_stages_flatten_PHP_base_early_extract_checked_compiled_contexts_and_cleanup_only_exact_owned_artifacts_before_runtime_start",
+    "completed_phase": 82,
+    "next_phase": 83,
+    "next_scope": "public_RSS_feed_for_published_journal_articles_only_no_drafts_schedules_or_external_fetch",
+    "current_runtime_environment_private_path": "/tmp/kardorost-compose-restored-phase82.env",
+    "restored_project": "kardorost-validation-restore-7d52d01f",
+    "source_environment_private_path": "/tmp/kardorost-compose-upgraded-phase82.env",
+    "source_project_stopped_volumes_retained": "kardorost-validation-restore-4f3d8eeb",
+    "retired_source_environment_do_not_start": "/tmp/kardorost-compose-restored-phase80.env",
+    "current_application_image_revision": "7e20926d54056dd0a26a6ae913c704aaa942f857",
+    "application_image_id": "sha256:dde5b9fe1bf90f393169fb1a9848ae6dd30c85b1fa343a146112115cfa17987f",
+    "web_image_id": "sha256:1b2f802f6541e31d4d716fb6f9f129b79710c2742187b3dddfd90aa2c691ef87",
+    "retained_recovery_snapshot_private_directory": "/tmp/kardorost-retained-recovery-phase82",
+    "old_image_cold_archives_private_directory": "/tmp/kardorost-retained-image-archives",
+    "cold_image_phases": [
+      38,
+      56,
+      57,
+      60,
+      63
+    ],
+    "cold_images_restore": "gzip_decompress_selected_phase_archive_to_docker_image_load_before_using_that_old_environment_or_snapshot; same IDs already roundtrip verified",
+    "native_test_postgresql": "restored and running 127.0.0.1:55432 kardorost_test; exact full cluster archive retained",
+    "node_dependencies": "restored from unchanged package-lock; native dates6/build passed",
+    "resume": "all phase82 checks passed; commit scoped tests/docs, PR and merge main, then phase83 RSS implementation; preserve all existing fixtures; pause/remove only owned workers without volumes if native work needs space",
     "lease_owner": "automation-20261116-resume-045432"
   },
   "rich_content_production_acceptance_complete": true,
@@ -1138,5 +1165,6 @@
   "coach_profile_photo_production_acceptance_scope": "actual_dc272db_PHP8.4.28_image_same_volume55to56_upgrade_529_exact_code_files_independent_4f3d8eeb_GPG_PG17_private_file_restore_exact_three_active_private_withdrawn_prepared_photos_source_bound_crypto_owner_consent_two_publications_private_draft_withdrawal_audit_and_financial_hashes_all21_browser_groups_without_reconsent_or_republication",
   "public_coach_profile_links_complete": true,
   "public_coach_profile_links_scope": "up_to5_labeled_absolute_HTTP_HTTPS_links_existing_safe_CMS_URL_rules_no_server_fetch_owner_saved_version_consent_admin_review_immutable_history_legacy_omission_hash_compatibility_plain_text_safe_new_tab_current_source_hash_guard",
-  "public_coach_profile_links_production_acceptance_complete": false
+  "public_coach_profile_links_production_acceptance_complete": true,
+  "public_coach_profile_links_production_acceptance_scope": "actual_7e20926_PHP8.4.28_images_56to56_code_only_upgrade_532_source_files_7d52d01f_independent_GPG_PG17_restore_five_exact_fixture_fingerprints_24_browser_groups_115_authorization_refusals_7_validations_same_three_photos_two_historical_publications_third_publication_only_adds_reviewed_links_private_draft_fields_retained"
 }
